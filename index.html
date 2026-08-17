@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#000000" />
+<title>Pool AR PAL</title>
+<style>
+  :root { --accent:#3a7bff; --accent2:#ff3df0; --good:#39ff88; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; height:100%; background:#000; color:#fff;
+    font-family:-apple-system,Roboto,Segoe UI,sans-serif; overflow:hidden; }
+  #stage { position:fixed; inset:0; }
+  video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  canvas#overlay { position:absolute; inset:0; width:100%; height:100%; touch-action:none; }
+  #hud { position:fixed; left:0; right:0; bottom:0; padding:10px 12px calc(10px + env(safe-area-inset-bottom));
+    display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+    background:linear-gradient(transparent,rgba(0,0,0,.65) 40%); }
+  button { background:#15171c; color:#fff; border:1px solid #2c2f37; border-radius:10px;
+    padding:10px 12px; font-size:14px; font-weight:600; }
+  button.on { background:var(--accent); border-color:var(--accent); }
+  button.warn { background:#3a1d1d; border-color:#7a2b2b; }
+  .pill { background:rgba(0,0,0,.55); border:1px solid #2c2f37; border-radius:10px; padding:6px 10px; font-size:12px; }
+  .row { display:flex; gap:8px; align-items:center; width:100%; }
+  .grow { flex:1; }
+  input[type=range] { width:100%; }
+  #banner { position:fixed; top:0; left:0; right:0; padding:8px 12px calc(8px + env(safe-area-inset-top));
+    background:rgba(0,0,0,.55); font-size:13px; text-align:center; }
+  #start { position:fixed; inset:0; display:flex; flex-direction:column; gap:16px;
+    align-items:center; justify-content:center; background:#000; z-index:30; text-align:center; padding:24px; }
+  #start h1 { margin:0; font-size:22px; } #start p { margin:0; color:#9aa0ab; max-width:340px; font-size:14px; }
+  #start button { font-size:18px; padding:14px 26px; background:var(--accent); border-color:var(--accent); }
+  .hide { display:none !important; }
+  .sub { font-size:11px; color:#9aa0ab; }
+  .tag { font-size:11px; padding:2px 8px; border-radius:20px; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <video id="video" playsinline muted></video>
+  <canvas id="overlay"></canvas>
+</div>
+
+<div id="banner">Loading vision engine…</div>
+
+<div id="hud" class="hide">
+  <div class="row">
+    <button id="btnCal">1 · Calibrate corners</button>
+    <button id="btnCue">2 · Set cue ball</button>
+    <span class="pill" id="status">Aim: drag on table</span>
+  </div>
+  <div class="row">
+    <button id="btnDetect" class="on">Auto-detect ⟳</button>
+    <button id="btnBank" class="on">Banks</button>
+    <button id="btnFreeze">Freeze</button>
+    <select id="tableSize" class="pill" style="color:#fff;background:#15171c">
+      <option value="2240">8 ft</option>
+      <option value="2540">9 ft</option>
+      <option value="1980">7 ft</option>
+    </select>
+    <button id="btnReset" class="warn">Reset</button>
+  </div>
+  <div class="row">
+    <span class="sub">Line color</span>
+    <button class="colorBtn on" data-c="#3a7bff">Blue</button>
+    <button class="colorBtn" data-c="#9b5cff">Violet</button>
+    <button class="colorBtn" data-c="#ff3df0">Magenta</button>
+    <span class="grow"></span>
+    <span class="sub" id="fps">– fps</span>
+  </div>
+  <div class="row">
+    <span class="sub" style="min-width:62px">Sensitivity</span>
+    <input type="range" id="sens" min="10" max="80" value="34" />
+  </div>
+  <div class="row">
+    <span class="sub" style="min-width:62px">Ball size</span>
+    <input type="range" id="ballsz" min="60" max="160" value="100" />
+  </div>
+</div>
+
+<div id="start">
+  <h1>🎱 Pool AR PAL</h1>
+  <p>Point the Beam Pro's rear camera at your table. Cast this screen to your XREAL glasses, then tap start and grant camera access.</p>
+  <button id="go">Start camera</button>
+  <p class="sub">Tip: mount the Beam Pro so it sees the whole table. Then 1) calibrate the 4 inner corners, 2) set the cue ball, 3) drag on the table to aim.</p>
+</div>
+
+<script async src="https://docs.opencv.org/4.10.0/opencv.js" onload="onCvLoad()" onerror="cvError()"></script>
+<script>
+/* ---------- Pool AR PAL · v1 MVP ----------
+   Self-contained AR pool aim assistant for XREAL Beam Pro (Android/Chrome).
+   Detects balls with OpenCV.js, computes ghost-ball + cushion + pocket geometry,
+   draws the overlay on the live camera feed. */
+
+const video   = document.getElementById('video');
+const overlay = document.getElementById('overlay');
+const octx    = overlay.getContext('2d');
+const banner  = document.getElementById('banner');
+const hud      = document.getElementById('hud');
+const statusEl = document.getElementById('status');
+const fpsEl    = document.getElementById('fps');
+
+let cvReady = false, streaming = false;
+let mode = 'aim';                 // 'aim' | 'calibrate' | 'pickcue'
+let corners = [];                // calibrated table quad in DISPLAY coords (TL,TR,BR,BL)
+let balls = [];                  // detected balls in DISPLAY coords: {x,y,r,white}
+let cueBall = null;              // chosen cue ball {x,y,r}
+let aimPt = null;                // display coords the user is aiming toward
+let autoDetect = true, showBanks = true, frozen = false;
+let lineColor = '#3a7bff';
+let tableWidthMM = 2240, ballMM = 57;
+let lastDetect = 0, fps = 0, lastFrame = performance.now();
+
+/* ---------- camera ---------- */
+async function startCamera(){
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio:false,
+      video:{ facingMode:{ ideal:'environment' }, width:{ideal:1280}, height:{ideal:720} }
+    });
+    video.srcObject = stream;
+    await video.play();
+    streaming = true;
+    document.getElementById('start').classList.add('hide');
+    hud.classList.remove('hide');
+    resize();
+    requestAnimationFrame(loop);
+  }catch(e){
+    banner.textContent = 'Camera blocked. This page must be served over HTTPS, and you must allow camera access. ('+e.name+')';
+  }
+}
+
+function resize(){
+  overlay.width  = overlay.clientWidth  * devicePixelRatio;
+  overlay.height = overlay.clientHeight * devicePixelRatio;
+}
+addEventListener('resize', resize);
+
+/* ---------- OpenCV bootstrap ---------- */
+function onCvLoad(){
+  if (typeof cv === 'undefined'){ return; }
+  if (cv instanceof Promise){ cv.then(m=>{ window.cv=m; markReady(); }); }
+  else if (cv.getBuildInformation){ markReady(); }
+  else { cv['onRuntimeInitialized'] = markReady; }
+}
+function markReady(){ cvReady = true; banner.textContent = 'Vision engine ready. Tap Start.'; setTimeout(()=>banner.classList.add('hide'), 1500); }
+function cvError(){ cvReady=false; banner.textContent='Could not load vision engine (no internet?). Manual mode still works.'; }
+
+/* ---------- coordinate transform: proc(small) <-> display ---------- */
+let proc = document.createElement('canvas');
+let pctx = proc.getContext('2d', { willReadFrequently:true });
+const PROC_W = 480;
+let tf = { k:1, ox:0, oy:0, ratio:1 }; // detX*k+ox => displayX
+
+function computeTransform(){
+  const vw = video.videoWidth, vh = video.videoHeight;
+  if (!vw) return false;
+  const dw = overlay.width, dh = overlay.height;
+  const scale = Math.max(dw/vw, dh/vh);           // object-fit: cover
+  const drawW = vw*scale, drawH = vh*scale;
+  const ox = (dw-drawW)/2, oy = (dh-drawH)/2;
+  const ratio = PROC_W / vw;                       // intrinsic -> proc
+  proc.width = PROC_W; proc.height = Math.round(vh*ratio);
+  tf = { k: scale/ratio, ox, oy, ratio };
+  return true;
+}
+const p2d = (x,y)=>({ x:x*tf.k+tf.ox, y:y*tf.k+tf.oy });
+const d2p = (x,y)=>({ x:(x-tf.ox)/tf.k, y:(y-tf.oy)/tf.k });
+
+/* ---------- detection ---------- */
+function expectedBallRadiusDisplay(){
+  // derive ball px size from calibrated table width if available
+  if (corners.length===4){
+    const w = Math.hypot(corners[1].x-corners[0].x, corners[1].y-corners[0].y);
+    return (ballMM/2 / tableWidthMM) * w * (parseInt(ballSlider.value)/100);
+  }
+  return 16*devicePixelRatio * (parseInt(ballSlider.value)/100);
+}
+
+function detect(){
+  if (!cvReady || !computeTransform()) return;
+  pctx.drawImage(video, 0,0, proc.width, proc.height);
+  let src = cv.imread(proc), gray = new cv.Mat(), circles = new cv.Mat();
+  cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+  cv.medianBlur(gray, gray, 5);
+  const rDisp = expectedBallRadiusDisplay();
+  const rProc = Math.max(6, rDisp / tf.k);
+  const sens  = parseInt(sensSlider.value);
+  try{
+    cv.HoughCircles(gray, circles, cv.HOUGH_GRADIENT, 1,
+      rProc*1.4, 120, sens, Math.round(rProc*0.6), Math.round(rProc*1.5));
+  }catch(e){}
+  const img = pctx.getImageData(0,0,proc.width,proc.height).data;
+  const found = [];
+  for (let i=0;i<circles.cols;i++){
+    const x=circles.data32F[i*3], y=circles.data32F[i*3+1], r=circles.data32F[i*3+2];
+    const idx = (Math.round(y)*proc.width + Math.round(x))*4;
+    const R=img[idx],G=img[idx+1],B=img[idx+2];
+    const bright=(R+G+B)/3, mx=Math.max(R,G,B), mn=Math.min(R,G,B);
+    const sat = mx? (mx-mn)/mx : 0;
+    const d = p2d(x,y);
+    found.push({ x:d.x, y:d.y, r:r*tf.k, white: bright>150 && sat<0.25 });
+  }
+  balls = found;
+  // auto-pick cue ball = whitest if user hasn't locked one
+  if (!cueLocked){
+    const whites = balls.filter(b=>b.white).sort((a,b)=>b.r-a.r);
+    if (whites.length) cueBall = whites[0];
+    else if (balls.length) cueBall = balls.reduce((a,b)=>b.r>a.r?b:a);
+  } else if (cueBall){
+    // track locked cue ball to nearest detection
+    let best=null,bd=1e9; for (const b of balls){const dd=Math.hypot(b.x-cueBall.x,b.y-cueBall.y); if(dd<bd){bd=dd;best=b;}}
+    if (best && bd < cueBall.r*3) cueBall = {...best};
+  }
+  src.delete(); gray.delete(); circles.delete();
+}
+let cueLocked=false;
+
+/* ---------- geometry / physics ---------- */
+const sub=(a,b)=>({x:a.x-b.x,y:a.y-b.y});
+const add=(a,b)=>({x:a.x+b.x,y:a.y+b.y});
+const mul=(a,s)=>({x:a.x*s,y:a.y*s});
+const dot=(a,b)=>a.x*b.x+a.y*b.y;
+const len=a=>Math.hypot(a.x,a.y);
+const norm=a=>{const l=len(a)||1;return{x:a.x/l,y:a.y/l};};
+
+function pockets(){
+  if (corners.length!==4) return [];
+  const [TL,TR,BR,BL]=corners;
+  const mid=(a,b)=>({x:(a.x+b.x)/2,y:(a.y+b.y)/2});
+  // long rails get the middle pockets
+  const top=len(sub(TR,TL)), left=len(sub(BL,TL));
+  const ps=[TL,TR,BR,BL];
+  if (top>=left){ ps.push(mid(TL,TR)); ps.push(mid(BL,BR)); }
+  else { ps.push(mid(TL,BL)); ps.push(mid(TR,BR)); }
+  return ps;
+}
+
+function rayEdge(p,d){ // nearest intersection of ray p+t d with quad edges
+  if (corners.length!==4) return null;
+  let best=null,bt=1e9,bn=null;
+  for(let i=0;i<4;i++){
+    const a=corners[i], b=corners[(i+1)%4];
+    const e=sub(b,a);
+    const den=d.x*(-e.y)+d.y*(e.x);
+    if(Math.abs(den)<1e-6)continue;
+    const diff=sub(a,p);
+    const t=(diff.x*(-e.y)+diff.y*(e.x))/den;
+    const u=(d.x*diff.y - d.y*diff.x)/(-den);
+    if(t>0.5 && u>=-0.001 && u<=1.001 && t<bt){ bt=t; best=add(p,mul(d,t)); bn=norm({x:-e.y,y:e.x}); }
+  }
+  return best?{pt:best,n:bn,t:bt}:null;
+}
+
+function nearPocket(p){ for(const k of pockets()){ if(len(sub(p,k)) < (cueBall?cueBall.r*1.6:20)) return k; } return null; }
+
+function firstBallHit(c,d){ // cue center c, dir d -> first object ball collided
+  let best=null,bt=1e9;
+  const R = cueBall? cueBall.r : 14;
+  for(const o of balls){
+    if(cueBall && Math.hypot(o.x-cueBall.x,o.y-cueBall.y)<R*0.8) continue; // skip cue itself
+    const oc=sub(o,c); const a=dot(oc,d);
+    if(a<=0) continue;
+    const closest2=dot(oc,oc)-a*a;
+    const sum=R+o.r;
+    if(closest2> sum*sum) continue;
+    const t=a-Math.sqrt(sum*sum-closest2);
+    if(t<bt){ bt=t; best={o,t,P:add(c,mul(d,t))}; }
+  }
+  return best;
+}
+
+/* ---------- draw ---------- */
+function halo(draw){ // dark outline then bright stroke = pops on light/yellow felt
+  octx.save(); octx.lineCap='round'; octx.strokeStyle='rgba(0,0,0,.55)';
+  octx.lineWidth=8*devicePixelRatio; draw(); octx.restore();
+  octx.save(); octx.lineCap='round'; octx.strokeStyle=lineColor;
+  octx.lineWidth=3.2*devicePixelRatio; octx.shadowColor=lineColor; octx.shadowBlur=8; draw(); octx.restore();
+}
+function line(a,b){ halo(()=>{octx.beginPath();octx.moveTo(a.x,a.y);octx.lineTo(b.x,b.y);octx.stroke();}); }
+function ring(p,r,col){ octx.save(); octx.strokeStyle=col||lineColor; octx.lineWidth=3*devicePixelRatio;
+  octx.shadowColor=col||lineColor; octx.shadowBlur=10; octx.beginPath(); octx.arc(p.x,p.y,r,0,7); octx.stroke(); octx.restore(); }
+
+function pathWithBank(start,dir,maxSeg){
+  let p=start, d=norm(dir), segs=[];
+  for(let i=0;i<maxSeg;i++){
+    const pk=nearPocket(add(p,mul(d,4)));
+    const hit=rayEdge(p,d);
+    if(pk){ segs.push([p,pk,true]); break; }
+    if(!hit){ segs.push([p,add(p,mul(d,2000)),false]); break; }
+    // pocket between p and cushion?
+    let madePocket=null;
+    for(const k of pockets()){ const tk=dot(sub(k,p),d); if(tk>0 && tk<hit.t){ const perp=len(sub(add(p,mul(d,tk)),k)); if(perp<(cueBall?cueBall.r*1.3:16)) madePocket=k; } }
+    if(madePocket){ segs.push([p,madePocket,true]); break; }
+    segs.push([p,hit.pt,false]);
+    if(!showBanks) break;
+    d = norm(sub(d, mul(hit.n, 2*dot(d,hit.n)))); // reflect
+    p = add(hit.pt, mul(d,0.5));
+  }
+  return segs;
+}
+
+function render(){
+  octx.clearRect(0,0,overlay.width,overlay.height);
+
+  // calibrated table outline + pockets
+  if(corners.length){
+    octx.save(); octx.strokeStyle='rgba(255,255,255,.5)'; octx.lineWidth=2*devicePixelRatio;
+    octx.beginPath(); corners.forEach((c,i)=> i?octx.lineTo(c.x,c.y):octx.moveTo(c.x,c.y));
+    if(corners.length===4) octx.closePath(); octx.stroke();
+    corners.forEach((c,i)=>{ octx.fillStyle='#fff'; octx.beginPath(); octx.arc(c.x,c.y,5*devicePixelRatio,0,7); octx.fill(); });
+    octx.restore();
+    if(corners.length===4) for(const k of pockets()){ octx.save(); octx.fillStyle='rgba(0,0,0,.45)'; octx.beginPath(); octx.arc(k.x,k.y,(cueBall?cueBall.r:14)*1.2,0,7); octx.fill(); octx.restore(); }
+  }
+
+  // detected balls
+  for(const b of balls){ octx.save(); octx.strokeStyle = b===cueBall?'#fff':'rgba(255,255,255,.35)';
+    octx.lineWidth=(b===cueBall?3:1.5)*devicePixelRatio; octx.beginPath(); octx.arc(b.x,b.y,b.r,0,7); octx.stroke(); octx.restore(); }
+
+  // aim solution
+  if(cueBall && aimPt){
+    const d = norm(sub(aimPt, cueBall));
+    const hit = firstBallHit(cueBall, d);
+    if(hit){
+      line(cueBall, hit.P);                          // cue travel to contact
+      ring(hit.P, cueBall.r, '#ffffff');             // ghost ball
+      const objDir = norm(sub(hit.o, hit.P));
+      for(const [a,b,pocket] of pathWithBank(hit.o, objDir, 4)){ line(a,b); if(pocket) ring(b, (cueBall.r)*1.4, '#39ff88'); }
+      // cue tangent deflection (short)
+      const n=objDir; const cueDir=norm(sub(d, mul(n, dot(d,n))));
+      line(hit.P, add(hit.P, mul(cueDir, cueBall.r*4)));
+      statusEl.textContent = nearPocketOnPath(hit.o,objDir)? 'Makeable ✅' : 'On target';
+    } else {
+      for(const [a,b,pocket] of pathWithBank(cueBall, d, 4)){ line(a,b); if(pocket) ring(b,(cueBall.r)*1.4,'#39ff88'); }
+      statusEl.textContent = 'No ball in line';
+    }
+  }
+}
+function nearPocketOnPath(o,dir){ for(const [a,b,pk] of pathWithBank(o,norm(dir),4)) if(pk) return true; return false; }
+
+/* ---------- main loop ---------- */
+function loop(){
+  if(!streaming){ return; }
+  const now=performance.now(); const dt=now-lastFrame; lastFrame=now; fps=fps*0.9+ (1000/Math.max(dt,1))*0.1; fpsEl.textContent=fps.toFixed(0)+' fps';
+  if(autoDetect && !frozen && cvReady && now-lastDetect>120){ try{ detect(); }catch(e){} lastDetect=now; }
+  render();
+  requestAnimationFrame(loop);
+}
+
+/* ---------- input ---------- */
+function evtPos(e){ const r=overlay.getBoundingClientRect(); const t=e.touches?e.touches[0]:e;
+  return { x:(t.clientX-r.left)*devicePixelRatio, y:(t.clientY-r.top)*devicePixelRatio }; }
+
+function onDown(e){ e.preventDefault(); const p=evtPos(e);
+  if(mode==='calibrate'){ corners.push(p); if(corners.length>=4){ corners=corners.slice(0,4); mode='aim'; setStatus('Calibrated. Drag to aim.'); btnCal.classList.remove('on'); } return; }
+  if(mode==='pickcue'){ let best=null,bd=1e9; for(const b of balls){const dd=Math.hypot(b.x-p.x,b.y-p.y); if(dd<bd){bd=dd;best=b;}} if(best){cueBall={...best}; cueLocked=true;} mode='aim'; btnCue.classList.remove('on'); setStatus('Cue locked. Drag to aim.'); return; }
+  aimPt=p; if(!cueBall){ /* allow tap to place cue if none */ } }
+function onMove(e){ if(mode!=='aim')return; e.preventDefault(); aimPt=evtPos(e); }
+overlay.addEventListener('touchstart',onDown,{passive:false});
+overlay.addEventListener('touchmove',onMove,{passive:false});
+overlay.addEventListener('mousedown',onDown);
+overlay.addEventListener('mousemove',e=>{ if(e.buttons) onMove(e); });
+
+/* ---------- UI ---------- */
+function setStatus(t){ statusEl.textContent=t; }
+const btnCal=document.getElementById('btnCal'), btnCue=document.getElementById('btnCue');
+const sensSlider=document.getElementById('sens'), ballSlider=document.getElementById('ballsz');
+btnCal.onclick=()=>{ mode='calibrate'; corners=[]; btnCal.classList.add('on'); btnCue.classList.remove('on'); setStatus('Tap the 4 inner corners: TL → TR → BR → BL'); };
+btnCue.onclick=()=>{ mode='pickcue'; btnCue.classList.add('on'); btnCal.classList.remove('on'); setStatus('Tap the cue ball'); };
+document.getElementById('btnDetect').onclick=function(){ autoDetect=!autoDetect; this.classList.toggle('on',autoDetect); };
+document.getElementById('btnBank').onclick=function(){ showBanks=!showBanks; this.classList.toggle('on',showBanks); };
+document.getElementById('btnFreeze').onclick=function(){ frozen=!frozen; this.classList.toggle('on',frozen); this.textContent=frozen?'Frozen':'Freeze'; };
+document.getElementById('btnReset').onclick=()=>{ corners=[]; balls=[]; cueBall=null; cueLocked=false; aimPt=null; mode='aim'; setStatus('Reset. Calibrate corners.'); };
+document.getElementById('tableSize').onchange=function(){ tableWidthMM=parseInt(this.value); };
+document.querySelectorAll('.colorBtn').forEach(b=> b.onclick=function(){ lineColor=this.dataset.c; document.querySelectorAll('.colorBtn').forEach(x=>x.classList.remove('on')); this.classList.add('on'); });
+document.getElementById('go').onclick=startCamera;
+</script>
+</body>
+</html>
