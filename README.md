@@ -1,5 +1,9 @@
 # 🎱 Pool AR PAL — XREAL Beam Pro MVP
 
+> **Live:** https://autom8agent.github.io/poolar/ — open this on the Beam Pro.
+> Hosted on GitHub Pages over HTTPS, which is what unlocks camera access.
+> Push to `main` and the live site updates in ~20 seconds.
+
 An augmented-reality pool aim assistant that runs in the browser on your **XREAL Beam Pro**
 and is viewed through your **XREAL glasses**. It uses the Beam Pro's rear camera + OpenCV.js
 to detect balls and the table, then overlays:
@@ -18,29 +22,18 @@ on yellow felt — with a dark halo so they read against any cloth.
 ## ⚡ The one gotcha: the camera needs HTTPS
 
 Android Chrome only grants camera access on `https://` or `localhost`. Opening the file
-directly (`file://…`) will **not** work. Pick one of these:
+directly (`file://…`) will **not** work — this is why the app is hosted rather than
+side-loaded. The live URL above already satisfies this.
 
-### Option A — Free static host (recommended, ~3 min)
-1. Go to a drag-and-drop static host (e.g. **Cloudflare Pages**, **Netlify**, **GitHub Pages**, or **tiiny.host**).
-2. Upload `index.html`.
-3. Open the resulting `https://…` URL **in the Beam Pro's browser**.
+<details>
+<summary>Running it somewhere else instead</summary>
 
-### Option B — Tunnel from this Mac
-From this folder, run a local server and expose it over HTTPS:
-```bash
-# serve locally
-python3 -m http.server 8080
-# in another terminal, tunnel it (one of these):
-npx localtunnel --port 8080      # gives an https URL
-# or:  cloudflared tunnel --url http://localhost:8080
-```
-Open the printed `https://…` URL on the Beam Pro.
+- **Vercel** — import this repo at vercel.com/new, or `vercel login && vercel --prod`.
+- **Netlify / Cloudflare Pages** — drag this folder onto their drop zone.
+- **Local testing** — `python3 -m http.server 8080` then `npx localtunnel --port 8080`
+  for a temporary HTTPS URL. Requires the host machine to stay awake.
 
-### Option C — On-device server
-Install a "Simple HTTP Server" app or Termux on the Beam Pro and serve the folder, then open
-`http://localhost:8080` (localhost is exempt from the HTTPS rule).
-
----
+</details>
 
 ## 🎮 How to use
 
