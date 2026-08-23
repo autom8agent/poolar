@@ -21,7 +21,7 @@
   button.on { background:var(--accent); border-color:var(--accent); }
   button.warn { background:#3a1d1d; border-color:#7a2b2b; }
   .pill { background:rgba(0,0,0,.55); border:1px solid #2c2f37; border-radius:10px; padding:6px 10px; font-size:12px; }
-  .row { display:flex; gap:8px; align-items:center; width:100%; }
+  .row { display:flex; gap:8px; align-items:center; width:100%; flex-wrap:wrap; }
   .grow { flex:1; }
   input[type=range] { width:100%; }
   #banner { position:fixed; top:0; left:0; right:0; padding:8px 12px calc(8px + env(safe-area-inset-top));
@@ -47,12 +47,14 @@
   <div class="row">
     <button id="btnCal">1 · Calibrate corners</button>
     <button id="btnCue">2 · Set cue ball</button>
+    <button id="btnTgt">3 · Target ball</button>
     <span class="pill" id="status">Aim: drag on table</span>
   </div>
   <div class="row">
     <button id="btnDetect" class="on">Auto-detect ⟳</button>
     <button id="btnBank" class="on">Banks</button>
     <button id="btnFreeze">Freeze</button>
+    <button id="btnPocket">Pocket ▸</button>
     <select id="tableSize" class="pill" style="color:#fff;background:#15171c">
       <option value="2240">8 ft</option>
       <option value="2540">9 ft</option>
@@ -82,7 +84,7 @@
   <h1>🎱 Pool AR PAL</h1>
   <p>Point the Beam Pro's rear camera at your table. Cast this screen to your XREAL glasses, then tap start and grant camera access.</p>
   <button id="go">Start camera</button>
-  <p class="sub">Tip: mount the Beam Pro so it sees the whole table. Then 1) calibrate the 4 inner corners, 2) set the cue ball, 3) drag on the table to aim.</p>
+  <p class="sub">Tip: mount the Beam Pro so it sees the whole table. Then 1) calibrate the 4 inner corners, 2) set the cue ball, 3) tap the ball you want to pot — or just drag to aim freely.</p>
 </div>
 
 <script async src="https://docs.opencv.org/4.10.0/opencv.js" onload="onCvLoad()" onerror="cvError()"></script>
@@ -212,9 +214,16 @@ function detect(){
     let best=null,bd=1e9; for (const b of balls){const dd=Math.hypot(b.x-cueBall.x,b.y-cueBall.y); if(dd<bd){bd=dd;best=b;}}
     if (best && bd < cueBall.r*3) cueBall = {...best};
   }
+  if (targetBall){   // track the chosen target the same way
+    let best=null,bd=1e9; for (const b of balls){const dd=Math.hypot(b.x-targetBall.x,b.y-targetBall.y); if(dd<bd){bd=dd;best=b;}}
+    if (best && bd < targetBall.r*3) targetBall = {...best};
+  }
   src.delete(); gray.delete(); circles.delete();
 }
 let cueLocked=false;
+let targetBall=null;   // the object ball you want to pot
+let solutions=[];      // every pocket for that ball, best first
+let solIdx=0;          // which one you're currently looking at
 
 /* ---------- geometry / physics ---------- */
 const sub=(a,b)=>({x:a.x-b.x,y:a.y-b.y});
@@ -270,6 +279,58 @@ function firstBallHit(c,d){ // cue center c, dir d -> first object ball collided
   return best;
 }
 
+/* ---------- shot solver: pick a ball, get told how to pot it ---------- */
+function pocketNames(){
+  if(corners.length!==4) return [];
+  const [TL,TR,BR,BL]=corners;
+  const top=len(sub(TR,TL)), left=len(sub(BL,TL));
+  const n=['top-left','top-right','bottom-right','bottom-left'];
+  if(top>=left) n.push('top-middle','bottom-middle'); else n.push('left-middle','right-middle');
+  return n;
+}
+
+// first ball sitting on the segment a->b, ignoring the ones in `skip`
+function pathBlocked(a,b,skip,pad){
+  const d=sub(b,a), L=len(d); if(L<1e-6) return null;
+  const u=mul(d,1/L);
+  for(const o of balls){
+    if(skip.some(t=> t && Math.hypot(o.x-t.x,o.y-t.y) < Math.max(o.r,t.r)*0.8)) continue;
+    const oc=sub(o,a), t=dot(oc,u);
+    if(t<=0 || t>=L) continue;
+    if(Math.abs(oc.x*u.y - oc.y*u.x) < o.r+pad) return o;   // perpendicular distance
+  }
+  return null;
+}
+
+// work out every pocket for one target ball and rank them best-first
+function solveTarget(T){
+  const out=[]; if(!cueBall||!T) return out;
+  const names=pocketNames();
+  pockets().forEach((P,i)=>{
+    const toP=sub(P,T), dist=len(toP); if(dist<1e-3) return;
+    const u=norm(toP);
+    const G=sub(T, mul(u, cueBall.r+T.r));        // ghost ball: where the cue ball must be at impact
+    const aim=sub(G,cueBall); if(len(aim)<1e-3) return;
+    const a=norm(aim);
+    const cut=Math.acos(Math.max(-1,Math.min(1,dot(a,u))))*180/Math.PI;
+    const cueBlock=pathBlocked(cueBall,G,[cueBall,T],cueBall.r*0.12);
+    const objBlock=pathBlocked(T,P,[T],T.r*0.12);
+    const tooThin=cut>=82;                         // past this the cut is not a real shot
+    out.push({P,G,u,a,cut,dist,name:names[i]||('pocket '+(i+1)),
+              cueBlock,objBlock,tooThin, ok:!cueBlock&&!objBlock&&!tooThin});
+  });
+  out.sort((A,B)=> (B.ok-A.ok) || (A.cut-B.cut) || (A.dist-B.dist));
+  return out;
+}
+function refreshSolutions(){ solutions=solveTarget(targetBall); if(solIdx>=solutions.length) solIdx=0; }
+function solText(s){
+  if(!s) return 'No pocket found';
+  if(s.ok)        return '\u2192 '+s.name+' \u00b7 '+Math.round(s.cut)+'\u00b0 cut';
+  if(s.tooThin)   return s.name+': too thin ('+Math.round(s.cut)+'\u00b0)';
+  if(s.cueBlock)  return s.name+': cue path blocked';
+  return s.name+': ball in the way';
+}
+
 /* ---------- draw ---------- */
 function halo(draw){ // dark outline then bright stroke = pops on light/yellow felt
   octx.save(); octx.lineCap='round'; octx.strokeStyle='rgba(0,0,0,.55)';
@@ -317,8 +378,28 @@ function render(){
   for(const b of balls){ octx.save(); octx.strokeStyle = b===cueBall?'#fff':'rgba(255,255,255,.35)';
     octx.lineWidth=(b===cueBall?3:1.5)*devicePixelRatio; octx.beginPath(); octx.arc(b.x,b.y,b.r,0,7); octx.stroke(); octx.restore(); }
 
-  // aim solution
-  if(cueBall && aimPt){
+  // chosen target ball -> solved shot
+  if(cueBall && targetBall && solutions.length){
+    const s = solutions[Math.min(solIdx, solutions.length-1)];
+
+    for(const o of solutions) if(o!==s && o.ok) ring(o.P, cueBall.r*1.05, 'rgba(57,255,136,.32)');
+
+    ring(targetBall, targetBall.r*1.35, '#ffd23f');   // the ball you picked
+    line(cueBall, s.G);                                // cue ball travel
+    ring(s.G, cueBall.r, '#ffffff');                   // ghost ball
+    line(targetBall, s.P);                             // object ball to the pocket
+    ring(s.P, cueBall.r*1.4, s.ok ? '#39ff88' : '#ff5c5c');
+
+    const cueDir = norm(sub(s.a, mul(s.u, dot(s.a, s.u))));   // tangent after contact
+    if(len(cueDir) > 0.05) line(s.G, add(s.G, mul(cueDir, cueBall.r*4)));
+
+    if(s.cueBlock) ring(s.cueBlock, s.cueBlock.r*1.3, '#ff5c5c');
+    if(s.objBlock) ring(s.objBlock, s.objBlock.r*1.3, '#ff5c5c');
+
+    statusEl.textContent = solText(s);
+  }
+  // free aim: drag a direction
+  else if(cueBall && aimPt){
     const d = norm(sub(aimPt, cueBall));
     const hit = firstBallHit(cueBall, d);
     if(hit){
@@ -342,7 +423,7 @@ function nearPocketOnPath(o,dir){ for(const [a,b,pk] of pathWithBank(o,norm(dir)
 function loop(){
   if(!streaming){ return; }
   const now=performance.now(); const dt=now-lastFrame; lastFrame=now; fps=fps*0.9+ (1000/Math.max(dt,1))*0.1; fpsEl.textContent=fps.toFixed(0)+' fps';
-  if(autoDetect && !frozen && cvReady && now-lastDetect>120){ try{ detect(); }catch(e){} lastDetect=now; }
+  if(autoDetect && !frozen && cvReady && now-lastDetect>120){ try{ detect(); }catch(e){} lastDetect=now; if(targetBall) refreshSolutions(); }
   render();
   requestAnimationFrame(loop);
 }
@@ -354,8 +435,22 @@ function evtPos(e){ const r=overlay.getBoundingClientRect(); const t=e.touches?e
 function onDown(e){ e.preventDefault(); const p=evtPos(e);
   if(mode==='calibrate'){ corners.push(p); if(corners.length>=4){ corners=corners.slice(0,4); mode='aim'; setStatus('Calibrated. Drag to aim.'); btnCal.classList.remove('on'); } return; }
   if(mode==='pickcue'){ let best=null,bd=1e9; for(const b of balls){const dd=Math.hypot(b.x-p.x,b.y-p.y); if(dd<bd){bd=dd;best=b;}} if(best){cueBall={...best}; cueLocked=true;} mode='aim'; btnCue.classList.remove('on'); setStatus('Cue locked. Drag to aim.'); return; }
+  if(mode==='picktarget'){
+    let best=null,bd=1e9;
+    for(const b of balls){
+      if(cueBall && Math.hypot(b.x-cueBall.x,b.y-cueBall.y) < cueBall.r*0.8) continue;  // not the cue ball
+      const dd=Math.hypot(b.x-p.x,b.y-p.y); if(dd<bd){bd=dd;best=b;}
+    }
+    mode='aim'; btnTgt.classList.remove('on');
+    if(best){ targetBall={...best}; solIdx=0; refreshSolutions();
+              setStatus(solutions.length? solText(solutions[0]) : 'Calibrate the corners first'); }
+    else setStatus('No ball there \u2014 tap one with a ring on it');
+    return;
+  }
   aimPt=p; if(!cueBall){ /* allow tap to place cue if none */ } }
-function onMove(e){ if(mode!=='aim')return; e.preventDefault(); aimPt=evtPos(e); }
+function onMove(e){ if(mode!=='aim')return; e.preventDefault();
+  if(targetBall){ targetBall=null; solutions=[]; btnTgt.classList.remove('on'); setStatus('Free aim'); }
+  aimPt=evtPos(e); }
 overlay.addEventListener('touchstart',onDown,{passive:false});
 overlay.addEventListener('touchmove',onMove,{passive:false});
 overlay.addEventListener('mousedown',onDown);
@@ -364,13 +459,24 @@ overlay.addEventListener('mousemove',e=>{ if(e.buttons) onMove(e); });
 /* ---------- UI ---------- */
 function setStatus(t){ statusEl.textContent=t; }
 const btnCal=document.getElementById('btnCal'), btnCue=document.getElementById('btnCue');
+const btnTgt=document.getElementById('btnTgt'), btnPocket=document.getElementById('btnPocket');
 const sensSlider=document.getElementById('sens'), ballSlider=document.getElementById('ballsz');
 btnCal.onclick=()=>{ mode='calibrate'; corners=[]; btnCal.classList.add('on'); btnCue.classList.remove('on'); setStatus('Tap the 4 inner corners: TL → TR → BR → BL'); };
 btnCue.onclick=()=>{ mode='pickcue'; btnCue.classList.add('on'); btnCal.classList.remove('on'); setStatus('Tap the cue ball'); };
+btnTgt.onclick=()=>{
+  if(targetBall){ targetBall=null; solutions=[]; btnTgt.classList.remove('on'); setStatus('Target cleared. Drag to aim.'); return; }
+  if(!cueBall){ setStatus('Set the cue ball first'); return; }
+  mode='picktarget'; btnTgt.classList.add('on'); btnCal.classList.remove('on'); btnCue.classList.remove('on');
+  setStatus('Tap the ball you want to pot');
+};
+btnPocket.onclick=()=>{
+  if(!solutions.length){ setStatus('Pick a target ball first'); return; }
+  solIdx=(solIdx+1)%solutions.length; setStatus(solText(solutions[solIdx]));
+};
 document.getElementById('btnDetect').onclick=function(){ autoDetect=!autoDetect; this.classList.toggle('on',autoDetect); };
 document.getElementById('btnBank').onclick=function(){ showBanks=!showBanks; this.classList.toggle('on',showBanks); };
 document.getElementById('btnFreeze').onclick=function(){ frozen=!frozen; this.classList.toggle('on',frozen); this.textContent=frozen?'Frozen':'Freeze'; };
-document.getElementById('btnReset').onclick=()=>{ corners=[]; balls=[]; cueBall=null; cueLocked=false; aimPt=null; mode='aim'; setStatus('Reset. Calibrate corners.'); };
+document.getElementById('btnReset').onclick=()=>{ corners=[]; balls=[]; cueBall=null; cueLocked=false; aimPt=null; targetBall=null; solutions=[]; solIdx=0; mode='aim'; btnTgt.classList.remove('on'); setStatus('Reset. Calibrate corners.'); };
 document.getElementById('tableSize').onchange=function(){ tableWidthMM=parseInt(this.value); };
 document.querySelectorAll('.colorBtn').forEach(b=> b.onclick=function(){ lineColor=this.dataset.c; document.querySelectorAll('.colorBtn').forEach(x=>x.classList.remove('on')); this.classList.add('on'); });
 document.getElementById('go').onclick=startCamera;
