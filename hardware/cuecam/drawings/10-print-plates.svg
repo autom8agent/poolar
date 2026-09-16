@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1580" height="800" viewBox="0 0 1580 800" font-family="'Helvetica Neue',Helvetica,Arial,sans-serif">
+<title>CueCam 10 - Bambu Lab P1S build plates</title>
+<defs>
+<marker id="a" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+  <path d="M0,0 L9,4.5 L0,9 z" fill="#5b6478"/></marker>
+<marker id="ab" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+  <path d="M0,0 L9,4.5 L0,9 z" fill="#2f6bff"/></marker>
+<marker id="as" markerWidth="9" markerHeight="9" refX="1" refY="4.5" orient="auto">
+  <path d="M9,0 L0,4.5 L9,9 z" fill="#5b6478"/></marker>
+<pattern id="hatch" width="7" height="7" patternTransform="rotate(45)"
+         patternUnits="userSpaceOnUse">
+  <line x1="0" y1="0" x2="0" y2="7" stroke="#2b3240" stroke-width="1.6" opacity="0.55"/>
+</pattern>
+<pattern id="hatch2" width="6" height="6" patternTransform="rotate(-45)"
+         patternUnits="userSpaceOnUse">
+  <line x1="0" y1="0" x2="0" y2="6" stroke="#aab3c4" stroke-width="2" opacity="0.9"/>
+</pattern>
+<pattern id="hatch3" width="5" height="5" patternTransform="rotate(45)"
+         patternUnits="userSpaceOnUse">
+  <line x1="0" y1="0" x2="0" y2="5" stroke="#c9760f" stroke-width="1.6" opacity="0.6"/>
+</pattern>
+<linearGradient id="cf" x1="0" y1="0" x2="0" y2="1">
+  <stop offset="0" stop-color="#4a5568"/><stop offset="0.35" stop-color="#1c2331"/>
+  <stop offset="0.62" stop-color="#2c3648"/><stop offset="1" stop-color="#0d1219"/>
+</linearGradient>
+<linearGradient id="cf2" x1="0" y1="0" x2="0" y2="1">
+  <stop offset="0" stop-color="#57637a"/><stop offset="0.4" stop-color="#232c3b"/>
+  <stop offset="1" stop-color="#0b0f16"/></linearGradient>
+<linearGradient id="alu" x1="0" y1="0" x2="0" y2="1">
+  <stop offset="0" stop-color="#e8ecf3"/><stop offset="0.45" stop-color="#b3bccd"/>
+  <stop offset="1" stop-color="#7e8798"/></linearGradient>
+</defs>
+<rect x="0.00" y="0.00" width="1580.00" height="800.00" rx="0" fill="#ffffff" stroke="none" stroke-width="1"/>
+<text x="34.00" y="44.00" font-size="22" fill="#141a26" font-weight="700" text-anchor="start">CueCam 10 - Bambu Lab P1S build plates</text>
+<text x="34.00" y="68.00" font-size="13" fill="#5b6478" font-weight="400" text-anchor="start">256 x 256 mm plate. Two plates, two materials, ~9 h total. Nothing structural is printed.</text>
+<text x="70.00" y="106.00" font-size="15" fill="#141a26" font-weight="700" text-anchor="start">Plate 1  ·  PA6-CF or PET-CF</text>
+<text x="70.00" y="126.00" font-size="11.5" fill="#5b6478" font-weight="400" text-anchor="start">0.4 mm hardened nozzle, 280 °C, chamber closed, dried filament</text>
+<rect x="70.00" y="140.00" width="512.00" height="512.00" rx="4" fill="#f7f9fc" stroke="#98a2b6" stroke-width="1.4"/>
+<line x1="134.00" y1="140.00" x2="134.00" y2="652.00" stroke="#eceff4" stroke-width="1"/>
+<line x1="70.00" y1="204.00" x2="582.00" y2="204.00" stroke="#eceff4" stroke-width="1"/>
+<line x1="198.00" y1="140.00" x2="198.00" y2="652.00" stroke="#eceff4" stroke-width="1"/>
+<line x1="70.00" y1="268.00" x2="582.00" y2="268.00" stroke="#eceff4" stroke-width="1"/>
+<line x1="262.00" y1="140.00" x2="262.00" y2="652.00" stroke="#eceff4" stroke-width="1"/>
+<line x1="70.00" y1="332.00" x2="582.00" y2="332.00" stroke="#eceff4" stroke-width="1"/>
+<line x1="326.00" y1="140.00" x2="326.00" y2="652.00" stroke="#eceff4" stroke-width="1"/>
+<line x1="70.00" y1="396.00" x2="582.00" y2="396.00" stroke="#eceff4" stroke-width="1"/>
+<line x1="390.00" y1="140.00" x2="390.00" y2="652.00" stroke="#eceff4" stroke-width="1"/>
+<line x1="70.00" y1="460.00" x2="582.00" y2="460.00" stroke="#eceff4" stroke-width="1"/>
+<line x1="454.00" y1="140.00" x2="454.00" y2="652.00" stroke="#eceff4" stroke-width="1"/>
+<line x1="70.00" y1="524.00" x2="582.00" y2="524.00" stroke="#eceff4" stroke-width="1"/>
+<line x1="518.00" y1="140.00" x2="518.00" y2="652.00" stroke="#eceff4" stroke-width="1"/>
+<line x1="70.00" y1="588.00" x2="582.00" y2="588.00" stroke="#eceff4" stroke-width="1"/>
+<rect x="130.00" y="200.00" width="236.00" height="52.00" rx="4" fill="#ffffff" stroke="#2f6bff" stroke-width="1.8"/>
+<text x="248.00" y="228.00" font-size="10.5" fill="#141a26" font-weight="700" text-anchor="middle">collar barrel</text>
+<text x="248.00" y="243.00" font-size="9.5" fill="#5b6478" font-weight="400" text-anchor="middle">upright, split at the parting line</text>
+<rect x="130.00" y="272.00" width="144.00" height="44.00" rx="4" fill="#ffffff" stroke="#2f6bff" stroke-width="1.8"/>
+<text x="202.00" y="296.00" font-size="10.5" fill="#141a26" font-weight="700" text-anchor="middle">cartridge shell</text>
+<text x="202.00" y="311.00" font-size="9.5" fill="#5b6478" font-weight="400" text-anchor="middle">upright</text>
+<rect x="130.00" y="332.00" width="68.00" height="52.00" rx="4" fill="#ffffff" stroke="#2f6bff" stroke-width="1.8"/>
+<text x="164.00" y="360.00" font-size="10.5" fill="#141a26" font-weight="700" text-anchor="middle">nose cap</text>
+<text x="164.00" y="375.00" font-size="9.5" fill="#5b6478" font-weight="400" text-anchor="middle">window down</text>
+<rect x="210.00" y="332.00" width="60.00" height="52.00" rx="4" fill="#ffffff" stroke="#2f6bff" stroke-width="1.8"/>
+<text x="240.00" y="360.00" font-size="10.5" fill="#141a26" font-weight="700" text-anchor="middle">tail cap</text>
+<text x="240.00" y="375.00" font-size="9.5" fill="#5b6478" font-weight="400" text-anchor="middle">flat</text>
+<rect x="130.00" y="400.00" width="68.00" height="68.00" rx="4" fill="#ffffff" stroke="#2f6bff" stroke-width="1.8"/>
+<text x="164.00" y="436.00" font-size="10.5" fill="#141a26" font-weight="700" text-anchor="middle">butt cap</text>
+<text x="164.00" y="451.00" font-size="9.5" fill="#5b6478" font-weight="400" text-anchor="middle">bore up</text>
+<rect x="214.00" y="400.00" width="80.00" height="44.00" rx="4" fill="#ffffff" stroke="#2f6bff" stroke-width="1.8"/>
+<text x="254.00" y="424.00" font-size="10.5" fill="#141a26" font-weight="700" text-anchor="middle">blank slug shell</text>
+<text x="254.00" y="439.00" font-size="9.5" fill="#5b6478" font-weight="400" text-anchor="middle">upright</text>
+<rect x="130.00" y="480.00" width="192.00" height="36.00" rx="4" fill="#ffffff" stroke="#2f6bff" stroke-width="1.8"/>
+<text x="226.00" y="500.00" font-size="10.5" fill="#141a26" font-weight="700" text-anchor="middle">tip spanner</text>
+<text x="226.00" y="515.00" font-size="9.5" fill="#5b6478" font-weight="400" text-anchor="middle">flat</text>
+<rect x="130.00" y="532.00" width="120.00" height="28.00" rx="4" fill="#ffffff" stroke="#2f6bff" stroke-width="1.8"/>
+<text x="190.00" y="548.00" font-size="10.5" fill="#141a26" font-weight="700" text-anchor="middle">bolt trim washers x6</text>
+<text x="190.00" y="563.00" font-size="9.5" fill="#5b6478" font-weight="400" text-anchor="middle">flat</text>
+<text x="326.00" y="672.00" font-size="11" fill="#5b6478" font-weight="400" text-anchor="middle">256 x 256 mm</text>
+<text x="830.00" y="106.00" font-size="15" fill="#141a26" font-weight="700" text-anchor="start">Plate 2  ·  TPU 95A</text>
+<text x="830.00" y="126.00" font-size="11.5" fill="#5b6478" font-weight="400" text-anchor="start">external spool, not the AMS, 20 mm/s, 0.2 mm layers</text>
+<rect x="830.00" y="140.00" width="512.00" height="512.00" rx="4" fill="#f7f9fc" stroke="#98a2b6" stroke-width="1.4"/>
+<line x1="894.00" y1="140.00" x2="894.00" y2="652.00" stroke="#eceff4" stroke-width="1"/>
+<line x1="830.00" y1="204.00" x2="1342.00" y2="204.00" stroke="#eceff4" stroke-width="1"/>
+<line x1="958.00" y1="140.00" x2="958.00" y2="652.00" stroke="#eceff4" stroke-width="1"/>
+<line x1="830.00" y1="268.00" x2="1342.00" y2="268.00" stroke="#eceff4" stroke-width="1"/>
+<line x1="1022.00" y1="140.00" x2="1022.00" y2="652.00" stroke="#eceff4" stroke-width="1"/>
+<line x1="830.00" y1="332.00" x2="1342.00" y2="332.00" stroke="#eceff4" stroke-width="1"/>
+<line x1="1086.00" y1="140.00" x2="1086.00" y2="652.00" stroke="#eceff4" stroke-width="1"/>
+<line x1="830.00" y1="396.00" x2="1342.00" y2="396.00" stroke="#eceff4" stroke-width="1"/>
+<line x1="1150.00" y1="140.00" x2="1150.00" y2="652.00" stroke="#eceff4" stroke-width="1"/>
+<line x1="830.00" y1="460.00" x2="1342.00" y2="460.00" stroke="#eceff4" stroke-width="1"/>
+<line x1="1214.00" y1="140.00" x2="1214.00" y2="652.00" stroke="#eceff4" stroke-width="1"/>
+<line x1="830.00" y1="524.00" x2="1342.00" y2="524.00" stroke="#eceff4" stroke-width="1"/>
+<line x1="1278.00" y1="140.00" x2="1278.00" y2="652.00" stroke="#eceff4" stroke-width="1"/>
+<line x1="830.00" y1="588.00" x2="1342.00" y2="588.00" stroke="#eceff4" stroke-width="1"/>
+<rect x="890.00" y="200.00" width="92.00" height="48.00" rx="4" fill="#ffffff" stroke="#c81fa8" stroke-width="1.8"/>
+<text x="936.00" y="226.00" font-size="10.5" fill="#141a26" font-weight="700" text-anchor="middle">shock boot, front</text>
+<text x="936.00" y="241.00" font-size="9.5" fill="#5b6478" font-weight="400" text-anchor="middle">upright</text>
+<rect x="998.00" y="200.00" width="92.00" height="48.00" rx="4" fill="#ffffff" stroke="#c81fa8" stroke-width="1.8"/>
+<text x="1044.00" y="226.00" font-size="10.5" fill="#141a26" font-weight="700" text-anchor="middle">shock boot, rear</text>
+<text x="1044.00" y="241.00" font-size="9.5" fill="#5b6478" font-weight="400" text-anchor="middle">upright</text>
+<rect x="890.00" y="272.00" width="300.00" height="68.00" rx="4" fill="#ffffff" stroke="#c81fa8" stroke-width="1.8"/>
+<text x="1040.00" y="308.00" font-size="10.5" fill="#141a26" font-weight="700" text-anchor="middle">grip sleeve A, split</text>
+<text x="1040.00" y="323.00" font-size="9.5" fill="#5b6478" font-weight="400" text-anchor="middle">flat, seam down</text>
+<rect x="890.00" y="356.00" width="300.00" height="68.00" rx="4" fill="#ffffff" stroke="#c81fa8" stroke-width="1.8"/>
+<text x="1040.00" y="392.00" font-size="10.5" fill="#141a26" font-weight="700" text-anchor="middle">grip sleeve B, split</text>
+<text x="1040.00" y="407.00" font-size="9.5" fill="#5b6478" font-weight="400" text-anchor="middle">flat, seam down</text>
+<rect x="890.00" y="440.00" width="80.00" height="64.00" rx="4" fill="#ffffff" stroke="#c81fa8" stroke-width="1.8"/>
+<text x="930.00" y="474.00" font-size="10.5" fill="#141a26" font-weight="700" text-anchor="middle">bumper, spare</text>
+<text x="930.00" y="489.00" font-size="9.5" fill="#5b6478" font-weight="400" text-anchor="middle">flat</text>
+<text x="1086.00" y="672.00" font-size="11" fill="#5b6478" font-weight="400" text-anchor="middle">256 x 256 mm</text>
+<rect x="70.00" y="690.00" width="1440.00" height="96.00" rx="8" fill="#f7f9fc" stroke="#e6eaf2" stroke-width="1.2"/>
+<text x="82.00" y="710.00" font-size="12.5" fill="#141a26" font-weight="700" text-anchor="start">Print settings that actually matter here</text>
+<text x="88.00" y="726.00" font-size="11.5" fill="#5b6478" font-weight="400" text-anchor="start">Dry the nylon - 12 h at 70 °C, and print it out of a dry box. Wet PA6-CF prints look fine and delaminate under shock.   •   Collar barrel: 6 walls, 40% gyroid; the walls carry the bayonet lugs, infill does nothing.</text>
+<text x="88.00" y="744.00" font-size="11.5" fill="#5b6478" font-weight="400" text-anchor="start">Never print the joint threads, the weight sleeve or the ferrule - those are metal, bought and bonded.   •   PLA anywhere on this cue will creep under the bolt preload within a month. ABS/ASA is the fallback; PA6-CF is the right answer.</text>
+</svg>
