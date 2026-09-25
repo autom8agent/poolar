@@ -13,14 +13,14 @@ window.POOLAR_HALLS = {
       { n: 12, x: 34, y: 7, w: 10, h: 20, ft: 7 },
       { n: 13, x: 56, y: 7, w: 10, h: 20, ft: 7 },
       { n: 14, x: 78, y: 7, w: 10, h: 20, ft: 7 },
-      // Left side, 9-ft, lengthwise across the room: 10 at the back down to 6 nearest the bar
+      // Left side, 9-ft, lengthwise across the room: 10 at the back down to 7 nearest the bar
       { n: 10, x: 5, y: 42, w: 24, h: 12, ft: 9 },
       { n: 9, x: 5, y: 60, w: 24, h: 12, ft: 9 },
       { n: 8, x: 5, y: 78, w: 24, h: 12, ft: 9 },
       { n: 7, x: 5, y: 96, w: 24, h: 12, ft: 9 },
-      { n: 6, x: 5, y: 114, w: 24, h: 12, ft: 9 },
-      // Middle back, 9-ft, lengthwise front-to-back, left of table 4
+      // Middle, 9-ft, lengthwise front-to-back: 5 at the back left of table 4, 6 further forward among the high-tops
       { n: 5, x: 44, y: 40, w: 12, h: 24, ft: 9 },
+      { n: 6, x: 44, y: 96, w: 12, h: 24, ft: 9 },
       // Right side, 9-ft, lengthwise across the room: 4 at the back down to 1 nearest the bar
       { n: 4, x: 71, y: 42, w: 24, h: 12, ft: 9 },
       { n: 3, x: 71, y: 60, w: 24, h: 12, ft: 9 },
@@ -29,7 +29,8 @@ window.POOLAR_HALLS = {
     ],
     features: [
       { kind: 'wall', x: 4, y: 32, w: 60, h: 2.4, label: 'Rail & stools' },
-      { kind: 'seats', x: 44, y: 76, n: 4, gap: 11 },
+      { kind: 'seats', x: 44, y: 74, n: 2, gap: 10 },
+      { kind: 'seats', x: 44, y: 128, n: 1, gap: 10 },
       { kind: 'bar', x: 32, y: 142, w: 36, h: 10, label: 'Bar' },
       { kind: 'door', x: 8, y: 168, w: 22, label: 'Entrance' },
       { kind: 'label', x: 50, y: 4.6, text: '7-FT TABLES' },
