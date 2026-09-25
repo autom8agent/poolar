@@ -43,6 +43,7 @@
     color:var(--text);text-decoration:none;font-family:var(--num);font-weight:900;font-size:22px;line-height:1}
   .grid a small{font-family:var(--ui);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--free)}
   .grid a.busy small{color:var(--busy)}
+  .grid a.mine small{color:var(--gold)}
   .grid a:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
   .note{font-size:13px;color:var(--muted);margin:0;line-height:1.45}
   h2{margin:4px 0 0;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
@@ -107,15 +108,23 @@
     }
     for (const t of H.tables) {
       const { x, y, w: tw, h: th, n } = t, i = 1.3, pr = t.ft === 9 ? 1.05 : .95;
-      const pockets = [[x+i,y+i],[x+tw-i,y+i],[x+i,y+th/2],[x+tw-i,y+th/2],[x+i,y+th-i],[x+tw-i,y+th-i]]
+      const across = tw > th;   // table runs across the room: side pockets sit on the top and bottom rails
+      const long = across ? tw : th;
+      const pockets = [[x+i,y+i],[x+tw-i,y+i],[x+i,y+th-i],[x+tw-i,y+th-i],
+        ...(across ? [[x+tw/2,y+i],[x+tw/2,y+th-i]] : [[x+i,y+th/2],[x+tw-i,y+th/2]])]
         .map(([cx, cy]) => `<circle cx="${cx}" cy="${cy}" r="${pr}" fill="#000"/>`).join('');
-      const diamonds = [1,2,3].map(k => `<circle cx="${x+.6}" cy="${y + k*th/8}" r=".22" fill="#cfd6dc"/><circle cx="${x+.6}" cy="${y + th - k*th/8}" r=".22" fill="#cfd6dc"/><circle cx="${x+tw-.6}" cy="${y + k*th/8}" r=".22" fill="#cfd6dc"/><circle cx="${x+tw-.6}" cy="${y + th - k*th/8}" r=".22" fill="#cfd6dc"/>`).join('');
+      const dots = [1,2,3].flatMap(k => [k*long/8, long - k*long/8]).flatMap(d => across
+        ? [[x+d, y+.6], [x+d, y+th-.6]] : [[x+.6, y+d], [x+tw-.6, y+d]]);
+      const diamonds = dots.map(([cx, cy]) => `<circle cx="${cx}" cy="${cy}" r=".22" fill="#cfd6dc"/>`).join('');
+      const fs = t.ft === 9 ? 7.5 : 6.2;
+      const numX = across ? x + tw*.3 : x + tw/2, numY = y + th/2 + fs*.35;
+      const tagX = across ? x + tw*.68 : x + tw/2, tagY = across ? y + th/2 + .8 : y + th - 3.2;
       out += `<g class="tbl" id="tb${n}" role="link" tabindex="0" aria-label="Table ${n}, ${t.ft}-foot">
         <rect class="rail" x="${x}" y="${y}" width="${tw}" height="${th}" rx="1.6" fill="var(--rail)" stroke="#000" stroke-width=".3"/>
         <rect class="felt" x="${x+i}" y="${y+i}" width="${tw-2*i}" height="${th-2*i}" rx=".4"/>
         ${pockets}${diamonds}
-        <text class="tnum" x="${x+tw/2}" y="${y+th/2 + (t.ft===9?2.6:2.2)}" text-anchor="middle" font-size="${t.ft===9?7.5:6.2}">${n}</text>
-        <text class="tag" id="tt${n}" x="${x+tw/2}" y="${y+th-3.2}" text-anchor="middle" font-size="2.1"></text>
+        <text class="tnum" x="${numX}" y="${numY}" text-anchor="middle" font-size="${fs}">${n}</text>
+        <text class="tag" id="tt${n}" x="${tagX}" y="${tagY}" text-anchor="middle" font-size="2.1"></text>
       </g>`;
     }
     svg.innerHTML = out;
@@ -135,7 +144,7 @@
       const score = b && s.score ? `${s.score[0]}–${s.score[1]}` : '';
       $('tt' + t.n).textContent = isMine ? 'YOURS' : b ? (score || 'IN USE') : '';
       $('tb' + t.n).setAttribute('aria-label', `Table ${t.n}, ${t.ft}-foot, ${b ? `in use${s.names ? `: ${s.names[0]} vs ${s.names[1]} ${score}` : ''}` : 'open'}`);
-      $('gl' + t.n).classList.toggle('busy', b);
+      $('gl' + t.n).classList.toggle('busy', b); $('gl' + t.n).classList.toggle('mine', isMine);
       $('gs' + t.n).textContent = isMine ? 'Yours' : b ? 'In use' : 'Open';
     }
   }
