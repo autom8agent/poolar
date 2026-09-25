@@ -97,6 +97,17 @@
   .log{font-size:13px;color:var(--muted);max-height:40vh;overflow:auto;display:flex;flex-direction:column;font-variant-numeric:tabular-nums}
   .log div{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line);padding-block:6px}
   .win h2{color:var(--gold);font-size:40px}
+  .card{max-height:calc(100% - 8px);overflow:auto}
+  .stats{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:14px}
+  .stats th,.stats td{padding:6px 4px;border-bottom:1px solid var(--line);text-align:right}
+  .stats th:first-child,.stats td:first-child{text-align:left;color:var(--muted);font-weight:600}
+  .stats thead th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--text)}
+  .stats td.lead{color:var(--gold);font-weight:700}
+  .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .summary div{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:2px}
+  .summary b{font-family:var(--num);font-weight:900;font-size:24px;font-variant-numeric:tabular-nums}
+  .summary span{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .sub-h{margin:0;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
   @media (prefers-reduced-motion:reduce){.p{transition:none}.p.flash{animation:none}}
 </style>
 
@@ -142,7 +153,7 @@
   <div class="bar">
     <button id="undo">Undo</button>
     <button id="swap">Swap break</button>
-    <button id="logBtn">Racks</button>
+    <button id="logBtn">Stats</button>
     <button id="setBtn">Setup</button>
     <button id="shareBtn" class="primary">Share</button>
   </div>
@@ -161,11 +172,16 @@
       <label>First break<select id="fb"><option value="0">Player 1</option><option value="1">Player 2</option></select></label>
       <label>Break after<select id="fm"><option value="alt">Alternate</option><option value="win">Winner breaks</option><option value="lose">Loser breaks</option></select></label>
     </div>
-    <p>Starting the match resets the score to 0–0.</p>
+    <div class="two">
+      <label><span id="fsl0">Score</span><input id="fs0" type="number" min="0" max="99" inputmode="numeric"></label>
+      <label><span id="fsl1">Score</span><input id="fs1" type="number" min="0" max="99" inputmode="numeric"></label>
+    </div>
+    <p>Save keeps the match going with the score above. New match starts over at 0–0.</p>
     <div class="two">
       <button type="button" id="setCancel">Cancel</button>
-      <button type="submit" class="primary">Start match</button>
+      <button type="submit" class="primary">Save</button>
     </div>
+    <button type="button" id="setNew">New match (0–0)</button>
   </form>
 </div>
 
@@ -185,7 +201,9 @@
 
 <div class="sheet" id="logSheet" hidden>
   <div class="card">
-    <h2>Racks</h2>
+    <h2>Match stats</h2>
+    <div id="statsBox"></div>
+    <p class="sub-h">Racks</p>
     <div class="log" id="log"></div>
     <button id="logClose">Close</button>
   </div>
@@ -195,6 +213,7 @@
   <div class="card win">
     <h2 id="winTitle"></h2>
     <p id="winSub"></p>
+    <div id="winStats"></div>
     <div class="two">
       <button id="winUndo">Undo last rack</button>
       <button class="primary" id="winNew">Rematch</button>
@@ -206,11 +225,13 @@
 (() => {
   const KEY = 'poolar-deck-v2';
   const fresh = () => ({ names:['BCA Shag','Terry'], race:[5,5], firstBreak:1, mode:'alt', racks:[], fix:null,
-    shooter:1, groups:[null,null], turns:0, bih:false, down:[], fouls:[0,0], clockLen:60, clockV:2, hist:[] });
+    shooter:1, groups:[null,null], turns:0, bih:false, down:[], fouls:[0,0], pots:[], inn:[0,0], tt:[0,0], t0:0, tEnd:0, tFrom:0, clockLen:60, clockV:2, hist:[] });
   let st;
   try { st = JSON.parse(localStorage.getItem(KEY)) || fresh(); } catch { st = fresh(); }
   if (st.clockV !== 2) { st.clockLen = 60; st.clockV = 2; }
   st = { ...fresh(), ...st };
+  // A match already under way when stats arrived: time it from its first finished rack.
+  if (!st.t0 && st.racks.length) { st.t0 = st.racks[0].t; st.tFrom = Date.now(); }
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch {} };
 
   // Live sync: every change is posted to an ntfy.sh topic named after the game code in the URL,
@@ -267,7 +288,7 @@
 
   // Every action snapshots the state first so Undo can step back one tap at a time.
   const snap = () => { const { hist, ...rest } = st; st.hist.push(JSON.stringify(rest)); if (st.hist.length > 200) st.hist.shift(); };
-  const act = fn => { snap(); fn(); st.ts = Date.now(); save(); render(); sync(); };
+  const act = fn => { snap(); if (!st.t0) { st.t0 = st.tFrom = Date.now(); } fn(); st.ts = Date.now(); save(); render(); sync(); };
   const touch = () => { st.ts = Date.now(); save(); sync(); };
 
   const scores = () => { const s=[0,0]; st.racks.forEach(r => s[r.w]++); return s; };
@@ -286,7 +307,12 @@
   const ORDER = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
   $('balls').innerHTML = ORDER.map(n => `<button class="ball${n>8?' st':''}" id="ball${n}" style="--c:${BC[(n-1)%8]}" aria-pressed="false" aria-label="${n} ball"><span>${n}</span></button>`).join('');
   for (const n of ORDER) $('ball'+n).onclick = () => act(() => {
-    st.down = st.down.includes(n) ? st.down.filter(x => x !== n) : [...st.down, n];
+    const r = st.racks.length;
+    if (st.down.includes(n)) {
+      st.down = st.down.filter(x => x !== n);
+      let j = -1; st.pots.forEach((e, k) => { const f = e.split('.'); if (+f[0]===n && +f[2]===r) j = k; });
+      if (j >= 0) st.pots.splice(j, 1);
+    } else { st.down = [...st.down, n]; st.pots.push(`${n}.${st.shooter}.${r}.${st.turns}`); }
   });
   function render(){
     const s = scores(), b = breaker(), w = winner(s), live = w<0;
@@ -335,6 +361,7 @@
     if (!live) {
       $('winTitle').textContent = `${st.names[w]} wins`;
       $('winSub').textContent = `${s[w]}–${s[1-w]} in a race to ${st.race[w]}–${st.race[1-w]}, ${st.racks.length} racks.`;
+      $('winStats').innerHTML = statsHTML();
     }
   }
 
@@ -344,7 +371,8 @@
   document.addEventListener('click', keepAwake);
   const buzz = () => { try { navigator.vibrate && navigator.vibrate(25); } catch {} };
 
-  const passTable = foul => { act(() => { if (foul) st.fouls[st.shooter]++; st.shooter = 1-st.shooter; st.turns++; st.bih = foul; }); buzz(); clockStart(); };
+  const endInning = () => { const now = Date.now(); st.inn[st.shooter]++; st.tt[st.shooter] += now - (st.tFrom || now); st.tFrom = now; };
+  const passTable = foul => { act(() => { endInning(); if (foul) st.fouls[st.shooter]++; st.shooter = 1-st.shooter; st.turns++; st.bih = foul; }); buzz(); clockStart(); };
   $('endTurn').onclick = () => passTable(false);
   $('foul').onclick = () => passTable(true);
   for (const i of [0,1]) $('h'+i).onclick = () => act(() => { st.bih = false; });
@@ -395,7 +423,8 @@
   $('gClear').onclick = () => act(() => { st.groups=[null,null]; });
 
   for (const i of [0,1]) $('w'+i).onclick = () => {
-    act(() => { st.racks.push({ w:i, b:breaker(), g:st.groups[i], turns:st.turns+1, t:Date.now() }); newRack(); });
+    act(() => { endInning(); st.racks.push({ w:i, b:breaker(), g:st.groups[i], turns:st.turns+1, t:Date.now() }); newRack();
+      if (winner(scores()) >= 0) st.tEnd = Date.now(); });
     const p=$('p'+i); p.classList.remove('flash'); void p.offsetWidth; p.classList.add('flash'); buzz();
     clockReset(); drawClock(); touch();
   };
@@ -408,13 +437,46 @@
     if (!st.racks.length) { st.firstBreak = b; st.fix = null; } else st.fix = { n: st.racks.length, b };
     st.shooter = b;
   });
-  $('winNew').onclick = () => act(() => { st.racks=[]; st.fix=null; st.firstBreak = 1-st.firstBreak; newRack(); });
+  const resetMatch = () => { st.racks=[]; st.fix=null; st.pots=[]; st.fouls=[0,0]; st.inn=[0,0]; st.tt=[0,0]; st.t0=st.tFrom=Date.now(); st.tEnd=0; newRack(); };
+  $('winNew').onclick = () => act(() => { st.firstBreak = 1-st.firstBreak; resetMatch(); });
 
+  const hms = ms => { const t = Math.max(0, Math.floor(ms/1000)), h = Math.floor(t/3600), m = Math.floor(t/60)%60, x = t%60;
+    return h ? `${h}:${String(m).padStart(2,'0')}:${String(x).padStart(2,'0')}` : `${m}:${String(x).padStart(2,'0')}`; };
+  function stats(){
+    const now = Date.now(), live = winner(scores()) < 0;
+    const P = [0,1].map(i => {
+      const pots = st.pots.map(e => e.split('.').map(Number)).filter(e => e[1]===i);
+      const runs = {}; pots.forEach(e => { const k = e[2]+'.'+e[3]; runs[k] = (runs[k]||0)+1; });
+      let streak = 0, best = 0; st.racks.forEach(r => { streak = r.w===i ? streak+1 : 0; best = Math.max(best, streak); });
+      const inn = st.inn[i] + (live && st.shooter===i ? 1 : 0);
+      const tt = st.tt[i] + (live && st.shooter===i && st.tFrom ? now - st.tFrom : 0);
+      return { racks: st.racks.filter(r => r.w===i).length, balls: pots.length, run: Math.max(0, ...Object.values(runs)),
+        bpt: inn ? pots.length/inn : 0, br: st.racks.filter(r => r.w===i && r.b===i && r.turns===1).length,
+        streak: best, fouls: st.fouls[i], inn, tt };
+    });
+    const dur = st.t0 ? (st.tEnd || now) - st.t0 : 0, n = st.racks.length;
+    return { P, dur, n, avg: n ? dur/n : 0 };
+  }
+  function statsHTML(){
+    const { P, dur, n, avg } = stats();
+    const rows = [
+      ['Racks won', p => p.racks], ['Balls potted', p => p.balls], ['Best run (balls in a row)', p => p.run],
+      ['Balls per turn', p => p.bpt, v => v.toFixed(1)], ['Break and runs', p => p.br], ['Racks in a row', p => p.streak],
+      ['Turns', p => p.inn, null, true], ['Fouls', p => p.fouls, null, true], ['Time at table', p => p.tt, hms, true]];
+    const body = rows.map(([label, get, f, neutral]) => {
+      const v = P.map(get), fmt = f || (x => x);
+      const lead = neutral || v[0]===v[1] ? -1 : v[0] > v[1] ? 0 : 1;
+      return `<tr><td>${label}</td>${v.map((x,i) => `<td class="${i===lead?'lead':''}">${fmt(x)}</td>`).join('')}</tr>`;
+    }).join('');
+    return `<div class="summary"><div><b>${hms(dur)}</b><span>Match time</span></div><div><b>${n}</b><span>Racks played</span></div><div><b>${n ? hms(avg) : '–'}</b><span>Per rack</span></div></div>
+      <table class="stats"><thead><tr><th></th><th>${esc(st.names[0])}</th><th>${esc(st.names[1])}</th></tr></thead><tbody>${body}</tbody></table>`;
+  }
   $('logBtn').onclick = () => {
+    $('statsBox').innerHTML = statsHTML();
     const run=[0,0];
     $('log').innerHTML = st.racks.length ? st.racks.map((r,i)=>{ run[r.w]++;
       const t=new Date(r.t).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
-      const how = r.w===r.b && r.turns===1 ? 'break and run' : r.g ? GN[r.g] : '';
+      const how = r.set ? 'entered' : r.w===r.b && r.turns===1 ? 'break and run' : r.g ? GN[r.g] : '';
       return `<div><span>${i+1}. ${esc(st.names[r.w])}${how?' · '+how:''}</span><span>${run[0]}–${run[1]} · ${t}</span></div>`; }).join('')
       : '<p>No racks yet.</p>';
     $('logSheet').hidden=false;
@@ -438,6 +500,7 @@
   $('setBtn').onclick = () => {
     for (const i of [0,1]) { $('fn'+i).value=st.names[i]; $('fr'+i).value=st.race[i]; }
     $('fb').options[0].text=st.names[0]; $('fb').options[1].text=st.names[1];
+    const sc = scores(); for (const i of [0,1]) { $('fs'+i).value = sc[i]; $('fsl'+i).textContent = `${st.names[i]} score`; }
     $('fb').value=String(st.firstBreak); $('fm').value=st.mode; $('setup').hidden=false;
   };
   $('setCancel').onclick = () => $('setup').hidden=true;
@@ -448,10 +511,21 @@
         st.names[i] = $('fn'+i).value.trim() || st.names[i];
         st.race[i] = Math.max(1, Math.min(99, parseInt($('fr'+i).value,10) || 5));
       }
-      st.firstBreak=+$('fb').value; st.mode=$('fm').value; st.racks=[]; st.fix=null; newRack();
+      st.firstBreak=+$('fb').value; st.mode=$('fm').value;
+      if (newMatch) return resetMatch();
+      // Match the score typed in: add racks for a player who's ahead of the board, drop their latest racks if behind.
+      for (const i of [0,1]) {
+        const want = Math.max(0, Math.min(st.race[i], parseInt($('fs'+i).value,10) || 0));
+        let have = scores()[i];
+        while (have < want) { st.racks.push({ w:i, b:breaker(), t:Date.now(), set:true }); have++; }
+        while (have > want) { const j = st.racks.map(r => r.w).lastIndexOf(i); st.racks.splice(j, 1); have--; }
+      }
+      if (st.turns === 0) st.shooter = breaker();
     });
-    $('setup').hidden=true;
+    newMatch = false; $('setup').hidden=true;
   });
+  let newMatch = false;
+  $('setNew').onclick = () => { newMatch = true; $('setupForm').dispatchEvent(new Event('submit', { cancelable: true })); };
 
   render(); drawClock(); save(); connect();
 })();
