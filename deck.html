@@ -70,6 +70,8 @@
   .ball.st{background:linear-gradient(#f4efe2 0 24%,var(--c) 24% 76%,#f4efe2 76%)}
   .ball span{background:#f4efe2;color:#111;border-radius:50%;width:58%;aspect-ratio:1;display:grid;place-items:center;
     font:700 min(12px,3.4vw)/1 var(--ui)}
+  .ballmin{width:min(34px,9.5vw);aspect-ratio:1;border-radius:50%;padding:0;font-size:24px;line-height:1;font-weight:700;display:grid;place-items:center}
+  .ballshow{grid-column:1 / -1;font-size:16px;padding:10px}
   .ball.down{opacity:.18;transform:scale(.82)}
   .ball:focus-visible{outline:3px solid var(--chalk);outline-offset:2px}
   .clock{grid-column:1 / -1;display:grid;grid-template-columns:1fr auto auto auto;gap:6px;align-items:stretch}
@@ -140,6 +142,7 @@
       <button id="gClear">Open</button>
     </div>
     <div class="balls" id="balls" aria-label="Balls on the table. Tap to mark pocketed or put back."></div>
+    <button class="ballshow" id="ballShow" hidden>＋ Show balls</button>
     <div class="clock">
       <div class="face" id="face" role="button" tabindex="0" aria-label="Start shot clock"><span id="clockLbl">Tap to start</span><b id="clockNum">60</b></div>
       <button id="ext">Ext +<span id="extSec">60</span></button>
@@ -306,6 +309,15 @@
   const BC = ['#f5c518','#1f4fd1','#d9302a','#5b2a86','#f07b1a','#1e8a4c','#8a1f2a','#111'];
   const ORDER = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
   $('balls').innerHTML = ORDER.map(n => `<button class="ball${n>8?' st':''}" id="ball${n}" style="--c:${BC[(n-1)%8]}" aria-pressed="false" aria-label="${n} ball"><span>${n}</span></button>`).join('');
+  // Hide or show the ball rack on this phone only (not synced).
+  $('balls').insertAdjacentHTML('beforeend', '<button class="ballmin" id="ballHide" aria-label="Hide balls">−</button>');
+  let ballsHidden = true;
+  try { ballsHidden = localStorage.getItem('poolar-balls-hidden') !== '0'; } catch {}
+  const showBalls = on => { ballsHidden = !on; $('balls').hidden = !on; $('ballShow').hidden = on;
+    try { localStorage.setItem('poolar-balls-hidden', on ? '0' : '1'); } catch {} };
+  $('ballHide').onclick = () => showBalls(false);
+  $('ballShow').onclick = () => showBalls(true);
+  showBalls(!ballsHidden);
   for (const n of ORDER) $('ball'+n).onclick = () => act(() => {
     const r = st.racks.length;
     if (st.down.includes(n)) {
