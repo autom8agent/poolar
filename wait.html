@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0f14">
+<title>Table Waitlist</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
+<style>
+  :root{
+    color-scheme:dark;
+    --bg:#0a0f14; --panel:#141d26; --line:#263241; --text:#eef3f7; --muted:#8c9bab; --felt:#139fdc; --gold:#f2c14e; --free:#57d98a;
+    --num:"Big Shoulders Display",Impact,"Arial Narrow",sans-serif;
+    --ui:"Barlow",system-ui,-apple-system,Roboto,sans-serif;
+  }
+  *,*::before,*::after{box-sizing:border-box}
+  [hidden]{display:none!important}
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--ui)}
+  body{background:radial-gradient(120% 60% at 50% 0%,#12303f,var(--bg) 70%) fixed var(--bg)}
+  .wrap{max-width:460px;margin:0 auto;padding:16px;padding-top:calc(16px + env(safe-area-inset-top,0px));padding-bottom:calc(24px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:14px}
+  .top{display:flex;align-items:center;gap:14px}
+  .tb{flex:none;width:52px;height:92px;border-radius:7px;background:#07090b;padding:5px;display:grid}
+  .tb span{background:var(--felt);border-radius:2px;display:grid;place-items:center;font-family:var(--num);font-weight:900;font-size:30px;color:#fff}
+  h1{margin:0;font-family:var(--num);font-weight:900;font-size:34px;line-height:1;text-transform:uppercase}
+  .sub{margin:4px 0 0;color:var(--muted);font-weight:600;font-size:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px}
+  .h{margin:0;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .now{font-size:18px;font-weight:700}
+  .now small{display:block;color:var(--muted);font-size:13px;font-weight:600}
+  .me{font-family:var(--num);font-weight:900;font-size:44px;line-height:1;color:var(--gold)}
+  ol{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
+  li{display:flex;gap:10px;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:16px}
+  li b{font-family:var(--num);font-weight:900;color:var(--muted);min-width:18px}
+  li.you{border-color:var(--gold)} li.you b{color:var(--gold)}
+  form{display:flex;gap:8px}
+  input{flex:1;min-width:0;font:600 17px var(--ui);color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px}
+  button{font:700 16px var(--ui);color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 16px;cursor:pointer}
+  button.primary{background:var(--gold);border-color:var(--gold);color:#1d1606}
+  button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--felt);outline-offset:2px}
+  p{margin:0;color:var(--muted);font-size:14px;line-height:1.45}
+  a{color:var(--felt);font-weight:700;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="tb" id="tb" hidden><span id="tbN"></span></div>
+    <div><h1 id="title">Waitlist</h1><p class="sub" id="where"></p></div>
+  </div>
+
+  <div class="card" id="nowCard" hidden>
+    <p class="h">On the table now</p>
+    <div class="now" id="now"></div>
+  </div>
+
+  <div class="card" id="joinCard">
+    <p class="h">Get in line</p>
+    <form id="joinForm"><input id="name" placeholder="Your name" autocomplete="name" enterkeyhint="go" maxlength="24" required><button class="primary" type="submit">Join</button></form>
+    <p>The players at the table see the line and call the next person up.</p>
+  </div>
+
+  <div class="card" id="youCard" hidden>
+    <p class="h">You're in line</p>
+    <div class="me" id="pos">…</div>
+    <p id="posNote">Keep this page open. It updates when the line moves.</p>
+    <button id="leave">Leave the line</button>
+  </div>
+
+  <div class="card">
+    <p class="h">The line</p>
+    <ol id="list"><li>Loading…</li></ol>
+  </div>
+  <a id="back" href="hall.html">← All tables</a>
+</div>
+
+<script src="halls.js"></script>
+<script>
+(() => {
+  const qs = new URLSearchParams(location.search);
+  const RELAY = qs.get('relay') || 'https://ntfy.sh';
+  const HALL = (qs.get('hall') || '').replace(/[^a-z0-9-]/gi, '');
+  const T = parseInt(qs.get('t'), 10) || 0;
+  const W = (qs.get('w') || '').replace(/[^a-z0-9]/gi, '');
+  const TOPIC = HALL && T ? `poolar-wait-${HALL}-t${T}` : `poolar-wait-${W}`;
+  const H = (window.POOLAR_HALLS || {})[HALL];
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+  const MEKEY = 'poolar-wait-me-' + TOPIC;
+  let me = null; try { me = JSON.parse(localStorage.getItem(MEKEY) || 'null'); } catch {}
+  let line = null;   // latest line message from the table
+
+  if (T) { $('tb').hidden = false; $('tbN').textContent = T; $('title').textContent = `Table ${T}`; document.title = `Table ${T} Waitlist`; }
+  $('where').textContent = H ? `${H.name} · ${H.area} · waitlist` : 'Waitlist';
+  $('back').href = `hall.html${HALL ? `?hall=${HALL}` : ''}`;
+  if (!HALL && !W) { $('joinCard').hidden = true; $('list').innerHTML = '<li>This waitlist link is missing its table.</li>'; return; }
+  try { const n = localStorage.getItem('poolar-my-name'); if (n) $('name').value = n; } catch {}
+
+  const post = body => fetch(`${RELAY}/${TOPIC}`, { method: 'POST', body: JSON.stringify({ ...body, ts: Date.now() }) });
+
+  function paint(){
+    const q = line ? line.q : [];
+    const mineAt = me ? q.findIndex(x => x.id === me.id) : -1;
+    $('list').innerHTML = !line ? '<li>Waiting for the table to share its line…</li>'
+      : q.length ? q.map((x, k) => `<li class="${me && x.id === me.id ? 'you' : ''}"><b>${k+1}</b>${esc(x.n)}${me && x.id === me.id ? ' (you)' : ''}</li>`).join('')
+      : '<li>Nobody in line. You\'re next if you join.</li>';
+    if (line && line.now) { $('nowCard').hidden = false;
+      $('now').innerHTML = `${esc(line.now[0])} vs ${esc(line.now[1])}<small>${line.fmt === 'wso' ? 'Winner stays on' : line.fmt === 'rot' ? 'Rotating games' : `Score ${line.score[0]}–${line.score[1]}`}</small>`; }
+    const inLine = !!me;
+    $('joinCard').hidden = inLine; $('youCard').hidden = !inLine;
+    if (inLine) {
+      const playing = line && line.now && line.now.some(n => n === me.name) && mineAt < 0;
+      $('pos').textContent = playing ? "You're up" : mineAt >= 0 ? `#${mineAt + 1}` : line ? 'Adding…' : '…';
+      $('posNote').textContent = playing ? 'Head to the table.' : mineAt === 0 ? "You're next. Get your cue ready." : 'Keep this page open. It updates when the line moves.';
+    }
+  }
+  function take(raw){
+    let m; try { m = JSON.parse(raw); } catch { return; }
+    if (m && m.kind === 'line' && (!line || m.ts >= line.ts)) line = m;
+  }
+  async function load(){
+    try {
+      const txt = await (await fetch(`${RELAY}/${TOPIC}/json?poll=1&since=12h`)).text();
+      for (const l of txt.split('\n')) { try { const e = JSON.parse(l); if (e.event === 'message') take(e.message); } catch {} }
+    } catch {}
+    paint();
+  }
+  $('joinForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const name = $('name').value.trim().slice(0, 24); if (!name) return;
+    me = { id: 'w' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name };
+    try { localStorage.setItem(MEKEY, JSON.stringify(me)); localStorage.setItem('poolar-my-name', name); } catch {}
+    paint();
+    try { await post({ kind: 'join', id: me.id, name }); } catch { $('posNote').textContent = "Couldn't reach the table. Check your connection and try again."; }
+  });
+  $('leave').onclick = async () => {
+    if (!me) return; const id = me.id; me = null;
+    try { localStorage.removeItem(MEKEY); } catch {}
+    paint(); try { await post({ kind: 'leave', id }); } catch {}
+  };
+  load();
+  try { const es = new EventSource(`${RELAY}/${TOPIC}/sse`);
+    es.onmessage = e => { try { const d = JSON.parse(e.data); if (d.event === 'message') { take(d.message); paint(); } } catch {} }; } catch {}
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') load(); });
+})();
+</script>
+</body>
+</html>

@@ -142,10 +142,10 @@
       const b = busy(t.n), s = status[t.n], isMine = !!mine[`${HALL}-${t.n}`] && b;
       $('tb' + t.n).classList.toggle('busy', b); $('tb' + t.n).classList.toggle('mine', isMine);
       const score = b && s.score ? `${s.score[0]}–${s.score[1]}` : '';
-      $('tt' + t.n).textContent = isMine ? 'YOURS' : b ? (score || 'IN USE') : '';
+      $('tt' + t.n).textContent = isMine ? 'YOURS' : b ? (s.open ? 'JOIN' : score || 'IN USE') : '';
       $('tb' + t.n).setAttribute('aria-label', `Table ${t.n}, ${t.ft}-foot, ${b ? `in use${s.names ? `: ${s.names[0]} vs ${s.names[1]} ${score}` : ''}` : 'open'}`);
       $('gl' + t.n).classList.toggle('busy', b); $('gl' + t.n).classList.toggle('mine', isMine);
-      $('gs' + t.n).textContent = isMine ? 'Yours' : b ? 'In use' : 'Open';
+      $('gs' + t.n).textContent = isMine ? 'Yours' : b ? (s.open ? 'Join' : 'In use') : 'Open';
     }
   }
   function take(raw){
