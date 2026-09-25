@@ -1,12 +1,12 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
   :root{
     color-scheme:dark;
-    --bg:#0c1411; --felt:#123026; --felt-hi:#18402f; --panel:#15201b; --line:#26372f;
-    --text:#eef4ef; --muted:#8ea69a; --chalk:#5aa9ff; --gold:#f2c14e; --warn:#e4685a;
+    --bg:#0c1411; --felt:#123026; --felt-hi:#1a4633; --panel:#15201b; --line:#26372f;
+    --text:#eef4ef; --muted:#8ea69a; --chalk:#5aa9ff; --gold:#f2c14e; --stripe:#e8e2d0; --solid:#d9463b;
     --num:"Big Shoulders Display",Impact,"Arial Narrow",sans-serif;
     --ui:"Barlow",system-ui,-apple-system,Roboto,sans-serif;
   }
@@ -14,73 +14,92 @@
   html,body{height:100%}
   body{background:var(--bg);color:var(--text);font-family:var(--ui);margin:0;overflow:hidden;
     -webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
-  .app{height:100%;display:flex;flex-direction:column;gap:10px;padding:10px 16px}
+  .app{height:100%;display:flex;flex-direction:column;gap:8px;padding:8px 16px;
+    padding-top:calc(8px + env(safe-area-inset-top,0px));padding-bottom:calc(8px + env(safe-area-inset-bottom,0px))}
   header{display:flex;align-items:center;justify-content:space-between;gap:8px}
   .race{font-family:var(--num);font-weight:900;font-size:22px;letter-spacing:.06em;text-transform:uppercase}
-  .race small{font-family:var(--ui);font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.08em;margin-left:6px}
   .rackno{font-size:13px;color:var(--muted);font-weight:600;letter-spacing:.08em;text-transform:uppercase;font-variant-numeric:tabular-nums}
-  .players{flex:1;display:grid;grid-template-rows:1fr 1fr;gap:10px;min-height:0}
-  .p{position:relative;border:1px solid var(--line);border-radius:18px;background:var(--panel);
-    display:grid;grid-template-columns:1fr auto;grid-template-rows:auto 1fr auto;padding:14px 18px;
-    cursor:pointer;touch-action:manipulation;overflow:hidden;transition:background .15s,border-color .15s;min-height:0}
-  .p:focus-visible{outline:3px solid var(--chalk);outline-offset:2px}
-  .p.breaking{background:radial-gradient(120% 100% at 80% 20%,var(--felt-hi),var(--felt));border-color:#2f5a45}
-  .p.flash{animation:flash .35s ease-out}
-  @keyframes flash{from{box-shadow:inset 0 0 0 999px var(--chalk)}to{box-shadow:inset 0 0 0 999px transparent}}
-  .name{font-size:clamp(20px,6vw,30px);font-weight:700;line-height:1.1;align-self:start;text-wrap:balance}
-  .need{font-size:13px;color:var(--muted);font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-top:4px}
-  .score{grid-column:2;grid-row:1 / span 3;align-self:center;font-family:var(--num);font-weight:900;
-    font-size:clamp(96px,30vw,190px);line-height:.85;font-variant-numeric:tabular-nums}
-  .badge{grid-column:1;grid-row:2;align-self:center;justify-self:start;background:var(--gold);color:#1d1606;
-    font-weight:700;font-size:13px;letter-spacing:.12em;text-transform:uppercase;padding:5px 10px;border-radius:999px}
-  .pips{grid-column:1;grid-row:3;display:flex;flex-wrap:wrap;gap:7px}
-  .pip{width:18px;height:18px;border-radius:50%;border:2px solid #3b5448}
-  .pip.on{background:var(--text);border-color:var(--text);box-shadow:inset -3px -3px 0 rgba(0,0,0,.25)}
-  .hint{font-size:12px;color:var(--muted);text-align:center}
-  .bar{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-  button{font-family:var(--ui);font-weight:700;font-size:14px;color:var(--text);background:var(--panel);
-    border:1px solid var(--line);border-radius:12px;padding:12px 6px;cursor:pointer;touch-action:manipulation}
+  .players{flex:1;display:grid;grid-template-rows:1fr 1fr;gap:8px;min-height:0}
+  .p{border:2px solid var(--line);border-radius:18px;background:var(--panel);padding:12px 14px;
+    display:grid;grid-template-columns:1fr auto;grid-template-rows:auto 1fr auto;gap:6px 10px;min-height:0;overflow:hidden;
+    transition:background .15s,border-color .15s}
+  .p.shooting{background:radial-gradient(120% 100% at 85% 15%,var(--felt-hi),var(--felt));border-color:var(--chalk)}
+  .p.flash{animation:flash .4s ease-out}
+  @keyframes flash{from{box-shadow:inset 0 0 0 999px var(--gold)}to{box-shadow:inset 0 0 0 999px transparent}}
+  .top{grid-column:1 / -1;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .name{font-size:clamp(20px,6vw,28px);font-weight:700;line-height:1.1;margin-right:auto}
+  .chip{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:4px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+  .chip.brk{background:var(--gold);border-color:var(--gold);color:#1d1606}
+  .chip.shoot{background:var(--chalk);border-color:var(--chalk);color:#04162b}
+  .chip.solids{background:var(--solid);border-color:var(--solid);color:#fff}
+  .chip.stripes{background:repeating-linear-gradient(90deg,var(--stripe) 0 40%,var(--solid) 40% 60%,var(--stripe) 60% 100%);border-color:var(--stripe);color:#2a0d0a}
+  .left{display:flex;flex-direction:column;justify-content:space-between;gap:8px;min-height:0}
+  .need{font-size:13px;color:var(--muted);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .pips{display:flex;flex-wrap:wrap;gap:6px}
+  .pip{width:16px;height:16px;border-radius:50%;border:2px solid #3b5448}
+  .pip.on{background:var(--text);border-color:var(--text)}
+  .score{grid-column:2;grid-row:2 / span 2;align-self:center;font-family:var(--num);font-weight:900;
+    font-size:clamp(72px,22vw,150px);line-height:.85;font-variant-numeric:tabular-nums}
+  .won{grid-column:1;grid-row:3;justify-self:start}
+  button{font-family:var(--ui);font-weight:700;font-size:15px;color:var(--text);background:var(--panel);
+    border:1px solid var(--line);border-radius:12px;padding:12px 10px;cursor:pointer;touch-action:manipulation}
   button:focus-visible{outline:3px solid var(--chalk);outline-offset:2px}
-  button:active{background:var(--felt)}
-  button:disabled{opacity:.4}
+  button:active{filter:brightness(1.3)}
+  button:disabled{opacity:.35}
+  button.gold{background:var(--gold);border-color:var(--gold);color:#1d1606}
   button.primary{background:var(--chalk);border-color:var(--chalk);color:#04162b}
-  button.danger{border-color:#6a2c26;color:#ffb3aa}
-  .sheet{position:fixed;inset:0;background:rgba(4,8,6,.78);display:flex;align-items:flex-end;justify-content:center;z-index:10;padding:16px}
+  .ctrl{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .ctrl .endturn{grid-column:1 / -1;font-size:20px;padding:16px}
+  .groups{grid-column:1 / -1;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);font-weight:600}
+  .groups span{margin-right:auto}
+  .groups button{padding:9px 14px}
+  .bar{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .bar button{font-size:13px;padding:10px 4px}
+  .sheet{position:fixed;inset:0;background:rgba(4,8,6,.8);display:flex;align-items:flex-end;justify-content:center;z-index:10;padding:16px}
   .card{width:100%;max-width:440px;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:18px;
-    display:flex;flex-direction:column;gap:14px;padding-bottom:calc(18px + env(safe-area-inset-bottom,0px))}
+    display:flex;flex-direction:column;gap:14px;margin-bottom:env(safe-area-inset-bottom,0px)}
   .card h2{margin:0;font-family:var(--num);font-weight:900;font-size:28px;letter-spacing:.04em;text-transform:uppercase}
   .card p{margin:0;color:var(--muted)}
   label{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
   input,select{font:600 17px var(--ui);color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
   .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .log{font-size:13px;color:var(--muted);max-height:30vh;overflow:auto;display:flex;flex-direction:column;gap:4px;font-variant-numeric:tabular-nums}
-  .log div{display:flex;justify-content:space-between;border-bottom:1px solid var(--line);padding-block:4px}
+  .log{font-size:13px;color:var(--muted);max-height:40vh;overflow:auto;display:flex;flex-direction:column;font-variant-numeric:tabular-nums}
+  .log div{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line);padding-block:6px}
   .win h2{color:var(--gold);font-size:40px}
   @media (prefers-reduced-motion:reduce){.p{transition:none}.p.flash{animation:none}}
 </style>
 
 <div class="app">
   <header>
-    <div class="race" id="raceLbl">Race 5–5<small>8-ball</small></div>
+    <div class="race" id="raceLbl">Race 5–5</div>
     <div class="rackno" id="rackNo">Rack 1</div>
   </header>
 
   <div class="players">
-    <div class="p" id="p0" role="button" tabindex="0" aria-label="Add rack">
-      <div><div class="name" id="n0"></div><div class="need" id="d0"></div></div>
+    <section class="p" id="p0">
+      <div class="top"><div class="name" id="n0"></div><span class="chip" id="g0"></span><span class="chip brk" id="b0">Break</span><span class="chip shoot" id="t0">Shooting</span></div>
+      <div class="left"><div class="need" id="d0"></div><div class="pips" id="k0"></div></div>
       <div class="score" id="s0">0</div>
-      <div class="badge" id="b0">Breaks</div>
-      <div class="pips" id="k0"></div>
-    </div>
-    <div class="p" id="p1" role="button" tabindex="0" aria-label="Add rack">
-      <div><div class="name" id="n1"></div><div class="need" id="d1"></div></div>
+      <button class="won gold" id="w0">Won rack</button>
+    </section>
+    <section class="p" id="p1">
+      <div class="top"><div class="name" id="n1"></div><span class="chip" id="g1"></span><span class="chip brk" id="b1">Break</span><span class="chip shoot" id="t1">Shooting</span></div>
+      <div class="left"><div class="need" id="d1"></div><div class="pips" id="k1"></div></div>
       <div class="score" id="s1">0</div>
-      <div class="badge" id="b1">Breaks</div>
-      <div class="pips" id="k1"></div>
-    </div>
+      <button class="won gold" id="w1">Won rack</button>
+    </section>
   </div>
 
-  <div class="hint">Tap a player when they win the rack</div>
+  <div class="ctrl">
+    <div class="groups" id="groups">
+      <span id="groupLbl">Open table</span>
+      <button id="gSolids">Solids</button>
+      <button id="gStripes">Stripes</button>
+      <button id="gClear" hidden>Reset</button>
+    </div>
+    <button class="endturn primary" id="endTurn">End turn</button>
+  </div>
+
   <div class="bar">
     <button id="undo">Undo</button>
     <button id="swap">Swap break</button>
@@ -102,7 +121,7 @@
       <label>First break<select id="fb"><option value="0">Player 1</option><option value="1">Player 2</option></select></label>
       <label>Break after<select id="fm"><option value="alt">Alternate</option><option value="win">Winner breaks</option><option value="lose">Loser breaks</option></select></label>
     </div>
-    <p>Saving resets the score to 0–0.</p>
+    <p>Starting the match resets the score to 0–0.</p>
     <div class="two">
       <button type="button" id="setCancel">Cancel</button>
       <button type="submit" class="primary">Start match</button>
@@ -131,15 +150,21 @@
 
 <script>
 (() => {
-  const KEY = 'poolar-deck-v1';
-  const fresh = () => ({ names:['BCA Shag','Terry'], race:[5,5], firstBreak:1, mode:'alt', racks:[] });
+  const KEY = 'poolar-deck-v2';
+  const fresh = () => ({ names:['BCA Shag','Terry'], race:[5,5], firstBreak:1, mode:'alt', racks:[], fix:null,
+    shooter:1, groups:[null,null], turns:0, hist:[] });
   let st;
   try { st = JSON.parse(localStorage.getItem(KEY)) || fresh(); } catch { st = fresh(); }
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch {} };
   const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const GN = { solids:'Solids', stripes:'Stripes' };
+
+  // Every action snapshots the state first so Undo can step back one tap at a time.
+  const snap = () => { const { hist, ...rest } = st; st.hist.push(JSON.stringify(rest)); if (st.hist.length > 200) st.hist.shift(); };
+  const act = fn => { snap(); fn(); save(); render(); };
 
   const scores = () => { const s=[0,0]; st.racks.forEach(r => s[r.w]++); return s; };
-  // Who breaks the next rack: a manual swap wins, else follow the break rule from the last rack.
   const breaker = () => {
     const n = st.racks.length;
     if (st.fix && st.fix.n === n) return st.fix.b;
@@ -148,25 +173,41 @@
     return st.mode==='alt' ? 1-r.b : st.mode==='win' ? r.w : 1-r.w;
   };
   const winner = s => s[0]>=st.race[0] ? 0 : s[1]>=st.race[1] ? 1 : -1;
+  const newRack = () => { st.shooter = breaker(); st.groups=[null,null]; st.turns=0; };
 
   function render(){
-    const s = scores(), b = breaker(), w = winner(s);
-    $('raceLbl').firstChild.textContent = `Race ${st.race[0]}–${st.race[1]}`;
-    $('rackNo').textContent = w<0 ? `Rack ${st.racks.length+1}` : 'Final';
+    const s = scores(), b = breaker(), w = winner(s), live = w<0;
+    $('raceLbl').textContent = `Race ${st.race[0]}–${st.race[1]}`;
+    $('rackNo').textContent = live ? `Rack ${st.racks.length+1} · Turn ${st.turns+1}` : 'Final';
     for (const i of [0,1]) {
       $('n'+i).textContent = st.names[i];
       $('s'+i).textContent = s[i];
       const left = st.race[i]-s[i];
       $('d'+i).textContent = left<=0 ? 'Wins' : left===1 ? 'Hill · needs 1' : `Needs ${left}`;
-      $('b'+i).hidden = !(w<0 && b===i);
-      $('p'+i).classList.toggle('breaking', w<0 && b===i);
-      $('p'+i).setAttribute('aria-label', `${st.names[i]} won the rack. Score ${s[i]}`);
+      const g = st.groups[i];
+      $('g'+i).textContent = g ? GN[g] : 'Open';
+      $('g'+i).className = 'chip' + (g ? ' '+g : '');
+      $('b'+i).hidden = !(live && b===i && st.turns===0);
+      $('t'+i).hidden = !(live && st.shooter===i);
+      $('p'+i).classList.toggle('shooting', live && st.shooter===i);
+      $('w'+i).disabled = !live;
+      $('w'+i).textContent = `${st.names[i].split(' ').pop()} won rack`;
       $('k'+i).innerHTML = Array.from({length:st.race[i]},(_,j)=>`<span class="pip${j<s[i]?' on':''}"></span>`).join('');
     }
-    $('undo').disabled = !st.racks.length;
-    $('swap').disabled = w>=0;
-    $('winSheet').hidden = w<0;
-    if (w>=0) {
+    const sh = st.names[st.shooter], assigned = !!st.groups[0];
+    $('groupLbl').textContent = assigned
+      ? `${st.names[0]}: ${GN[st.groups[0]]} · ${st.names[1]}: ${GN[st.groups[1]]}`
+      : `Open table · ${sh} is on`;
+    $('gSolids').hidden = $('gStripes').hidden = assigned;
+    $('gSolids').textContent = `${sh.split(' ').pop()}: Solids`;
+    $('gStripes').textContent = `${sh.split(' ').pop()}: Stripes`;
+    $('gClear').hidden = !assigned;
+    $('endTurn').textContent = `End turn → ${st.names[1-st.shooter]}`;
+    for (const id of ['endTurn','gSolids','gStripes','gClear','swap']) $(id).disabled = !live;
+    $('swap').disabled = !live || st.turns>0;
+    $('undo').disabled = !st.hist.length;
+    $('winSheet').hidden = live;
+    if (!live) {
       $('winTitle').textContent = `${st.names[w]} wins`;
       $('winSub').textContent = `${s[w]}–${s[1-w]} in a race to ${st.race[w]}–${st.race[1-w]}, ${st.racks.length} racks.`;
     }
@@ -175,37 +216,40 @@
   let wake;
   const keepAwake = async () => { try { if (!wake && navigator.wakeLock) { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release',()=>wake=null); } } catch {} };
   document.addEventListener('visibilitychange', () => { if (document.visibilityState==='visible') keepAwake(); });
+  document.addEventListener('click', keepAwake);
+  const buzz = () => { try { navigator.vibrate && navigator.vibrate(25); } catch {} };
 
-  function score(i){
-    if (winner(scores())>=0) return;
-    st.racks.push({ w:i, b:breaker(), t:Date.now() });
-    save(); render(); keepAwake();
-    const p=$('p'+i); p.classList.remove('flash'); void p.offsetWidth; p.classList.add('flash');
-    try { navigator.vibrate && navigator.vibrate(30); } catch {}
-  }
-  for (const i of [0,1]) {
-    $('p'+i).addEventListener('click', () => score(i));
-    $('p'+i).addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' ') { e.preventDefault(); score(i); } });
-  }
-  const undo = () => { st.racks.pop(); st.fix = null; save(); render(); };
+  $('endTurn').onclick = () => { act(() => { st.shooter = 1-st.shooter; st.turns++; }); buzz(); };
+  const setGroup = g => act(() => { const o = g==='solids' ? 'stripes' : 'solids'; st.groups[st.shooter]=g; st.groups[1-st.shooter]=o; });
+  $('gSolids').onclick = () => setGroup('solids');
+  $('gStripes').onclick = () => setGroup('stripes');
+  $('gClear').onclick = () => act(() => { st.groups=[null,null]; });
+
+  for (const i of [0,1]) $('w'+i).onclick = () => {
+    act(() => { st.racks.push({ w:i, b:breaker(), g:st.groups[i], turns:st.turns+1, t:Date.now() }); newRack(); });
+    const p=$('p'+i); p.classList.remove('flash'); void p.offsetWidth; p.classList.add('flash'); buzz();
+  };
+
+  const undo = () => { const prev = st.hist.pop(); if (!prev) return; st = { ...JSON.parse(prev), hist: st.hist }; save(); render(); };
   $('undo').onclick = undo; $('winUndo').onclick = undo;
-  $('swap').onclick = () => {
+
+  $('swap').onclick = () => act(() => {
     const b = 1 - breaker();
     if (!st.racks.length) { st.firstBreak = b; st.fix = null; } else st.fix = { n: st.racks.length, b };
-    save(); render();
-  };
-  $('winNew').onclick = () => { st.racks=[]; st.fix=null; st.firstBreak = 1-st.firstBreak; save(); render(); };
+    st.shooter = b;
+  });
+  $('winNew').onclick = () => act(() => { st.racks=[]; st.fix=null; st.firstBreak = 1-st.firstBreak; newRack(); });
 
   $('logBtn').onclick = () => {
     const run=[0,0];
     $('log').innerHTML = st.racks.length ? st.racks.map((r,i)=>{ run[r.w]++;
       const t=new Date(r.t).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
-      return `<div><span>${i+1}. ${esc(st.names[r.w])}${r.w===r.b?' (on break)':''}</span><span>${run[0]}–${run[1]} · ${t}</span></div>`; }).join('')
+      const how = r.w===r.b && r.turns===1 ? 'break and run' : r.g ? GN[r.g] : '';
+      return `<div><span>${i+1}. ${esc(st.names[r.w])}${how?' · '+how:''}</span><span>${run[0]}–${run[1]} · ${t}</span></div>`; }).join('')
       : '<p>No racks yet.</p>';
     $('logSheet').hidden=false;
   };
   $('logClose').onclick = () => $('logSheet').hidden=true;
-  const esc = s => String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
   $('setBtn').onclick = () => {
     for (const i of [0,1]) { $('fn'+i).value=st.names[i]; $('fr'+i).value=st.race[i]; }
@@ -215,12 +259,14 @@
   $('setCancel').onclick = () => $('setup').hidden=true;
   $('setupForm').addEventListener('submit', e => {
     e.preventDefault();
-    for (const i of [0,1]) {
-      st.names[i] = $('fn'+i).value.trim() || st.names[i];
-      st.race[i] = Math.max(1, Math.min(99, parseInt($('fr'+i).value,10) || 5));
-    }
-    st.firstBreak=+$('fb').value; st.mode=$('fm').value; st.racks=[]; st.fix=null;
-    save(); $('setup').hidden=true; render();
+    act(() => {
+      for (const i of [0,1]) {
+        st.names[i] = $('fn'+i).value.trim() || st.names[i];
+        st.race[i] = Math.max(1, Math.min(99, parseInt($('fr'+i).value,10) || 5));
+      }
+      st.firstBreak=+$('fb').value; st.mode=$('fm').value; st.racks=[]; st.fix=null; newRack();
+    });
+    $('setup').hidden=true;
   });
 
   render();
