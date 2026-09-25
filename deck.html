@@ -19,7 +19,7 @@
     padding-top:calc(8px + env(safe-area-inset-top,0px));padding-bottom:calc(8px + env(safe-area-inset-bottom,0px))}
   header{display:flex;align-items:center;justify-content:space-between;gap:8px}
   .race{font-family:var(--num);font-weight:900;font-size:18px;letter-spacing:.06em;text-transform:uppercase}
-  .hdr-r{display:flex;align-items:center;gap:8px}
+  .hdr-r{display:flex;align-items:center;gap:8px;min-width:0}
   .live{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:5px}
   .live::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
   .live.on{color:#57d98a}
@@ -75,6 +75,22 @@
   .ballshow{grid-column:1 / -1;width:100%;display:grid;grid-template-columns:repeat(8,1fr);gap:4px 6px;justify-items:center;align-items:center;cursor:pointer}
   .ballshow span:first-child{grid-column:1 / 8;justify-self:start;font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
   .ballshow .ballmin{grid-column:8}
+  .modeb{font-family:var(--num);font-weight:900;font-size:15px;letter-spacing:.04em;padding:3px 9px;border-radius:8px;border:1.5px solid var(--gold);color:var(--gold);background:transparent}
+  .hdr-l{display:flex;align-items:center;gap:8px;white-space:nowrap}
+  header .race,header .rackno,.live{white-space:nowrap}
+  #raceLbl{cursor:pointer}
+  .seg{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .seg button{border:0;border-radius:0;padding:12px;font-size:16px;background:var(--bg)}
+  .seg button[aria-checked="true"]{background:var(--gold);color:#1d1606}
+  .sides{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .side{border:1px solid var(--line);border-radius:12px;padding:8px 10px 10px;margin:0;display:flex;flex-direction:column;gap:8px;min-width:0}
+  .side legend{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text);padding:0 4px}
+  .stepper{display:grid;grid-template-columns:36px 1fr 36px;gap:4px;align-items:center}
+  .stepper span{grid-column:1 / -1;font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .stepper button{padding:6px 0;font-size:20px;line-height:1}
+  .stepper input{text-align:center;padding:8px 4px;font-family:var(--num);font-weight:900;font-size:22px}
+  .card:not(.dbl) .dblOnly{display:none}
+  .card.dbl .sglOnly{display:none}
   .ver{font-size:11px;color:var(--muted);text-align:center;margin:0}
   .mb{--c:#d9302a;display:inline-block;width:14px;height:14px;border-radius:50%;background:var(--c);vertical-align:middle;
     box-shadow:inset -2px -2px 0 rgba(0,0,0,.28);flex:none}
@@ -130,7 +146,7 @@
 
 <div class="app">
   <header>
-    <div class="race" id="raceLbl">Race 5–5</div>
+    <div class="hdr-l"><button class="modeb" id="modeBtn" aria-label="Change format">1v1</button><div class="race" id="raceLbl" role="button" tabindex="0">Race 5–5</div></div>
     <div class="hdr-r"><span class="live" id="live">Offline</span><div class="rackno" id="rackNo">Rack 1</div></div>
   </header>
 
@@ -179,22 +195,32 @@
 
 <div class="sheet" id="setup" hidden>
   <form class="card" id="setupForm">
-    <h2>Match setup</h2>
-    <div class="two">
-      <label>Player 1<input id="fn0" autocomplete="off"></label>
-      <label>Race to<input id="fr0" type="number" min="1" max="99" inputmode="numeric"></label>
-      <label>Player 2<input id="fn1" autocomplete="off"></label>
-      <label>Race to<input id="fr1" type="number" min="1" max="99" inputmode="numeric"></label>
+    <h2>Match</h2>
+    <div class="seg" role="radiogroup" aria-label="Format">
+      <button type="button" id="fmt1" role="radio">1v1</button>
+      <button type="button" id="fmt2" role="radio">2v2 doubles</button>
+    </div>
+    <div class="sides">
+      <fieldset class="side">
+        <legend id="sideL0">Side 1</legend>
+        <label><span class="dblOnly">Player A</span><span class="sglOnly">Name</span><input id="fn0" autocomplete="off"></label>
+        <label class="dblOnly">Player B<input id="fp0" autocomplete="off" placeholder="Partner's name"></label>
+        <div class="stepper"><span>Race to</span><button type="button" data-step="fr0:-1" aria-label="Lower race">−</button><input id="fr0" type="number" min="1" max="99" inputmode="numeric"><button type="button" data-step="fr0:1" aria-label="Raise race">+</button></div>
+        <div class="stepper"><span id="fsl0">Score</span><button type="button" data-step="fs0:-1" aria-label="Lower score">−</button><input id="fs0" type="number" min="0" max="99" inputmode="numeric"><button type="button" data-step="fs0:1" aria-label="Raise score">+</button></div>
+      </fieldset>
+      <fieldset class="side">
+        <legend id="sideL1">Side 2</legend>
+        <label><span class="dblOnly">Player A</span><span class="sglOnly">Name</span><input id="fn1" autocomplete="off"></label>
+        <label class="dblOnly">Player B<input id="fp1" autocomplete="off" placeholder="Partner's name"></label>
+        <div class="stepper"><span>Race to</span><button type="button" data-step="fr1:-1" aria-label="Lower race">−</button><input id="fr1" type="number" min="1" max="99" inputmode="numeric"><button type="button" data-step="fr1:1" aria-label="Raise race">+</button></div>
+        <div class="stepper"><span id="fsl1">Score</span><button type="button" data-step="fs1:-1" aria-label="Lower score">−</button><input id="fs1" type="number" min="0" max="99" inputmode="numeric"><button type="button" data-step="fs1:1" aria-label="Raise score">+</button></div>
+      </fieldset>
     </div>
     <div class="two">
-      <label>First break<select id="fb"><option value="0">Player 1</option><option value="1">Player 2</option></select></label>
+      <label>First break<select id="fb"><option value="0">Side 1</option><option value="1">Side 2</option></select></label>
       <label>Break after<select id="fm"><option value="alt">Alternate</option><option value="win">Winner breaks</option><option value="lose">Loser breaks</option></select></label>
     </div>
-    <div class="two">
-      <label><span id="fsl0">Score</span><input id="fs0" type="number" min="0" max="99" inputmode="numeric"></label>
-      <label><span id="fsl1">Score</span><input id="fs1" type="number" min="0" max="99" inputmode="numeric"></label>
-    </div>
-    <p>Save keeps the match going with the score above. New match starts over at 0–0.</p>
+    <p>Save keeps the match going with these names, races and scores. In doubles, teammates take turns at the table.</p>
     <div class="two">
       <button type="button" id="setCancel">Cancel</button>
       <button type="submit" class="primary">Save</button>
@@ -243,7 +269,7 @@
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
-  const VERSION = '12';
+  const VERSION = '13';
   // Phones can hold on to an old copy of this page for a while. Check for a newer one and switch to it;
   // the score lives in storage and the relay, so nothing is lost by reloading.
   async function checkUpdate(){
@@ -256,7 +282,7 @@
   setTimeout(checkUpdate, 3000); setInterval(checkUpdate, 120000);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkUpdate(); });
   const fresh = () => ({ names:['BCA Shag','Terry'], race:[5,5], firstBreak:1, mode:'alt', racks:[], fix:null,
-    shooter:1, groups:[null,null], turns:0, bih:false, down:[], fouls:[0,0], pots:[], inn:[0,0], tt:[0,0], t0:0, tEnd:0, tFrom:0, clockLen:60, clockV:2, hist:[] });
+    shooter:1, groups:[null,null], turns:0, bih:false, down:[], dbl:false, partners:['',''], rot:[0,0], fouls:[0,0], pots:[], inn:[0,0], tt:[0,0], t0:0, tEnd:0, tFrom:0, clockLen:60, clockV:2, hist:[] });
   let st;
   try { st = JSON.parse(localStorage.getItem(KEY)) || fresh(); } catch { st = fresh(); }
   if (st.clockV !== 2) { st.clockLen = 60; st.clockV = 2; }
@@ -335,6 +361,10 @@
 
   // Ball rack: tap a ball when it's pocketed, tap again to put it back (spotted or mis-tap).
   const BC = ['#f5c518','#1f4fd1','#d9302a','#5b2a86','#f07b1a','#1e8a4c','#8a1f2a','#111'];
+  const short = x => String(x || '').trim().split(' ').pop() || '?';
+  const partnerOf = i => st.partners[i] || 'Partner';
+  const side = i => st.dbl ? `${short(st.names[i])} & ${short(partnerOf(i))}` : st.names[i];
+  const whoShoots = i => st.dbl ? (st.rot[i] ? partnerOf(i) : st.names[i]) : st.names[i];
   const mb = (n, down, big) => `<span class="mb${n>8?' st':''}${big?' big':''}${down?' down':''}" style="--c:${BC[(n-1)%8]}" aria-hidden="true"></span>`;
   const ORDER = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
   $('balls').innerHTML = ORDER.map(n => `<button class="ball${n>8?' st':''}" id="ball${n}" style="--c:${BC[(n-1)%8]}" aria-pressed="false" aria-label="${n} ball"><span>${n}</span></button>`).join('');
@@ -359,9 +389,11 @@
   function render(){
     const s = scores(), b = breaker(), w = winner(s), live = w<0;
     $('raceLbl').textContent = `Race ${st.race[0]}–${st.race[1]}`;
-    $('rackNo').textContent = live ? `Rack ${st.racks.length+1} · Turn ${st.turns+1}` : 'Final';
+    $('modeBtn').textContent = st.dbl ? '2v2' : '1v1';
+    $('rackNo').textContent = live ? `Rack ${st.racks.length+1} · T${st.turns+1}` : 'Final';
     for (const i of [0,1]) {
-      $('n'+i).textContent = st.names[i];
+      $('n'+i).textContent = side(i);
+      $('t'+i).textContent = st.dbl ? `Shooting · ${short(whoShoots(i))}` : 'Shooting';
       $('s'+i).textContent = s[i];
       const left = st.race[i]-s[i];
       $('d'+i).textContent = left<=0 ? 'Wins' : left===1 ? 'Hill · needs 1' : `Needs ${left}`;
@@ -379,7 +411,7 @@
       $('h'+i).hidden = !(live && st.shooter===i && st.bih);
       $('p'+i).classList.toggle('shooting', live && st.shooter===i);
       $('w'+i).disabled = !live;
-      $('w'+i).textContent = `${st.names[i].split(' ').pop()} won rack`;
+      $('w'+i).textContent = st.dbl ? 'Team won rack' : `${short(st.names[i])} won rack`;
       $('k'+i).innerHTML = Array.from({length:st.race[i]},(_,j)=>`<span class="pip${j<s[i]?' on':''}"></span>`).join('');
     }
     for (const n of ORDER) { const d = st.down.includes(n); $('ball'+n).classList.toggle('down', d); $('ball'+n).setAttribute('aria-pressed', String(d)); $('ball'+n).disabled = !live; }
@@ -395,7 +427,7 @@
     }
     $('gClear').classList.toggle('pick', false);
     $('gClear').disabled = !assigned;
-    const nx = st.names[1-st.shooter];
+    const nx = whoShoots(1-st.shooter);
     $('endTo').textContent = `Miss or safe → ${nx}`;
     $('foulTo').textContent = `${nx} gets ball in hand`;
     $('clockSet').textContent = !st.clockLen ? 'Off' : st.clockLen===60 ? '1 min' : `${st.clockLen}s`;
@@ -406,7 +438,7 @@
     $('undo').disabled = !st.hist.length;
     $('winSheet').hidden = live;
     if (!live) {
-      $('winTitle').textContent = `${st.names[w]} wins`;
+      $('winTitle').textContent = `${side(w)} win${st.dbl ? '' : 's'}`;
       $('winSub').textContent = `${s[w]}–${s[1-w]} in a race to ${st.race[w]}–${st.race[1-w]}, ${st.racks.length} racks.`;
       $('winStats').innerHTML = statsHTML();
     }
@@ -418,7 +450,7 @@
   document.addEventListener('click', keepAwake);
   const buzz = () => { try { navigator.vibrate && navigator.vibrate(25); } catch {} };
 
-  const endInning = () => { const now = Date.now(); st.inn[st.shooter]++; st.tt[st.shooter] += now - (st.tFrom || now); st.tFrom = now; };
+  const endInning = () => { const now = Date.now(); st.inn[st.shooter]++; if (st.dbl) st.rot[st.shooter] ^= 1; st.tt[st.shooter] += now - (st.tFrom || now); st.tFrom = now; };
   const passTable = foul => { act(() => { endInning(); if (foul) st.fouls[st.shooter]++; st.shooter = 1-st.shooter; st.turns++; st.bih = foul; }); buzz(); clockStart(); };
   $('endTurn').onclick = () => passTable(false);
   $('foul').onclick = () => passTable(true);
@@ -516,7 +548,7 @@
       return `<tr><td>${label}</td>${v.map((x,i) => `<td class="${i===lead?'lead':''}">${fmt(x)}</td>`).join('')}</tr>`;
     }).join('');
     return `<div class="summary"><div><b>${hms(dur)}</b><span>Match time</span></div><div><b>${n}</b><span>Racks played</span></div><div><b>${n ? hms(avg) : '–'}</b><span>Per rack</span></div></div>
-      <table class="stats"><thead><tr><th></th><th>${esc(st.names[0])}</th><th>${esc(st.names[1])}</th></tr></thead><tbody>${body}</tbody></table>`;
+      <table class="stats"><thead><tr><th></th><th>${esc(side(0))}</th><th>${esc(side(1))}</th></tr></thead><tbody>${body}</tbody></table>`;
   }
   $('logBtn').onclick = () => {
     $('statsBox').innerHTML = statsHTML();
@@ -524,7 +556,7 @@
     $('log').innerHTML = st.racks.length ? st.racks.map((r,i)=>{ run[r.w]++;
       const t=new Date(r.t).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
       const how = r.set ? 'entered' : r.w===r.b && r.turns===1 ? 'break and run' : r.g ? GN[r.g] : '';
-      return `<div><span>${i+1}. ${esc(st.names[r.w])}${how?' · '+how:''}</span><span>${run[0]}–${run[1]} · ${t}</span></div>`; }).join('')
+      return `<div><span>${i+1}. ${esc(side(r.w))}${how?' · '+how:''}</span><span>${run[0]}–${run[1]} · ${t}</span></div>`; }).join('')
       : '<p>No racks yet.</p>';
     $('logSheet').hidden=false;
   };
@@ -540,24 +572,42 @@
     setTimeout(() => $('sc'+i).textContent = 'Copy', 1500);
   };
   $('shareNative').onclick = () => { const other = me === 0 ? 1 : me === 1 ? 0 : 1;
-    navigator.share({ title: `${st.names[0]} vs ${st.names[1]}`, text: `Live score: ${st.names[0]} vs ${st.names[1]}`, url: link(other) }).catch(() => {}); };
+    navigator.share({ title: `${side(0)} vs ${side(1)}`, text: `Live score: ${side(0)} vs ${side(1)}`, url: link(other) }).catch(() => {}); };
   $('shareClose').onclick = () => $('shareSheet').hidden = true;
   $('logClose').onclick = () => $('logSheet').hidden=true;
 
   $('setBtn').onclick = () => {
-    for (const i of [0,1]) { $('fn'+i).value=st.names[i]; $('fr'+i).value=st.race[i]; }
-    $('fb').options[0].text=st.names[0]; $('fb').options[1].text=st.names[1];
-    const sc = scores(); for (const i of [0,1]) { $('fs'+i).value = sc[i]; $('fsl'+i).textContent = `${st.names[i]} score`; }
+    for (const i of [0,1]) { $('fn'+i).value=st.names[i]; $('fp'+i).value=st.partners[i]; $('fr'+i).value=st.race[i]; }
+    $('fb').options[0].text=side(0); $('fb').options[1].text=side(1);
+    const sc = scores(); for (const i of [0,1]) $('fs'+i).value = sc[i];
+    setFmt(st.dbl);
     $('fb').value=String(st.firstBreak); $('fm').value=st.mode; $('ver').textContent = `Version ${VERSION}`; $('setup').hidden=false;
   };
+  let fmtDbl = false;
+  const setFmt = d => { fmtDbl = d; $('setupForm').classList.toggle('dbl', d);
+    $('fmt1').setAttribute('aria-checked', String(!d)); $('fmt2').setAttribute('aria-checked', String(d));
+    for (const i of [0,1]) $('sideL'+i).textContent = d ? `Team ${i+1}` : `Player ${i+1}`; };
+  $('fmt1').onclick = () => setFmt(false);
+  $('fmt2').onclick = () => { setFmt(true); if (!$('fp0').value) $('fp0').focus(); };
+  for (const b of document.querySelectorAll('[data-step]')) b.onclick = () => {
+    const [id, d] = b.dataset.step.split(':'); const inp = $(id);
+    inp.value = Math.max(+inp.min, Math.min(+inp.max, (parseInt(inp.value,10) || 0) + +d));
+  };
+  const openSetup = () => $('setBtn').onclick();
+  $('modeBtn').onclick = openSetup;
+  $('raceLbl').onclick = openSetup;
+  $('raceLbl').addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' ') { e.preventDefault(); openSetup(); } });
   $('setCancel').onclick = () => $('setup').hidden=true;
   $('setupForm').addEventListener('submit', e => {
     e.preventDefault();
     act(() => {
       for (const i of [0,1]) {
         st.names[i] = $('fn'+i).value.trim() || st.names[i];
+        st.partners[i] = $('fp'+i).value.trim();
         st.race[i] = Math.max(1, Math.min(99, parseInt($('fr'+i).value,10) || 5));
       }
+      if (fmtDbl !== st.dbl) st.rot = [0,0];
+      st.dbl = fmtDbl;
       st.firstBreak=+$('fb').value; st.mode=$('fm').value;
       if (newMatch) return resetMatch();
       // Match the score typed in: add racks for a player who's ahead of the board, drop their latest racks if behind.
