@@ -128,6 +128,28 @@
   .toggle button[aria-pressed="true"]{background:var(--gold);border-color:var(--gold);color:#1d1606}
   .badge{display:inline-block;min-width:18px;padding:0 5px;margin-left:4px;border-radius:9px;background:var(--gold);color:#1d1606;font-size:11px;line-height:18px}
   .fmtnote{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  body.scroll{overflow:auto}
+  body.scroll .app{height:auto;min-height:100%}
+  body.scroll .players{flex:none;height:min(56vh,440px)}
+  .linecard{display:flex;flex-direction:column;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;margin-top:6px}
+  .linecard h3{margin:0;font-family:var(--num);font-weight:900;font-size:22px;letter-spacing:.04em;text-transform:uppercase}
+  .facts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .facts div{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:2px;min-width:0}
+  .facts b{font-family:var(--num);font-weight:900;font-size:20px;line-height:1.05;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .facts span{font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+  .two3{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .switch{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer;width:100%;text-align:left;color:var(--text)}
+  .switch b{display:block;font-size:15px}
+  .switch small{color:var(--muted);font-size:12px;font-weight:500}
+  .knob{flex:none;width:52px;height:30px;border-radius:15px;background:#3b5448;position:relative;transition:background .15s}
+  .knob::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:transform .15s}
+  .switch[aria-checked="true"] .knob{background:#57d98a}
+  .switch[aria-checked="true"] .knob::after{transform:translateX(22px)}
+  .lockic{display:inline-grid;place-items:center;width:30px;height:26px;border-radius:7px;border:1.5px solid var(--line);background:transparent;padding:0;color:var(--text)}
+  .lockic svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2.2}
+  .lockic.locked{border-color:var(--gold);color:var(--gold)}
+  .qrbig svg{width:min(70vw,280px);height:min(70vw,280px)}
+  .rulesum{font-size:13px;color:var(--text);margin:0;line-height:1.45;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
   .ver{font-size:11px;color:var(--muted);text-align:center;margin:0}
   .mb{--c:#d9302a;display:inline-block;width:14px;height:14px;border-radius:50%;background:var(--c);vertical-align:middle;
     box-shadow:inset -2px -2px 0 rgba(0,0,0,.28);flex:none}
@@ -193,7 +215,7 @@
 
 <div class="app">
   <header>
-    <div class="hdr-l"><a class="tchip home" id="tchip" hidden aria-label="All tables"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 12h3v8h5v-5h4v5h5v-8h3z"/></svg><span id="tchipN"></span></a><button class="modeb" id="modeBtn" aria-label="Change format">1v1</button><div class="race" id="raceLbl" role="button" tabindex="0">Race 5–5</div></div>
+    <div class="hdr-l"><a class="tchip home" id="tchip" hidden aria-label="All tables"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 12h3v8h5v-5h4v5h5v-8h3z"/></svg><span id="tchipN"></span></a><button class="lockic" id="lockIc" hidden aria-label="Lock or unlock the table"></button><button class="modeb" id="modeBtn" aria-label="Change format">1v1</button><div class="race" id="raceLbl" role="button" tabindex="0">Race 5–5</div></div>
     <div class="hdr-r"><span class="live" id="live">Offline</span><div class="rackno" id="rackNo">Rack 1</div></div>
   </header>
 
@@ -239,6 +261,30 @@
     <button id="setBtn">Setup</button>
     <button id="shareBtn" class="primary">Share</button>
   </div>
+
+  <section class="linecard" id="lineCard" hidden aria-label="Waitlist">
+    <h3 id="lcTitle">Winner stays on</h3>
+    <div class="facts">
+      <div><b id="fOn">–</b><span>On a run</span></div>
+      <div><b id="fNext">–</b><span>Next up</span></div>
+      <div><b id="fGames">0</b><span>Games tonight</span></div>
+    </div>
+    <button class="switch" role="switch" id="lockSw2" hidden><span><b id="lockT2">Table open</b><small id="lockS2"></small></span><span class="knob" aria-hidden="true"></span></button>
+    <p class="sub-h">Waitlist</p>
+    <div class="line" id="lineList2"></div>
+    <form class="addrow" id="addForm2"><input id="addName2" placeholder="Add a name to the line" autocomplete="off" enterkeyhint="done"><button type="submit">Add</button></form>
+    <div class="two3"><button class="primary" id="waitShare">Share waitlist</button><button id="qrOpen">Show QR code</button></div>
+    <div id="board"></div>
+  </section>
+</div>
+
+<div class="sheet" id="qrSheet" hidden>
+  <div class="card">
+    <h2>Scan to join the line</h2>
+    <div class="qr qrbig" id="qr2"></div>
+    <p id="qrFor"></p>
+    <button id="qrClose">Done</button>
+  </div>
 </div>
 
 <div class="sheet" id="setup" hidden>
@@ -257,6 +303,8 @@
         <button type="button" role="radio" data-fo="race">Race</button><button type="button" role="radio" data-fo="wso">Winner stays</button><button type="button" role="radio" data-fo="rot">Rotate</button>
       </div></div>
     <p id="fmtHelp" class="fmtnote"></p>
+    <p class="rulesum" id="ruleSum"></p>
+    <label class="optrow" id="bsRow"><span>Scratch on the break</span><select id="fbs"><option value="kitchen">Ball in hand in the kitchen</option><option value="bih">Ball in hand anywhere</option></select></label>
     <div class="seg" role="radiogroup" aria-label="Players">
       <button type="button" id="fmt1" role="radio">1v1</button>
       <button type="button" id="fmt2" role="radio">2v2 doubles</button>
@@ -318,7 +366,7 @@
 <div class="sheet" id="shareSheet" hidden>
   <div class="card">
     <h2>Share & waitlist</h2>
-    <div class="toggle" id="lockRow" hidden><div><b id="lockT">Table locked</b><small id="lockS">Only people with a link below can join and score.</small></div><button id="lockBtn" aria-pressed="true">Locked</button></div>
+    <button class="switch" role="switch" id="lockRow" hidden><span><b id="lockT">Table open</b><small id="lockS"></small></span><span class="knob" aria-hidden="true"></span></button>
     <p class="sub-h">Waitlist</p>
     <p>People scan this to get in line for the table.</p>
     <div class="qr" id="qr"></div>
@@ -380,7 +428,7 @@
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
-  const VERSION = '16';
+  const VERSION = '17';
   // Phones can hold on to an old copy of this page for a while. Check for a newer one and switch to it;
   // the score lives in storage and the relay, so nothing is lost by reloading.
   async function checkUpdate(){
@@ -441,7 +489,7 @@
     el('gClaim').onclick = async () => {
       el('gClaim').disabled = true; el('gClaim').textContent = 'Starting…';
       const key = (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)).slice(0, 16);
-      try { localStorage.setItem(KEY, JSON.stringify({ game: key, names: ['Player 1', 'Player 2'], clockV: 2, table: `${HALL}-${TNUM}`, qSince: Date.now() - 30 * 60 * 1000 })); } catch {}
+      try { localStorage.setItem(KEY, JSON.stringify({ game: key, names: ['Player 1', 'Player 2'], clockV: 2, table: `${HALL}-${TNUM}`, qSince: Date.now() - 30 * 60 * 1000, locked: false })); } catch {}
       setMine(`${HALL}-${TNUM}`, key);
       try { await Promise.race([postStatus({ state: 'busy', gh: hashKey(key), names: ['Player 1', 'Player 2'], score: [0, 0], race: [5, 5] }), new Promise(r => setTimeout(r, 2500))]); } catch {}
       enter(key, true);
@@ -453,7 +501,7 @@
     location.replace(u.toString());
   }
   const fresh = () => ({ names:['BCA Shag','Terry'], race:[5,5], firstBreak:1, mode:'alt', racks:[], fix:null,
-    shooter:1, groups:[null,null], turns:0, bih:false, down:[], dbl:false, partners:['',''], rot:[0,0], fouls:[0,0], pots:[], inn:[0,0], tt:[0,0], t0:0, tEnd:0, tFrom:0, clockLen:60, clockV:2, gtype:8, rules:'bca', fmtMode:'race', sl:[5,5], adj:[0,0], queue:[], seen:[], games:[], streak:0, lastW:'', pairStart:0, locked:true, qSince:0, hist:[] });
+    shooter:1, groups:[null,null], turns:0, bih:false, down:[], dbl:false, partners:['',''], rot:[0,0], fouls:[0,0], pots:[], inn:[0,0], tt:[0,0], t0:0, tEnd:0, tFrom:0, clockLen:60, clockV:2, gtype:8, rules:'bca', fmtMode:'race', sl:[5,5], adj:[0,0], queue:[], seen:[], games:[], streak:0, lastW:'', pairStart:0, locked:false, bs:'', qSince:0, hist:[] });
   let st;
   try { st = JSON.parse(localStorage.getItem(KEY)) || fresh(); } catch { st = fresh(); }
   if (st.clockV !== 2) { st.clockLen = 60; st.clockV = 2; }
@@ -526,6 +574,10 @@
   const maxBall = () => st.gtype === 8 ? 15 : st.gtype;
   const ptsMode = () => st.rules === 'apa' && st.gtype === 9;
   const rotating = () => st.fmtMode !== 'race';
+  // Scratch on the break: BCA and APA 8-ball put the cue ball in the kitchen (behind the head string);
+  // every other foul is ball in hand anywhere. Custom can set either.
+  const breakScratch = () => st.bs || (st.gtype === 8 ? 'kitchen' : 'bih');
+  const onBreak = () => st.turns === 0 && st.shooter === breaker();
   const scores = () => { const s=[0,0];
     if (ptsMode()) { st.pots.forEach(e => { const f = e.split('.'); if (+f[2] >= st.pairStart) s[+f[1]] += +f[0] === 9 ? 2 : 1; }); return [s[0]+st.adj[0], s[1]+st.adj[1]]; }
     st.racks.forEach((r, k) => { if (k >= st.pairStart) s[r.w]++; }); return s; };
@@ -594,6 +646,7 @@
       $('t'+i).hidden = !(live && st.shooter===i);
       $('y'+i).hidden = me !== i;
       $('h'+i).hidden = !(live && st.shooter===i && st.bih);
+      $('h'+i).textContent = st.bih === 'kitchen' ? 'Kitchen · behind head string' : 'Ball in hand';
       $('p'+i).classList.toggle('shooting', live && st.shooter===i);
       $('w'+i).disabled = !live;
       $('w'+i).textContent = st.dbl ? 'Team won rack' : `${short(st.names[i])} won rack`;
@@ -621,7 +674,9 @@
     $('gClear').disabled = !assigned;
     const nx = whoShoots(1-st.shooter);
     $('endTo').textContent = `Miss or safe → ${nx}`;
-    $('foulTo').textContent = `${nx} gets ball in hand`;
+    const kit = live && onBreak() && breakScratch() === 'kitchen';
+    $('foul').firstChild.textContent = kit ? 'Scratch on break' : 'Foul · ball in hand';
+    $('foulTo').textContent = kit ? `${nx} shoots from the kitchen` : `${nx} gets ball in hand`;
     $('clockLen').textContent = lenName(st.clockLen);
     $('extSec').textContent = st.clockLen || 60;
     for (const id of ['endTurn','foul','gs0','gs1']) $(id).disabled = !live;
@@ -643,7 +698,8 @@
   const buzz = () => { try { navigator.vibrate && navigator.vibrate(25); } catch {} };
 
   const endInning = () => { const now = Date.now(); st.inn[st.shooter]++; if (st.dbl) st.rot[st.shooter] ^= 1; st.tt[st.shooter] += now - (st.tFrom || now); st.tFrom = now; };
-  const passTable = foul => { act(() => { endInning(); if (foul) st.fouls[st.shooter]++; st.shooter = 1-st.shooter; st.turns++; st.bih = foul; }); buzz(); clockStart(); };
+  const passTable = foul => { act(() => { const kitchen = foul && onBreak() && breakScratch() === 'kitchen';
+    endInning(); if (foul) st.fouls[st.shooter]++; st.shooter = 1-st.shooter; st.turns++; st.bih = foul ? (kitchen ? 'kitchen' : true) : false; }); buzz(); clockStart(); };
   $('endTurn').onclick = () => passTable(false);
   $('foul').onclick = () => passTable(true);
   for (const i of [0,1]) $('h'+i).onclick = () => act(() => { st.bih = false; });
@@ -812,6 +868,7 @@
     const sc = scores(); for (const i of [0,1]) $('fs'+i).value = sc[i];
     setFmt(st.dbl);
     form = { gt: st.gtype, ru: st.rules, fo: st.fmtMode };
+    $('fbs').value = breakScratch();
     for (const i of [0,1]) $('fk'+i).value = st.sl[i];
     paintForm();
     $('fb').value=String(st.firstBreak); $('fm').value=st.mode; $('ver').textContent = `Version ${VERSION}`; $('setup').hidden=false;
@@ -837,6 +894,12 @@
     const apa = form.ru === 'apa';
     card.classList.toggle('apa', apa); card.classList.toggle('rot', form.fo !== 'race');
     $('fmtHelp').textContent = HELP[form.fo];
+    $('bsRow').hidden = form.ru !== 'custom';
+    if (form.ru !== 'custom') $('fbs').value = form.gt === 8 ? 'kitchen' : 'bih';
+    const brk = form.ru === 'apa' ? 'Winner breaks' : form.ru === 'bca' ? 'Breaks alternate' : 'Break order as set below';
+    const scr = $('fbs').value === 'kitchen' ? 'scratch on the break is ball in hand in the kitchen (behind the head string)' : 'scratch on the break is ball in hand anywhere';
+    const race = form.ru !== 'apa' ? 'Race as set below.' : form.gt === 9 ? 'Points: 1 a ball, 2 for the 9, target by skill level.' : form.gt === 8 ? 'Race from the APA skill-level chart.' : 'Race as set below.';
+    $('ruleSum').textContent = `${form.ru.toUpperCase()} ${form.gt}-ball: ${brk}; ${scr}; any other foul is ball in hand anywhere. ${race}`;
     const pts = apa && form.gt === 9;
     for (const el of card.querySelectorAll('.raceLbl')) el.textContent = pts ? 'Points to win' : 'Race to';
     for (const i of [0,1]) { $('fk'+i).min = form.gt === 8 ? 2 : 1; $('fk'+i).max = form.gt === 8 ? 7 : 9; $('fsl'+i).textContent = pts ? 'Points' : 'Score'; }
@@ -856,6 +919,7 @@
     paintForm();
   });
   for (const i of [0,1]) $('fk'+i).addEventListener('input', paintForm);
+  $('fbs').addEventListener('change', paintForm);
   for (const b of document.querySelectorAll('[data-step^="fk"]')) b.addEventListener('click', () => setTimeout(paintForm));
   const openSetup = () => $('setBtn').onclick();
   $('modeBtn').onclick = openSetup;
@@ -886,6 +950,7 @@
       st.firstBreak=+$('fb').value; st.mode=$('fm').value;
       if (form.gt !== st.gtype) { st.down = []; st.groups = [null,null]; }
       st.gtype = form.gt; st.rules = form.ru; st.fmtMode = form.fo;
+      st.bs = form.ru === 'custom' ? $('fbs').value : '';
       st.sl = [0,1].map(i => parseInt($('fk'+i).value,10) || 5);
       if (newMatch) return resetMatch();
       if (ptsMode()) {   // points come from the balls; the typed score just sets an offset
@@ -922,7 +987,7 @@
   if (tableMode) {
     setMine(`${HALL}-${TNUM}`, game);
     $('tchip').hidden = false; $('tchipN').textContent = TNUM; $('tchip').href = hallUrl();
-    $('lockRow').hidden = false;
+    $('lockRow').hidden = false; $('lockSw2').hidden = false; $('lockIc').hidden = false; paintLock();
     $('setFree').hidden = false; $('setFree').textContent = `Free table ${TNUM}`; $('winFree').hidden = false;
     const freeTable = async () => {
       freed = true; setMine(`${HALL}-${TNUM}`, null);
@@ -965,31 +1030,62 @@
     lineT = setTimeout(() => fetch(`${RELAY}/${WAIT_TOPIC}`, { method: 'POST', body: JSON.stringify({ kind: 'line', q, now: [side(0), side(1)], score: scores(), fmt: st.fmtMode, table: tableMode ? TNUM : 0, ts: Date.now() }) }).catch(() => {}), 1500);
   }
   function paintLine(){
-    $('lineList').innerHTML = st.queue.length ? st.queue.map((q, k) => `<div><b>${k+1}</b><span>${esc(q.name)}</span>${k ? `<button data-up="${esc(q.id)}" aria-label="Move ${esc(q.name)} up">↑</button>` : ''}<button data-rm="${esc(q.id)}" aria-label="Remove ${esc(q.name)}">✕</button></div>`).join('')
+    $('lineList').innerHTML = $('lineList2').innerHTML = st.queue.length ? st.queue.map((q, k) => `<div><b>${k+1}</b><span>${esc(q.name)}</span>${k ? `<button data-up="${esc(q.id)}" aria-label="Move ${esc(q.name)} up">↑</button>` : ''}<button data-rm="${esc(q.id)}" aria-label="Remove ${esc(q.name)}">✕</button></div>`).join('')
       : '<p>Nobody in line yet.</p>';
-    $('lockBtn').setAttribute('aria-pressed', String(st.locked)); $('lockBtn').textContent = st.locked ? 'Locked' : 'Open';
-    $('lockT').textContent = st.locked ? `Table ${TNUM} locked` : `Table ${TNUM} open`;
-    $('lockS').textContent = st.locked ? 'Only people with a scoring link can join and score.' : `Anyone who taps table ${TNUM} can join and score.`;
+    paintLock();
   }
-  $('lineList').addEventListener('click', e => {
+  const lineClick = e => {
     const up = e.target.closest('[data-up]'), rm = e.target.closest('[data-rm]');
     if (up) act(() => { const k = st.queue.findIndex(q => q.id === up.dataset.up); if (k > 0) st.queue.splice(k - 1, 0, st.queue.splice(k, 1)[0]); });
     if (rm) act(() => { st.queue = st.queue.filter(q => q.id !== rm.dataset.rm); });
     paintLine();
-  });
-  $('addForm').addEventListener('submit', e => { e.preventDefault(); const n = $('addName').value.trim(); if (!n) return;
-    act(() => st.queue.push({ id: qid(), name: n.slice(0, 24) })); $('addName').value = ''; paintLine(); });
-  $('lockBtn').onclick = () => { act(() => { st.locked = !st.locked; }); paintLine(); };
+  };
+  $('lineList').addEventListener('click', lineClick); $('lineList2').addEventListener('click', lineClick);
+  for (const [f, inp] of [['addForm','addName'], ['addForm2','addName2']]) $(f).addEventListener('submit', e => { e.preventDefault(); const n = $(inp).value.trim(); if (!n) return;
+    act(() => st.queue.push({ id: qid(), name: n.slice(0, 24) })); $(inp).value = ''; paintLine(); });
+  function paintLock(){
+    const t = st.locked ? `Table ${TNUM} locked` : `Table ${TNUM} open`;
+    const d = st.locked ? 'Only people with a scoring link can join and score. Slide to open it.' : `Anyone who taps table ${TNUM} can join and score. Slide to lock it.`;
+    for (const [sw, tt, ss] of [['lockRow','lockT','lockS'], ['lockSw2','lockT2','lockS2']]) {
+      $(sw).setAttribute('aria-checked', String(!st.locked)); $(tt).textContent = t; $(ss).textContent = d; }
+    $('lockIc').innerHTML = st.locked ? '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>' : '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/></svg>';
+    $('lockIc').classList.toggle('locked', st.locked);
+    $('lockIc').setAttribute('aria-label', st.locked ? `Table ${TNUM} is locked. Tap to open it.` : `Table ${TNUM} is open. Tap to lock it.`);
+  }
+  const toggleLock = () => { act(() => { st.locked = !st.locked; }); paintLine(); };
+  $('lockRow').onclick = toggleLock; $('lockSw2').onclick = toggleLock; $('lockIc').onclick = toggleLock;
   // QR code for the waitlist, drawn by qrcode.js (MIT, bundled with the site).
   function drawQR(url){
     try { const q = qrcode(0, 'M'); q.addData(url); q.make(); $('qr').innerHTML = q.createSvgTag({ cellSize: 4, margin: 0, scalable: true, alt: 'Waitlist QR code' }); }
     catch { $('qr').innerHTML = '<p style="color:#333;margin:0;max-width:180px">Couldn\'t draw the QR code. Share the link below instead.</p>'; }
   }
+  $('qrOpen').onclick = () => { const u = waitUrl(); const box = $('qr2');
+    try { const q = qrcode(0, 'M'); q.addData(u); q.make(); box.innerHTML = q.createSvgTag({ cellSize: 4, margin: 0, scalable: true, alt: 'Waitlist QR code' }); } catch { box.textContent = u; }
+    $('qrFor').textContent = tableMode ? `Table ${TNUM} · ${u}` : u; $('qrSheet').hidden = false; };
+  $('qrClose').onclick = () => $('qrSheet').hidden = true;
+  $('waitShare').onclick = async () => { const u = waitUrl();
+    if (navigator.share) { try { await navigator.share({ title: tableMode ? `Table ${TNUM} waitlist` : 'Waitlist', text: 'Get in line for the table:', url: u }); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
+    try { await navigator.clipboard.writeText(u); $('waitShare').textContent = 'Link copied'; } catch { $('waitShare').textContent = 'Copy failed'; }
+    setTimeout(() => $('waitShare').textContent = 'Share waitlist', 1600); };
+  function paintLineCard(){
+    const on = rotating();
+    document.body.classList.toggle('scroll', on); $('lineCard').hidden = !on;
+    if (!on) return;
+    $('lcTitle').textContent = st.fmtMode === 'wso' ? 'Winner stays on' : "Rotate · winner doesn't stay";
+    const champ = st.lastW && [side(0), side(1)].includes(st.lastW) ? `${short(st.lastW)} ×${st.streak}` : '–';
+    $('fOn').textContent = st.fmtMode === 'wso' ? champ : `${st.games.length ? short(st.games[st.games.length-1].w) : '–'}`;
+    $('fOn').nextElementSibling.textContent = st.fmtMode === 'wso' ? 'On a run' : 'Last winner';
+    $('fNext').textContent = st.queue.length ? short(st.queue[0].name) : 'Open';
+    $('fGames').textContent = st.games.length;
+    const board = Object.entries(st.games.reduce((m, g) => (m[g.w] = (m[g.w] || 0) + 1, m), {})).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    $('board').innerHTML = board.length ? `<p class="sub-h">Tonight's wins</p><table class="stats"><tbody>${board.map(([n, c]) => `<tr><td>${esc(n)}</td><td>${c}</td></tr>`).join('')}</tbody></table>` : '';
+    paintLine();
+  }
   const shareOpen = $('shareBtn').onclick;
   $('shareBtn').onclick = () => { shareOpen(); const u = waitUrl(); $('waitUrl').value = u; drawQR(u); paintLine(); };
   $('waitCopy').onclick = async () => { try { await navigator.clipboard.writeText($('waitUrl').value); $('waitCopy').textContent = 'Copied'; } catch { $('waitUrl').select(); $('waitCopy').textContent = 'Selected'; } setTimeout(() => $('waitCopy').textContent = 'Copy', 1500); };
   const renderBase = render;
-  render = function(){ renderBase(); try { lineTick(); if (!$('shareSheet').hidden) paintLine(); } catch {} };
+  render = function(){ renderBase(); try { lineTick(); paintLineCard(); if (!$('shareSheet').hidden) paintLine(); } catch {} };
 
   render(); drawClock(); save(); connect(); statusTick(); listenWait();
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} openSetup(); }
