@@ -28,6 +28,7 @@
   @keyframes flash{from{box-shadow:inset 0 0 0 999px var(--gold)}to{box-shadow:inset 0 0 0 999px transparent}}
   .top{grid-column:1 / -1;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .name{font-size:clamp(20px,6vw,28px);font-weight:700;line-height:1.1;margin-right:auto}
+  .chip[id^="g"]{cursor:pointer}
   .chip{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:4px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
   .chip.brk{background:var(--gold);border-color:var(--gold);color:#1d1606}
   .chip.shoot{background:var(--chalk);border-color:var(--chalk);color:#04162b}
@@ -52,7 +53,8 @@
   .ctrl .endturn{grid-column:1 / -1;font-size:20px;padding:16px}
   .groups{grid-column:1 / -1;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);font-weight:600}
   .groups span{margin-right:auto}
-  .groups button{padding:9px 14px}
+  .groups button{padding:9px 12px}
+  .groups button.pick{background:var(--solid);border-color:var(--solid);color:#fff}
   .bar{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
   .bar button{font-size:13px;padding:10px 4px}
   .sheet{position:fixed;inset:0;background:rgba(4,8,6,.8);display:flex;align-items:flex-end;justify-content:center;z-index:10;padding:16px}
@@ -92,10 +94,10 @@
 
   <div class="ctrl">
     <div class="groups" id="groups">
-      <span id="groupLbl">Open table</span>
-      <button id="gSolids">Solids</button>
-      <button id="gStripes">Stripes</button>
-      <button id="gClear" hidden>Reset</button>
+      <span id="groupLbl">Who has solids?</span>
+      <button id="gs0"></button>
+      <button id="gs1"></button>
+      <button id="gClear">Open</button>
     </div>
     <button class="endturn primary" id="endTurn">End turn</button>
   </div>
@@ -194,16 +196,20 @@
       $('w'+i).textContent = `${st.names[i].split(' ').pop()} won rack`;
       $('k'+i).innerHTML = Array.from({length:st.race[i]},(_,j)=>`<span class="pip${j<s[i]?' on':''}"></span>`).join('');
     }
-    const sh = st.names[st.shooter], assigned = !!st.groups[0];
+    const assigned = !!st.groups[0];
     $('groupLbl').textContent = assigned
-      ? `${st.names[0]}: ${GN[st.groups[0]]} · ${st.names[1]}: ${GN[st.groups[1]]}`
-      : `Open table · ${sh} is on`;
-    $('gSolids').hidden = $('gStripes').hidden = assigned;
-    $('gSolids').textContent = `${sh.split(' ').pop()}: Solids`;
-    $('gStripes').textContent = `${sh.split(' ').pop()}: Stripes`;
-    $('gClear').hidden = !assigned;
+      ? `Solids: ${st.names[st.groups[0]==='solids'?0:1]}`
+      : 'Open table · who has solids?';
+    for (const i of [0,1]) {
+      $('gs'+i).textContent = st.names[i].split(' ').pop();
+      $('gs'+i).classList.toggle('pick', st.groups[i]==='solids');
+      $('gs'+i).setAttribute('aria-pressed', String(st.groups[i]==='solids'));
+    }
+    $('gClear').classList.toggle('pick', false);
+    $('gClear').disabled = !assigned;
     $('endTurn').textContent = `End turn → ${st.names[1-st.shooter]}`;
-    for (const id of ['endTurn','gSolids','gStripes','gClear','swap']) $(id).disabled = !live;
+    for (const id of ['endTurn','gs0','gs1']) $(id).disabled = !live;
+    if (!live) $('gClear').disabled = true;
     $('swap').disabled = !live || st.turns>0;
     $('undo').disabled = !st.hist.length;
     $('winSheet').hidden = live;
@@ -220,9 +226,12 @@
   const buzz = () => { try { navigator.vibrate && navigator.vibrate(25); } catch {} };
 
   $('endTurn').onclick = () => { act(() => { st.shooter = 1-st.shooter; st.turns++; }); buzz(); };
-  const setGroup = g => act(() => { const o = g==='solids' ? 'stripes' : 'solids'; st.groups[st.shooter]=g; st.groups[1-st.shooter]=o; });
-  $('gSolids').onclick = () => setGroup('solids');
-  $('gStripes').onclick = () => setGroup('stripes');
+  // Tap the player who has solids; the other player gets stripes.
+  const setSolids = i => act(() => { st.groups[i]='solids'; st.groups[1-i]='stripes'; });
+  $('gs0').onclick = () => setSolids(0);
+  $('gs1').onclick = () => setSolids(1);
+  // Tapping a player's group chip flips the groups (or gives that player solids on an open table).
+  for (const i of [0,1]) $('g'+i).onclick = () => { if (winner(scores())<0) setSolids(st.groups[i]==='solids' ? 1-i : i); };
   $('gClear').onclick = () => act(() => { st.groups=[null,null]; });
 
   for (const i of [0,1]) $('w'+i).onclick = () => {
