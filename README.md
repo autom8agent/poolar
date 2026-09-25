@@ -62,6 +62,20 @@ side-loaded. The live URL above already satisfies this.
 
 ---
 
+## 🎯 Hardware: the CueCam cue
+
+A companion hardware design lives in [`hardware/cuecam/`](hardware/cuecam/) — a
+3-piece carbon cue with a camera that pops out of a collar a third of the way
+from the tip, 9.5 mm quick-change tip, 17–21 oz adjustable, printable parts for
+a Bambu Lab P1S, and footage that reaches your phone on an SD card.
+
+Where the Beam Pro app sees *where the balls are*, the cue camera sees *what you
+did about it* — and the aim solver in this repo is what draws the overlay on the
+resulting clips. Ten generated technical drawings, a runnable mass/balance
+model, parametric OpenSCAD, and a build plan that starts with a £15 mock-up.
+
+---
+
 ## ⚠️ What this MVP is (and isn't)
 - ✅ **Is:** a working aim assistant viewed as a floating screen in your glasses (casting mode).
 - ❌ **Isn't (yet):** *world-locked* see-through AR where lines sit on the real table through the
