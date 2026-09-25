@@ -76,6 +76,17 @@
   .ballshow span:first-child{grid-column:1 / 8;justify-self:start;font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
   .ballshow .ballmin{grid-column:8}
   .ver{font-size:11px;color:var(--muted);text-align:center;margin:0}
+  .mb{--c:#d9302a;display:inline-block;width:14px;height:14px;border-radius:50%;background:var(--c);vertical-align:middle;
+    box-shadow:inset -2px -2px 0 rgba(0,0,0,.28);flex:none}
+  .mb.st{background:linear-gradient(#f4efe2 0 26%,var(--c) 26% 74%,#f4efe2 74%)}
+  .mb.big{width:18px;height:18px}
+  .mb.down{opacity:.15}
+  .mini{display:flex;gap:5px;flex-wrap:wrap;min-height:18px}
+  .mini .mb{width:18px;height:18px}
+  .chip.grp{display:inline-flex;align-items:center;gap:5px;font-size:13px;letter-spacing:0;padding:2px 9px 2px 3px;background:var(--bg);border-color:var(--line);color:var(--text);box-shadow:none}
+  .chip.grp.open{padding:3px 9px;color:var(--muted);font-size:11px;letter-spacing:.1em}
+  #groupLbl{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  #groupLbl b{font-weight:700;color:var(--text)}
   .ball.down{opacity:.18;transform:scale(.82)}
   .ball:focus-visible{outline:3px solid var(--chalk);outline-offset:2px}
   .clock{grid-column:1 / -1;display:grid;grid-template-columns:1fr auto auto auto;gap:6px;align-items:stretch}
@@ -126,13 +137,13 @@
   <div class="players">
     <section class="p" id="p0">
       <div class="top"><div class="name" id="n0"></div><span class="chip you" id="y0" hidden>You</span><span class="chip" id="g0"></span><span class="chip brk" id="b0">Break</span><span class="chip shoot" id="t0">Shooting</span><span class="chip bih" id="h0">Ball in hand</span></div>
-      <div class="left"><div class="need" id="d0"></div><div class="pips" id="k0"></div></div>
+      <div class="left"><div class="mini" id="m0"></div><div class="need" id="d0"></div><div class="pips" id="k0"></div></div>
       <div class="score" id="s0">0</div>
       <button class="won gold" id="w0">Won rack</button>
     </section>
     <section class="p" id="p1">
       <div class="top"><div class="name" id="n1"></div><span class="chip you" id="y1" hidden>You</span><span class="chip" id="g1"></span><span class="chip brk" id="b1">Break</span><span class="chip shoot" id="t1">Shooting</span><span class="chip bih" id="h1">Ball in hand</span></div>
-      <div class="left"><div class="need" id="d1"></div><div class="pips" id="k1"></div></div>
+      <div class="left"><div class="mini" id="m1"></div><div class="need" id="d1"></div><div class="pips" id="k1"></div></div>
       <div class="score" id="s1">0</div>
       <button class="won gold" id="w1">Won rack</button>
     </section>
@@ -232,7 +243,7 @@
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
-  const VERSION = '11';
+  const VERSION = '12';
   // Phones can hold on to an old copy of this page for a while. Check for a newer one and switch to it;
   // the score lives in storage and the relay, so nothing is lost by reloading.
   async function checkUpdate(){
@@ -324,6 +335,7 @@
 
   // Ball rack: tap a ball when it's pocketed, tap again to put it back (spotted or mis-tap).
   const BC = ['#f5c518','#1f4fd1','#d9302a','#5b2a86','#f07b1a','#1e8a4c','#8a1f2a','#111'];
+  const mb = (n, down, big) => `<span class="mb${n>8?' st':''}${big?' big':''}${down?' down':''}" style="--c:${BC[(n-1)%8]}" aria-hidden="true"></span>`;
   const ORDER = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
   $('balls').innerHTML = ORDER.map(n => `<button class="ball${n>8?' st':''}" id="ball${n}" style="--c:${BC[(n-1)%8]}" aria-pressed="false" aria-label="${n} ball"><span>${n}</span></button>`).join('');
   // Hide or show the ball rack on this phone only (not synced).
@@ -355,8 +367,12 @@
       $('d'+i).textContent = left<=0 ? 'Wins' : left===1 ? 'Hill · needs 1' : `Needs ${left}`;
       const g = st.groups[i];
       const ballsLeft = g ? (g==='solids' ? [1,2,3,4,5,6,7] : [9,10,11,12,13,14,15]).filter(n => !st.down.includes(n)).length : 0;
-      $('g'+i).textContent = g ? (ballsLeft ? `${GN[g]} · ${ballsLeft} left` : `${GN[g]} · on the 8`) : 'Open';
-      $('g'+i).className = 'chip' + (g ? ' '+g : '');
+      // Show the group as a picture: a solid or striped ball (same color, so only the pattern differs) and what's left.
+      const mine = g==='solids' ? [1,2,3,4,5,6,7] : g==='stripes' ? [9,10,11,12,13,14,15] : [];
+      $('g'+i).innerHTML = g ? (ballsLeft ? `${mb(g==='solids'?3:11,false,true)}${ballsLeft}` : `${mb(8,false,true)}on 8`) : 'Open';
+      $('g'+i).className = 'chip grp' + (g ? '' : ' open');
+      $('g'+i).setAttribute('aria-label', g ? `${GN[g]}, ${ballsLeft} left` : 'Open table');
+      $('m'+i).innerHTML = mine.map(n => mb(n, st.down.includes(n))).join('');
       $('b'+i).hidden = !(live && b===i && st.turns===0);
       $('t'+i).hidden = !(live && st.shooter===i);
       $('y'+i).hidden = me !== i;
@@ -368,9 +384,10 @@
     }
     for (const n of ORDER) { const d = st.down.includes(n); $('ball'+n).classList.toggle('down', d); $('ball'+n).setAttribute('aria-pressed', String(d)); $('ball'+n).disabled = !live; }
     const assigned = !!st.groups[0];
-    $('groupLbl').textContent = assigned
-      ? `Solids: ${st.names[st.groups[0]==='solids'?0:1]}`
-      : 'Open table · who has solids?';
+    const sp = st.groups[0]==='solids' ? 0 : 1;
+    $('groupLbl').innerHTML = assigned
+      ? `${mb(3,false,true)}<b>${esc(st.names[sp].split(' ').pop())}</b> ${mb(11,false,true)}<b>${esc(st.names[1-sp].split(' ').pop())}</b>`
+      : `${mb(3,false,true)}? Tap who has solids`;
     for (const i of [0,1]) {
       $('gs'+i).textContent = st.names[i].split(' ').pop();
       $('gs'+i).classList.toggle('pick', st.groups[i]==='solids');
