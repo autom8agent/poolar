@@ -19,6 +19,14 @@
     padding-top:calc(8px + env(safe-area-inset-top,0px));padding-bottom:calc(8px + env(safe-area-inset-bottom,0px))}
   header{display:flex;align-items:center;justify-content:space-between;gap:8px}
   .race{font-family:var(--num);font-weight:900;font-size:18px;letter-spacing:.06em;text-transform:uppercase}
+  .hdr-r{display:flex;align-items:center;gap:8px}
+  .live{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:5px}
+  .live::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+  .live.on{color:#57d98a}
+  .chip.you{border-color:var(--text);color:var(--text)}
+  .share-row{display:flex;gap:8px;align-items:center}
+  .share-row input{font-size:13px;flex:1;min-width:0}
+  .share-row button{flex:none}
   .rackno{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.08em;text-transform:uppercase;font-variant-numeric:tabular-nums}
   .players{flex:1;display:grid;grid-template-rows:1fr 1fr;gap:6px;min-height:0}
   .p{border:2px solid var(--line);border-radius:14px;background:var(--panel);padding:8px 12px;
@@ -68,7 +76,7 @@
   .groups span{margin-right:auto}
   .groups button{padding:7px 10px}
   .groups button.pick{background:var(--solid);border-color:var(--solid);color:#fff}
-  .bar{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .bar{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
   .bar button{font-size:12px;padding:8px 4px}
   .sheet{position:fixed;inset:0;background:rgba(4,8,6,.8);display:flex;align-items:flex-end;justify-content:center;z-index:10;padding:16px}
   .card{width:100%;max-width:440px;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:18px;
@@ -87,18 +95,18 @@
 <div class="app">
   <header>
     <div class="race" id="raceLbl">Race 5–5</div>
-    <div class="rackno" id="rackNo">Rack 1</div>
+    <div class="hdr-r"><span class="live" id="live">Offline</span><div class="rackno" id="rackNo">Rack 1</div></div>
   </header>
 
   <div class="players">
     <section class="p" id="p0">
-      <div class="top"><div class="name" id="n0"></div><span class="chip" id="g0"></span><span class="chip brk" id="b0">Break</span><span class="chip shoot" id="t0">Shooting</span><span class="chip bih" id="h0">Ball in hand</span></div>
+      <div class="top"><div class="name" id="n0"></div><span class="chip you" id="y0" hidden>You</span><span class="chip" id="g0"></span><span class="chip brk" id="b0">Break</span><span class="chip shoot" id="t0">Shooting</span><span class="chip bih" id="h0">Ball in hand</span></div>
       <div class="left"><div class="need" id="d0"></div><div class="pips" id="k0"></div></div>
       <div class="score" id="s0">0</div>
       <button class="won gold" id="w0">Won rack</button>
     </section>
     <section class="p" id="p1">
-      <div class="top"><div class="name" id="n1"></div><span class="chip" id="g1"></span><span class="chip brk" id="b1">Break</span><span class="chip shoot" id="t1">Shooting</span><span class="chip bih" id="h1">Ball in hand</span></div>
+      <div class="top"><div class="name" id="n1"></div><span class="chip you" id="y1" hidden>You</span><span class="chip" id="g1"></span><span class="chip brk" id="b1">Break</span><span class="chip shoot" id="t1">Shooting</span><span class="chip bih" id="h1">Ball in hand</span></div>
       <div class="left"><div class="need" id="d1"></div><div class="pips" id="k1"></div></div>
       <div class="score" id="s1">0</div>
       <button class="won gold" id="w1">Won rack</button>
@@ -127,6 +135,7 @@
     <button id="swap">Swap break</button>
     <button id="logBtn">Racks</button>
     <button id="setBtn">Setup</button>
+    <button id="shareBtn" class="primary">Share</button>
   </div>
 </div>
 
@@ -149,6 +158,20 @@
       <button type="submit" class="primary">Start match</button>
     </div>
   </form>
+</div>
+
+<div class="sheet" id="shareSheet" hidden>
+  <div class="card">
+    <h2>Share live score</h2>
+    <p>Anyone with a link sees every tap as it happens, and can score too.</p>
+    <label><span id="sl0">Player 1's link</span><div class="share-row"><input id="su0" readonly><button id="sc0">Copy</button></div></label>
+    <label><span id="sl1">Player 2's link</span><div class="share-row"><input id="su1" readonly><button id="sc1">Copy</button></div></label>
+    <p id="shareNote">Game code <b id="gameCode"></b>. Updates go through the free ntfy.sh relay.</p>
+    <div class="two">
+      <button id="shareClose">Close</button>
+      <button class="primary" id="shareNative">Send link…</button>
+    </div>
+  </div>
 </div>
 
 <div class="sheet" id="logSheet" hidden>
@@ -179,13 +202,63 @@
   try { st = JSON.parse(localStorage.getItem(KEY)) || fresh(); } catch { st = fresh(); }
   st = { ...fresh(), ...st };
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch {} };
+
+  // Live sync: every change is posted to an ntfy.sh topic named after the game code in the URL,
+  // and every open copy of the page listens on that topic. Newest change wins.
+  const qs = new URLSearchParams(location.search);
+  const RELAY = qs.get('relay') || 'https://ntfy.sh';
+  const rid = () => Math.random().toString(36).slice(2, 12);
+  const game = (qs.get('game') || '').replace(/[^a-z0-9]/gi, '').slice(0, 24) || (st.game || rid());
+  const me = qs.has('me') ? +qs.get('me') : -1;
+  const TOPIC = 'poolar-' + game;
+  const cid = rid();
+  const joinedNew = st.game !== game;
+  st.game = game;
+  if (qs.get('game') !== game) { qs.set('game', game); try { history.replaceState(null, '', '?' + qs); } catch {} }
+  let pushT, liveOn = false;
+  const payload = () => { const { hist, ...rest } = st; return JSON.stringify({ ts: st.ts || 0, from: cid, st: rest, clk: { end: clk.end, left: clk.left, running: clk.running, ext: clk.ext } }); };
+  const sync = () => { clearTimeout(pushT); pushT = setTimeout(() => {
+    fetch(`${RELAY}/${TOPIC}`, { method: 'POST', body: payload() }).catch(() => setLive(false)); }, 600); };
+  function applyRemote(raw, force){
+    let m; try { m = JSON.parse(raw); } catch { return; }
+    if (!m || !m.st || m.from === cid) return;
+    if (!force && (m.ts || 0) <= (st.ts || 0)) return;
+    const { hist, ...rest } = st;
+    const h = st.hist; h.push(JSON.stringify(rest)); if (h.length > 200) h.shift();
+    st = { ...fresh(), ...m.st, game, hist: h };
+    if (m.clk) Object.assign(clk, m.clk, { beeped: 0 });
+    save(); render(); drawClock();
+  }
+  function setLive(on){ liveOn = on; const el = $('live'); el.textContent = on ? 'Live' : 'Offline'; el.classList.toggle('on', on); }
+  async function pollLatest(){
+    let latest = null;
+    try {
+      const txt = await (await fetch(`${RELAY}/${TOPIC}/json?poll=1&since=12h`)).text();
+      for (const line of txt.split('\n')) { try { const e = JSON.parse(line); if (e.event === 'message') latest = e.message; } catch {} }
+      setLive(true);
+    } catch { setLive(false); }
+    return latest;
+  }
+  async function connect(){
+    const latest = await pollLatest();
+    if (latest) applyRemote(latest, joinedNew); else if (liveOn) sync();
+    // A phone that slept may have missed updates: catch up when it wakes.
+    document.addEventListener('visibilitychange', async () => { if (document.visibilityState === 'visible') { const l = await pollLatest(); if (l) applyRemote(l); } });
+    try {
+      const es = new EventSource(`${RELAY}/${TOPIC}/sse`);
+      es.onopen = () => setLive(true);
+      es.onerror = () => setLive(false);
+      es.onmessage = e => { try { const d = JSON.parse(e.data); if (d.event === 'message') applyRemote(d.message); } catch {} };
+    } catch { setLive(false); }
+  }
   const $ = id => document.getElementById(id);
   const esc = s => String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const GN = { solids:'Solids', stripes:'Stripes' };
 
   // Every action snapshots the state first so Undo can step back one tap at a time.
   const snap = () => { const { hist, ...rest } = st; st.hist.push(JSON.stringify(rest)); if (st.hist.length > 200) st.hist.shift(); };
-  const act = fn => { snap(); fn(); save(); render(); };
+  const act = fn => { snap(); fn(); st.ts = Date.now(); save(); render(); sync(); };
+  const touch = () => { st.ts = Date.now(); save(); sync(); };
 
   const scores = () => { const s=[0,0]; st.racks.forEach(r => s[r.w]++); return s; };
   const breaker = () => {
@@ -212,6 +285,7 @@
       $('g'+i).className = 'chip' + (g ? ' '+g : '');
       $('b'+i).hidden = !(live && b===i && st.turns===0);
       $('t'+i).hidden = !(live && st.shooter===i);
+      $('y'+i).hidden = me !== i;
       $('h'+i).hidden = !(live && st.shooter===i && st.bih);
       $('p'+i).classList.toggle('shooting', live && st.shooter===i);
       $('w'+i).disabled = !live;
@@ -262,7 +336,7 @@
   const beep = (f=880, d=.12) => { try { actx = actx || new (window.AudioContext||window.webkitAudioContext)();
     const o=actx.createOscillator(), g=actx.createGain(); o.frequency.value=f; o.connect(g); g.connect(actx.destination);
     g.gain.setValueAtTime(.25, actx.currentTime); g.gain.exponentialRampToValueAtTime(.001, actx.currentTime+d); o.start(); o.stop(actx.currentTime+d); } catch {} };
-  const clockStart = () => { if (!st.clockLen) return drawClock(); clk.left = st.clockLen*1000; clk.end = Date.now()+clk.left; clk.running = true; clk.ext = false; clk.beeped = 0; drawClock(); };
+  const clockStart = () => { if (!st.clockLen) return drawClock(); clk.left = st.clockLen*1000; clk.end = Date.now()+clk.left; clk.running = true; clk.ext = false; clk.beeped = 0; drawClock(); touch(); };
   function drawClock(){
     const face=$('face');
     if (!st.clockLen) { $('clockNum').textContent='–'; $('clockLbl').textContent='Shot clock off'; face.className='face'; $('pause').disabled=$('ext').disabled=true; return; }
@@ -280,10 +354,10 @@
   setInterval(() => { if (clk.running) drawClock(); }, 200);
   $('face').onclick = clockStart;
   $('face').addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' ') { e.preventDefault(); clockStart(); } });
-  $('pause').onclick = () => { if (clk.running) { clk.left = Math.max(0, clk.end-Date.now()); clk.running=false; } else { clk.end = Date.now()+clk.left; clk.running=true; } drawClock(); };
-  $('ext').onclick = () => { clk.left += st.clockLen*1000; clk.end += st.clockLen*1000; clk.ext = true; drawClock(); };
+  $('pause').onclick = () => { if (clk.running) { clk.left = Math.max(0, clk.end-Date.now()); clk.running=false; } else { clk.end = Date.now()+clk.left; clk.running=true; } drawClock(); touch(); };
+  $('ext').onclick = () => { clk.left += st.clockLen*1000; clk.end += st.clockLen*1000; clk.ext = true; drawClock(); touch(); };
   const LENS = [30,45,60,0];
-  $('clockSet').onclick = () => { st.clockLen = LENS[(LENS.indexOf(st.clockLen)+1)%LENS.length]; save(); clk.end=0; clk.left=0; clk.running=false; render(); drawClock(); };
+  $('clockSet').onclick = () => { st.clockLen = LENS[(LENS.indexOf(st.clockLen)+1)%LENS.length]; save(); clk.end=0; clk.left=0; clk.running=false; render(); drawClock(); touch(); };
   // Tap the player who has solids; the other player gets stripes.
   const setSolids = i => act(() => { st.groups[i]='solids'; st.groups[1-i]='stripes'; });
   $('gs0').onclick = () => setSolids(0);
@@ -295,10 +369,10 @@
   for (const i of [0,1]) $('w'+i).onclick = () => {
     act(() => { st.racks.push({ w:i, b:breaker(), g:st.groups[i], turns:st.turns+1, t:Date.now() }); newRack(); });
     const p=$('p'+i); p.classList.remove('flash'); void p.offsetWidth; p.classList.add('flash'); buzz();
-    clk.end=0; clk.left=0; clk.running=false; drawClock();
+    clk.end=0; clk.left=0; clk.running=false; drawClock(); touch();
   };
 
-  const undo = () => { const prev = st.hist.pop(); if (!prev) return; st = { ...JSON.parse(prev), hist: st.hist }; save(); render(); };
+  const undo = () => { const prev = st.hist.pop(); if (!prev) return; st = { ...fresh(), ...JSON.parse(prev), game, hist: st.hist }; st.ts = Date.now(); save(); render(); sync(); };
   $('undo').onclick = undo; $('winUndo').onclick = undo;
 
   $('swap').onclick = () => act(() => {
@@ -317,6 +391,20 @@
       : '<p>No racks yet.</p>';
     $('logSheet').hidden=false;
   };
+  const link = i => { const u = new URL(location.href); u.search = ''; u.hash = ''; u.searchParams.set('game', game); if (RELAY !== 'https://ntfy.sh') u.searchParams.set('relay', RELAY); u.searchParams.set('me', i); return u.toString(); };
+  $('shareBtn').onclick = () => {
+    for (const i of [0,1]) { $('sl'+i).textContent = `${st.names[i]}'s link`; $('su'+i).value = link(i); }
+    $('gameCode').textContent = game; $('shareNative').hidden = !navigator.share; $('shareSheet').hidden = false;
+  };
+  for (const i of [0,1]) $('sc'+i).onclick = async () => {
+    const inp = $('su'+i);
+    try { await navigator.clipboard.writeText(inp.value); $('sc'+i).textContent = 'Copied'; }
+    catch { inp.select(); $('sc'+i).textContent = 'Selected'; }
+    setTimeout(() => $('sc'+i).textContent = 'Copy', 1500);
+  };
+  $('shareNative').onclick = () => { const other = me === 0 ? 1 : me === 1 ? 0 : 1;
+    navigator.share({ title: `${st.names[0]} vs ${st.names[1]}`, text: `Live score: ${st.names[0]} vs ${st.names[1]}`, url: link(other) }).catch(() => {}); };
+  $('shareClose').onclick = () => $('shareSheet').hidden = true;
   $('logClose').onclick = () => $('logSheet').hidden=true;
 
   $('setBtn').onclick = () => {
@@ -337,7 +425,7 @@
     $('setup').hidden=true;
   });
 
-  render(); drawClock();
+  render(); drawClock(); save(); connect();
 })();
 </script>
 </body></html>
