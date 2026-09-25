@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0f14">
+<title>Surge Billiards Tables</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
+<style>
+  :root{
+    color-scheme:dark;
+    --bg:#0a0f14; --floor:#131b24; --floor-line:#1c2733; --wall:#2a3642; --panel:#141d26; --line:#263241;
+    --text:#eef3f7; --muted:#8c9bab; --felt:#139fdc; --felt-busy:#0d4763; --rail:#07090b; --gold:#f2c14e; --busy:#e4685a; --free:#57d98a;
+    --num:"Big Shoulders Display",Impact,"Arial Narrow",sans-serif;
+    --ui:"Barlow",system-ui,-apple-system,Roboto,sans-serif;
+  }
+  *,*::before,*::after{box-sizing:border-box}
+  [hidden]{display:none!important}
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--ui);-webkit-tap-highlight-color:transparent}
+  .wrap{max-width:560px;margin:0 auto;padding:12px 16px calc(24px + env(safe-area-inset-bottom,0px));padding-top:calc(12px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;gap:12px}
+  header{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
+  h1{margin:0;font-family:var(--num);font-weight:900;font-size:clamp(28px,8vw,38px);line-height:.95;letter-spacing:.02em;text-transform:uppercase;text-wrap:balance}
+  .sub{margin:4px 0 0;color:var(--muted);font-size:14px;font-weight:600}
+  .live{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:5px;white-space:nowrap}
+  .live::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+  .live.on{color:var(--free)}
+  .prompt{margin:0;font-size:15px;color:var(--text)}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);font-weight:600}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .sw{width:14px;height:10px;border-radius:2px;border:2px solid var(--rail)}
+  .map{background:var(--floor);border:1px solid var(--line);border-radius:14px;padding:6px;overflow:hidden}
+  svg{display:block;width:100%;height:auto}
+  .tbl{cursor:pointer}
+  .tbl:focus{outline:none}
+  .tbl:focus-visible .rail,.tbl:hover .rail{stroke:var(--gold);stroke-width:.8}
+  .tbl .felt{fill:var(--felt)}
+  .tbl.busy .felt{fill:var(--felt-busy)}
+  .tbl.mine .rail{stroke:var(--gold);stroke-width:.8}
+  .tnum{font-family:var(--num);font-weight:900;fill:#fff;paint-order:stroke;stroke:rgba(0,0,0,.35);stroke-width:.5}
+  .tag{font-family:var(--ui);font-weight:700;fill:#fff}
+  .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+  .grid a{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0;border-radius:10px;background:var(--panel);border:1px solid var(--line);
+    color:var(--text);text-decoration:none;font-family:var(--num);font-weight:900;font-size:22px;line-height:1}
+  .grid a small{font-family:var(--ui);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--free)}
+  .grid a.busy small{color:var(--busy)}
+  .grid a:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+  .note{font-size:13px;color:var(--muted);margin:0;line-height:1.45}
+  h2{margin:4px 0 0;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1 id="hallName">Surge Billiards</h1>
+      <p class="sub" id="hallArea">Chicago Ave</p>
+    </div>
+    <span class="live" id="live">Offline</span>
+  </header>
+  <p class="prompt">Tap the table you're playing on to start scoring.</p>
+  <div class="legend">
+    <span><i class="sw" style="background:var(--felt)"></i>Open</span>
+    <span><i class="sw" style="background:var(--felt-busy)"></i>In use</span>
+    <span id="ftLegend">9-ft front · 7-ft back room</span>
+  </div>
+  <div class="map"><svg id="plan" role="group" aria-label="Floor plan"></svg></div>
+  <h2>All tables</h2>
+  <div class="grid" id="grid"></div>
+  <p class="note">A table locks to the first group that opens it. Friends join through the Share button inside the game. When you finish, tap <b>Free table</b> in the game so the next group can use it. A table that sits idle for 30 minutes frees up by itself.</p>
+</div>
+
+<script src="halls.js"></script>
+<script>
+(() => {
+  const qs = new URLSearchParams(location.search);
+  const HALL = (qs.get('hall') || 'surge-chicago').replace(/[^a-z0-9-]/gi, '');
+  const H = window.POOLAR_HALLS[HALL] || window.POOLAR_HALLS['surge-chicago'];
+  const RELAY = qs.get('relay') || 'https://ntfy.sh';
+  const TOPIC = 'poolar-hall-' + HALL;
+  const STALE = 30 * 60 * 1000;
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+  document.title = `${H.name} Tables`;
+  $('hallName').textContent = H.name; $('hallArea').textContent = H.area;
+
+  let mine = {};
+  try { mine = JSON.parse(localStorage.getItem('poolar-mytables') || '{}'); } catch {}
+  const status = {};   // table number -> latest status message
+  const busy = t => { const s = status[t]; return s && s.state === 'busy' && Date.now() - s.ts < STALE; };
+  const tableUrl = n => { const u = new URL('deck.html', location.href); u.searchParams.set('hall', HALL); u.searchParams.set('t', n);
+    if (RELAY !== 'https://ntfy.sh') u.searchParams.set('relay', RELAY); return u.toString(); };
+
+  function drawPlan(){
+    const { w, h } = H.room; const svg = $('plan');
+    svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+    let out = `<rect x="1" y="1" width="${w-2}" height="${h-2}" rx="2" fill="var(--floor)" stroke="var(--wall)" stroke-width="1.2"/>`;
+    // floor planks
+    for (let x = 6; x < w; x += 6) out += `<line x1="${x}" y1="2" x2="${x}" y2="${h-2}" stroke="var(--floor-line)" stroke-width=".25"/>`;
+    for (const f of H.features) {
+      if (f.kind === 'wall') out += `<rect x="${f.x}" y="${f.y}" width="${f.w}" height="${f.h}" rx=".6" fill="#6b4f36"/>` +
+        Array.from({ length: Math.floor(f.w / 5) }, (_, i) => `<circle cx="${f.x + 2.5 + i*5}" cy="${f.y + f.h + 2}" r="1.1" fill="#3a2c20"/>`).join('') +
+        `<text x="${f.x + f.w/2}" y="${f.y - 1.2}" text-anchor="middle" class="tag" font-size="2.6" fill="var(--muted)" style="fill:var(--muted)">${esc(f.label)}</text>`;
+      if (f.kind === 'seats') for (let i = 0; i < f.n; i++) out += `<circle cx="${f.x}" cy="${f.y + i*f.gap}" r="2.4" fill="#2b2118" stroke="#4a3828" stroke-width=".4"/><circle cx="${f.x+12}" cy="${f.y + i*f.gap}" r="2.4" fill="#2b2118" stroke="#4a3828" stroke-width=".4"/>`;
+      if (f.kind === 'bar') out += `<rect x="${f.x}" y="${f.y}" width="${f.w}" height="${f.h}" rx="1.5" fill="#6b4f36"/><text x="${f.x + f.w/2}" y="${f.y + f.h/2 + 1.3}" text-anchor="middle" class="tag" font-size="3.6">${esc(f.label)}</text>`;
+      if (f.kind === 'door') out += `<rect x="${f.x}" y="${f.y - 1.2}" width="${f.w}" height="2.4" fill="var(--bg)"/><text x="${f.x + f.w/2}" y="${f.y - 3.5}" text-anchor="middle" class="tag" font-size="3.2" style="fill:var(--gold)">▲ ${esc(f.label)}</text>`;
+      if (f.kind === 'label') out += `<text x="${f.x}" y="${f.y}" text-anchor="middle" class="tag" font-size="2.6" style="fill:var(--muted);letter-spacing:.3px">${esc(f.text)}</text>`;
+    }
+    for (const t of H.tables) {
+      const { x, y, w: tw, h: th, n } = t, i = 1.3, pr = t.ft === 9 ? 1.05 : .95;
+      const pockets = [[x+i,y+i],[x+tw-i,y+i],[x+i,y+th/2],[x+tw-i,y+th/2],[x+i,y+th-i],[x+tw-i,y+th-i]]
+        .map(([cx, cy]) => `<circle cx="${cx}" cy="${cy}" r="${pr}" fill="#000"/>`).join('');
+      const diamonds = [1,2,3].map(k => `<circle cx="${x+.6}" cy="${y + k*th/8}" r=".22" fill="#cfd6dc"/><circle cx="${x+.6}" cy="${y + th - k*th/8}" r=".22" fill="#cfd6dc"/><circle cx="${x+tw-.6}" cy="${y + k*th/8}" r=".22" fill="#cfd6dc"/><circle cx="${x+tw-.6}" cy="${y + th - k*th/8}" r=".22" fill="#cfd6dc"/>`).join('');
+      out += `<g class="tbl" id="tb${n}" role="link" tabindex="0" aria-label="Table ${n}, ${t.ft}-foot">
+        <rect class="rail" x="${x}" y="${y}" width="${tw}" height="${th}" rx="1.6" fill="var(--rail)" stroke="#000" stroke-width=".3"/>
+        <rect class="felt" x="${x+i}" y="${y+i}" width="${tw-2*i}" height="${th-2*i}" rx=".4"/>
+        ${pockets}${diamonds}
+        <text class="tnum" x="${x+tw/2}" y="${y+th/2 + (t.ft===9?2.6:2.2)}" text-anchor="middle" font-size="${t.ft===9?7.5:6.2}">${n}</text>
+        <text class="tag" id="tt${n}" x="${x+tw/2}" y="${y+th-3.2}" text-anchor="middle" font-size="2.1"></text>
+      </g>`;
+    }
+    svg.innerHTML = out;
+    for (const t of H.tables) {
+      const g = $('tb' + t.n); const go = () => { location.href = tableUrl(t.n); };
+      g.addEventListener('click', go);
+      g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+    }
+    $('grid').innerHTML = [...H.tables].sort((a, b) => a.n - b.n)
+      .map(t => `<a id="gl${t.n}" href="${esc(tableUrl(t.n))}">${t.n}<small id="gs${t.n}">Open</small></a>`).join('');
+  }
+
+  function paint(){
+    for (const t of H.tables) {
+      const b = busy(t.n), s = status[t.n], isMine = !!mine[`${HALL}-${t.n}`] && b;
+      $('tb' + t.n).classList.toggle('busy', b); $('tb' + t.n).classList.toggle('mine', isMine);
+      const score = b && s.score ? `${s.score[0]}–${s.score[1]}` : '';
+      $('tt' + t.n).textContent = isMine ? 'YOURS' : b ? (score || 'IN USE') : '';
+      $('tb' + t.n).setAttribute('aria-label', `Table ${t.n}, ${t.ft}-foot, ${b ? `in use${s.names ? `: ${s.names[0]} vs ${s.names[1]} ${score}` : ''}` : 'open'}`);
+      $('gl' + t.n).classList.toggle('busy', b);
+      $('gs' + t.n).textContent = isMine ? 'Yours' : b ? 'In use' : 'Open';
+    }
+  }
+  function take(raw){
+    let m; try { m = JSON.parse(raw); } catch { return; }
+    if (!m || m.kind !== 'table' || !m.t) return;
+    if (!status[m.t] || m.ts >= status[m.t].ts) status[m.t] = m;
+  }
+  function setLive(on){ $('live').textContent = on ? 'Live' : 'Offline'; $('live').classList.toggle('on', on); }
+
+  async function load(){
+    try {
+      const txt = await (await fetch(`${RELAY}/${TOPIC}/json?poll=1&since=12h`)).text();
+      for (const line of txt.split('\n')) { try { const e = JSON.parse(line); if (e.event === 'message') take(e.message); } catch {} }
+      setLive(true);
+    } catch { setLive(false); }
+    paint();
+  }
+  drawPlan(); paint(); load();
+  try {
+    const es = new EventSource(`${RELAY}/${TOPIC}/sse`);
+    es.onopen = () => setLive(true); es.onerror = () => setLive(false);
+    es.onmessage = e => { try { const d = JSON.parse(e.data); if (d.event === 'message') { take(d.message); paint(); } } catch {} };
+  } catch {}
+  setInterval(paint, 60000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') load(); });
+})();
+</script>
+</body>
+</html>

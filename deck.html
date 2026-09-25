@@ -91,6 +91,16 @@
   .stepper input{text-align:center;padding:8px 4px;font-family:var(--num);font-weight:900;font-size:22px}
   .card:not(.dbl) .dblOnly{display:none}
   .card.dbl .sglOnly{display:none}
+  .gate{position:fixed;inset:0;z-index:20;background:radial-gradient(120% 80% at 50% 0%,#12303f,var(--bg));display:grid;place-items:center;padding:16px}
+  .gcard{width:100%;max-width:380px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
+  .gtable{width:90px;height:auto}
+  .gcard h2{margin:0;font-family:var(--num);font-weight:900;font-size:40px;text-transform:uppercase;letter-spacing:.03em}
+  .gcard p{margin:0;color:var(--muted)}
+  .gmsg{font-size:16px;color:var(--text)!important}
+  .gcard .big{width:100%;font-size:18px;padding:16px}
+  .glocked p{color:var(--text)}
+  .gback{color:var(--chalk);font-weight:700;text-decoration:none;padding:8px}
+  .tchip{font-family:var(--num);font-weight:900;font-size:15px;padding:3px 8px;border-radius:7px;background:#139fdc;color:#fff;text-decoration:none;white-space:nowrap}
   .ver{font-size:11px;color:var(--muted);text-align:center;margin:0}
   .mb{--c:#d9302a;display:inline-block;width:14px;height:14px;border-radius:50%;background:var(--c);vertical-align:middle;
     box-shadow:inset -2px -2px 0 rgba(0,0,0,.28);flex:none}
@@ -156,7 +166,7 @@
 
 <div class="app">
   <header>
-    <div class="hdr-l"><button class="modeb" id="modeBtn" aria-label="Change format">1v1</button><div class="race" id="raceLbl" role="button" tabindex="0">Race 5–5</div></div>
+    <div class="hdr-l"><a class="tchip" id="tchip" hidden></a><button class="modeb" id="modeBtn" aria-label="Change format">1v1</button><div class="race" id="raceLbl" role="button" tabindex="0">Race 5–5</div></div>
     <div class="hdr-r"><span class="live" id="live">Offline</span><div class="rackno" id="rackNo">Rack 1</div></div>
   </header>
 
@@ -237,6 +247,7 @@
       <button type="submit" class="primary">Save</button>
     </div>
     <button type="button" id="setNew">New match (0–0)</button>
+    <button type="button" id="setFree" hidden>Free this table</button>
     <p class="ver" id="ver"></p>
   </form>
 </div>
@@ -293,15 +304,31 @@
     <div id="winStats"></div>
     <div class="two">
       <button id="winUndo">Undo last rack</button>
+      <button id="winFree" hidden>Free table</button>
       <button class="primary" id="winNew">Rematch</button>
     </div>
   </div>
 </div>
 
+<div class="gate" id="gate" hidden>
+  <div class="gcard">
+    <svg class="gtable" viewBox="0 0 60 110" aria-hidden="true"><rect x="2" y="2" width="56" height="106" rx="7" fill="#07090b"/><rect x="8" y="8" width="44" height="94" rx="2" fill="#139fdc"/><g fill="#000"><circle cx="8" cy="8" r="4.5"/><circle cx="52" cy="8" r="4.5"/><circle cx="8" cy="55" r="4"/><circle cx="52" cy="55" r="4"/><circle cx="8" cy="102" r="4.5"/><circle cx="52" cy="102" r="4.5"/></g><text id="gNum" x="30" y="66" text-anchor="middle" font-family="Big Shoulders Display, Impact, sans-serif" font-weight="900" font-size="34" fill="#fff"></text></svg>
+    <h2 id="gTitle">Table</h2>
+    <p id="gSub"></p>
+    <p id="gMsg" class="gmsg">Checking whether this table is free…</p>
+    <button class="primary big" id="gClaim" hidden>Start a game on this table</button>
+    <div id="gLocked" hidden class="glocked">
+      <p>This table is locked to the group playing on it. To join their game, ask them to tap <b>Share</b> and send you their link.</p>
+    </div>
+    <a class="gback" id="gBack" href="hall.html">← All tables</a>
+  </div>
+</div>
+
+<script src="halls.js"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
-  const VERSION = '14';
+  const VERSION = '15';
   // Phones can hold on to an old copy of this page for a while. Check for a newer one and switch to it;
   // the score lives in storage and the relay, so nothing is lost by reloading.
   async function checkUpdate(){
@@ -313,6 +340,64 @@
   }
   setTimeout(checkUpdate, 3000); setInterval(checkUpdate, 120000);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkUpdate(); });
+
+  // Table mode (deck.html?hall=…&t=N): the first group to open a table claims it with a secret game code,
+  // announced on the hall's public status topic. Others see it as locked until it's freed or goes idle.
+  const q0 = new URLSearchParams(location.search);
+  const HALL = (q0.get('hall') || '').replace(/[^a-z0-9-]/gi, '').slice(0, 40);
+  const TNUM = parseInt(q0.get('t'), 10) || 0;
+  const tableMode = !!(HALL && TNUM);
+  const HINFO = (window.POOLAR_HALLS || {})[HALL];
+  const TINFO = HINFO && HINFO.tables.find(x => x.n === TNUM);
+  const RELAY0 = q0.get('relay') || 'https://ntfy.sh';
+  const HALL_TOPIC = 'poolar-hall-' + HALL;
+  const STALE = 30 * 60 * 1000;
+  const hashKey = k => { let h = 5381; for (const c of String(k)) h = ((h * 33) ^ c.charCodeAt(0)) >>> 0; return h.toString(36); };
+  const myTables = () => { try { return JSON.parse(localStorage.getItem('poolar-mytables') || '{}'); } catch { return {}; } };
+  const setMine = (k, v) => { const m = myTables(); if (v) m[k] = v; else delete m[k]; try { localStorage.setItem('poolar-mytables', JSON.stringify(m)); } catch {} };
+  const hallUrl = () => `hall.html?hall=${HALL}` + (q0.get('relay') ? `&relay=${encodeURIComponent(q0.get('relay'))}` : '');
+  const tableStatus = async () => {
+    let s = null;
+    const txt = await (await fetch(`${RELAY0}/${HALL_TOPIC}/json?poll=1&since=12h`)).text();
+    for (const line of txt.split('\n')) { try { const e = JSON.parse(line); if (e.event !== 'message') continue;
+      const m = JSON.parse(e.message); if (m.kind === 'table' && m.t === TNUM && (!s || m.ts >= s.ts)) s = m; } catch {} }
+    return s;
+  };
+  const postStatus = body => fetch(`${RELAY0}/${HALL_TOPIC}`, { method: 'POST', body: JSON.stringify({ kind: 'table', t: TNUM, ts: Date.now(), ...body }) });
+  if (tableMode && !q0.get('game')) { gate(); return; }
+
+  async function gate(){
+    const el = id => document.getElementById(id);
+    el('gate').hidden = false;
+    el('gNum').textContent = TNUM; el('gTitle').textContent = `Table ${TNUM}`;
+    el('gSub').textContent = [HINFO ? `${HINFO.name} · ${HINFO.area}` : HALL, TINFO ? `${TINFO.ft}-ft table` : ''].filter(Boolean).join(' · ');
+    el('gBack').href = hallUrl();
+    let s = null, checked = true;
+    try { s = await tableStatus(); } catch { checked = false; }
+    const mineKey = myTables()[`${HALL}-${TNUM}`];
+    const inUse = s && s.state === 'busy' && Date.now() - s.ts < STALE;
+    if (inUse && mineKey && s.gh === hashKey(mineKey)) return enter(mineKey, false);
+    if (inUse) {
+      el('gMsg').textContent = s.names ? `In use: ${s.names[0]} vs ${s.names[1]}${s.score ? `, ${s.score[0]}–${s.score[1]}` : ''}` : 'This table is in use.';
+      el('gLocked').hidden = false;
+      return;
+    }
+    el('gMsg').textContent = checked ? 'This table is open.' : "Couldn't check this table right now. You can still start a game.";
+    el('gClaim').hidden = false;
+    el('gClaim').onclick = async () => {
+      el('gClaim').disabled = true; el('gClaim').textContent = 'Starting…';
+      const key = (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)).slice(0, 16);
+      try { localStorage.setItem(KEY, JSON.stringify({ game: key, names: ['Player 1', 'Player 2'], clockV: 2, table: `${HALL}-${TNUM}` })); } catch {}
+      setMine(`${HALL}-${TNUM}`, key);
+      try { await Promise.race([postStatus({ state: 'busy', gh: hashKey(key), names: ['Player 1', 'Player 2'], score: [0, 0], race: [5, 5] }), new Promise(r => setTimeout(r, 2500))]); } catch {}
+      enter(key, true);
+    };
+  }
+  function enter(key, isNew){
+    const u = new URL(location.href); u.searchParams.set('game', key);
+    if (isNew) u.searchParams.set('new', '1');
+    location.replace(u.toString());
+  }
   const fresh = () => ({ names:['BCA Shag','Terry'], race:[5,5], firstBreak:1, mode:'alt', racks:[], fix:null,
     shooter:1, groups:[null,null], turns:0, bih:false, down:[], dbl:false, partners:['',''], rot:[0,0], fouls:[0,0], pots:[], inn:[0,0], tt:[0,0], t0:0, tEnd:0, tFrom:0, clockLen:60, clockV:2, hist:[] });
   let st;
@@ -423,6 +508,7 @@
     const s = scores(), b = breaker(), w = winner(s), live = w<0;
     $('raceLbl').textContent = `Race ${st.race[0]}–${st.race[1]}`;
     $('modeBtn').textContent = st.dbl ? '2v2' : '1v1';
+    if (typeof statusTick === 'function') try { statusTick(); } catch {}
     $('rackNo').textContent = live ? `Rack ${st.racks.length+1} · T${st.turns+1}` : 'Final';
     for (const i of [0,1]) {
       $('n'+i).textContent = side(i);
@@ -601,7 +687,9 @@
       : '<p>No racks yet.</p>';
     $('logSheet').hidden=false;
   };
-  const link = i => { const u = new URL(location.href); u.search = ''; u.hash = ''; u.searchParams.set('game', game); if (RELAY !== 'https://ntfy.sh') u.searchParams.set('relay', RELAY); u.searchParams.set('me', i); return u.toString(); };
+  const link = i => { const u = new URL(location.href); u.search = ''; u.hash = '';
+    if (tableMode) { u.searchParams.set('hall', HALL); u.searchParams.set('t', TNUM); }
+    u.searchParams.set('game', game); if (RELAY !== 'https://ntfy.sh') u.searchParams.set('relay', RELAY); u.searchParams.set('me', i); return u.toString(); };
   $('shareBtn').onclick = () => {
     for (const i of [0,1]) { $('sl'+i).textContent = `${st.names[i]}'s link`; $('su'+i).value = link(i); }
     $('gameCode').textContent = game; $('shareNative').hidden = !navigator.share; $('shareSheet').hidden = false;
@@ -676,7 +764,31 @@
   let newMatch = false;
   $('setNew').onclick = () => { newMatch = true; $('setupForm').dispatchEvent(new Event('submit', { cancelable: true })); };
 
-  render(); drawClock(); save(); connect();
+  // Table mode: show the table, keep the hall's status board current, and let the group free the table.
+  let lastStatus = '', statusT, freed = false;
+  function statusTick(){
+    if (!tableMode || freed) return;
+    const key = JSON.stringify([side(0), side(1), scores(), st.race]);
+    if (key === lastStatus) return;
+    lastStatus = key; clearTimeout(statusT);
+    statusT = setTimeout(() => postStatus({ state: 'busy', gh: hashKey(game), names: [side(0), side(1)], score: scores(), race: st.race, over: winner(scores()) >= 0 }).catch(() => {}), 1500);
+  }
+  if (tableMode) {
+    setMine(`${HALL}-${TNUM}`, game);
+    $('tchip').hidden = false; $('tchip').textContent = `Table ${TNUM}`; $('tchip').href = hallUrl();
+    $('setFree').hidden = false; $('setFree').textContent = `Free table ${TNUM}`; $('winFree').hidden = false;
+    const freeTable = async () => {
+      freed = true; setMine(`${HALL}-${TNUM}`, null);
+      try { await Promise.race([postStatus({ state: 'free' }), new Promise(r => setTimeout(r, 2500))]); } catch {}
+      location.href = hallUrl();
+    };
+    $('setFree').onclick = freeTable; $('winFree').onclick = freeTable;
+    // Heartbeat so the table doesn't read as idle while someone has the game open.
+    setInterval(() => { if (!freed && document.visibilityState === 'visible') { lastStatus = ''; statusTick(); } }, 5 * 60 * 1000);
+  }
+
+  render(); drawClock(); save(); connect(); statusTick();
+  if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} openSetup(); }
 })();
 </script>
 </body></html>
