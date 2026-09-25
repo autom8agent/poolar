@@ -121,8 +121,8 @@
       <button id="gClear">Open</button>
     </div>
     <div class="clock">
-      <div class="face" id="face" role="button" tabindex="0" aria-label="Start shot clock"><span id="clockLbl">Tap to start</span><b id="clockNum">30</b></div>
-      <button id="ext">Ext +<span id="extSec">30</span></button>
+      <div class="face" id="face" role="button" tabindex="0" aria-label="Start shot clock"><span id="clockLbl">Tap to start</span><b id="clockNum">60</b></div>
+      <button id="ext">Ext +<span id="extSec">60</span></button>
       <button id="pause">Pause</button>
       <button id="clockSet">30s</button>
     </div>
@@ -197,9 +197,10 @@
 (() => {
   const KEY = 'poolar-deck-v2';
   const fresh = () => ({ names:['BCA Shag','Terry'], race:[5,5], firstBreak:1, mode:'alt', racks:[], fix:null,
-    shooter:1, groups:[null,null], turns:0, bih:false, fouls:[0,0], clockLen:30, hist:[] });
+    shooter:1, groups:[null,null], turns:0, bih:false, fouls:[0,0], clockLen:60, clockV:2, hist:[] });
   let st;
   try { st = JSON.parse(localStorage.getItem(KEY)) || fresh(); } catch { st = fresh(); }
+  if (st.clockV !== 2) { st.clockLen = 60; st.clockV = 2; }
   st = { ...fresh(), ...st };
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch {} };
 
@@ -216,7 +217,7 @@
   st.game = game;
   if (qs.get('game') !== game) { qs.set('game', game); try { history.replaceState(null, '', '?' + qs); } catch {} }
   let pushT, liveOn = false;
-  const payload = () => { const { hist, ...rest } = st; return JSON.stringify({ ts: st.ts || 0, from: cid, st: rest, clk: { end: clk.end, left: clk.left, running: clk.running, ext: clk.ext } }); };
+  const payload = () => { const { hist, ...rest } = st; return JSON.stringify({ ts: st.ts || 0, from: cid, st: rest, clk: { end: clk.end, left: clk.left, running: clk.running, ext: clk.ext, acc: clk.acc, from: clk.from, loops: clk.loops } }); };
   const sync = () => { clearTimeout(pushT); pushT = setTimeout(() => {
     fetch(`${RELAY}/${TOPIC}`, { method: 'POST', body: payload() }).catch(() => setLive(false)); }, 600); };
   function applyRemote(raw, force){
@@ -306,8 +307,8 @@
     const nx = st.names[1-st.shooter];
     $('endTo').textContent = `Miss or safe → ${nx}`;
     $('foulTo').textContent = `${nx} gets ball in hand`;
-    $('clockSet').textContent = st.clockLen ? `${st.clockLen}s` : 'Off';
-    $('extSec').textContent = st.clockLen || 30;
+    $('clockSet').textContent = !st.clockLen ? 'Off' : st.clockLen===60 ? '1 min' : `${st.clockLen}s`;
+    $('extSec').textContent = st.clockLen || 60;
     for (const id of ['endTurn','foul','gs0','gs1']) $(id).disabled = !live;
     if (!live) $('gClear').disabled = true;
     $('swap').disabled = !live || st.turns>0;
@@ -330,34 +331,43 @@
   $('foul').onclick = () => passTable(true);
   for (const i of [0,1]) $('h'+i).onclick = () => act(() => { st.bih = false; });
 
-  // Shot clock: counts down from clockLen; tap the face to restart it for the next shot.
-  const clk = { end:0, left:0, running:false, ext:false, beeped:0 };
+  // Shot clock: counts down from clockLen and starts over by itself when it hits 0.
+  // acc/from track the total time since it was started (minus pauses) so a long shot shows its full length.
+  const clk = { end:0, left:0, running:false, ext:false, beeped:0, acc:0, from:0, loops:0 };
+  const total = () => clk.acc + (clk.running ? Date.now() - clk.from : 0);
+  const fmt = ms => { const t = Math.floor(ms/1000); return `${Math.floor(t/60)}:${String(t%60).padStart(2,'0')}`; };
+  const clockReset = () => Object.assign(clk, { end:0, left:0, running:false, ext:false, acc:0, from:0, loops:0 });
   let actx;
   const beep = (f=880, d=.12) => { try { actx = actx || new (window.AudioContext||window.webkitAudioContext)();
     const o=actx.createOscillator(), g=actx.createGain(); o.frequency.value=f; o.connect(g); g.connect(actx.destination);
     g.gain.setValueAtTime(.25, actx.currentTime); g.gain.exponentialRampToValueAtTime(.001, actx.currentTime+d); o.start(); o.stop(actx.currentTime+d); } catch {} };
-  const clockStart = () => { if (!st.clockLen) return drawClock(); clk.left = st.clockLen*1000; clk.end = Date.now()+clk.left; clk.running = true; clk.ext = false; clk.beeped = 0; drawClock(); touch(); };
+  const clockStart = () => { if (!st.clockLen) return drawClock(); clk.left = st.clockLen*1000; clk.end = Date.now()+clk.left; clk.running = true; clk.ext = false; clk.beeped = 0; clk.acc = 0; clk.from = Date.now(); clk.loops = 0; drawClock(); touch(); };
   function drawClock(){
     const face=$('face');
     if (!st.clockLen) { $('clockNum').textContent='–'; $('clockLbl').textContent='Shot clock off'; face.className='face'; $('pause').disabled=$('ext').disabled=true; return; }
+    if (clk.running && Date.now() >= clk.end) {
+      // Time's up: signal it and loop straight into the next count.
+      let n = 0; while (Date.now() >= clk.end) { clk.end += st.clockLen*1000; n++; }
+      clk.loops += n; clk.ext = false; clk.beeped = 0;
+      beep(440,.5); try { navigator.vibrate && navigator.vibrate([200,100,200]); } catch {}
+    }
     if (clk.running) clk.left = Math.max(0, clk.end-Date.now());
     const sec = clk.end || clk.left ? Math.ceil(clk.left/1000) : st.clockLen;
     $('clockNum').textContent = sec;
     const started = clk.end || clk.left;
-    $('clockLbl').textContent = !started ? 'Tap to start' : sec===0 ? 'Time · tap to reset' : clk.running ? 'Tap = next shot' : 'Paused';
-    face.className = 'face' + (started && sec===0 ? ' out' : started && sec<=10 ? ' warn' : '');
+    $('clockLbl').textContent = !started ? 'Tap to start' : clk.loops ? `Total ${fmt(total())}` : clk.running ? 'Tap = next shot' : 'Paused';
+    face.className = 'face' + (started && clk.loops ? ' out' : started && sec<=10 ? ' warn' : '');
     $('pause').textContent = clk.running ? 'Pause' : 'Resume';
-    $('pause').disabled = !started || sec===0; $('ext').disabled = !started || clk.ext || sec===0;
+    $('pause').disabled = !started; $('ext').disabled = !started || clk.ext;
     if (clk.running && sec<=5 && sec>0 && clk.beeped!==sec) { clk.beeped=sec; beep(660,.08); }
-    if (clk.running && sec===0) { clk.running=false; beep(440,.5); try { navigator.vibrate && navigator.vibrate([200,100,200]); } catch {} }
   }
   setInterval(() => { if (clk.running) drawClock(); }, 200);
   $('face').onclick = clockStart;
   $('face').addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' ') { e.preventDefault(); clockStart(); } });
-  $('pause').onclick = () => { if (clk.running) { clk.left = Math.max(0, clk.end-Date.now()); clk.running=false; } else { clk.end = Date.now()+clk.left; clk.running=true; } drawClock(); touch(); };
+  $('pause').onclick = () => { if (clk.running) { clk.left = Math.max(0, clk.end-Date.now()); clk.acc = total(); clk.running=false; } else { clk.end = Date.now()+clk.left; clk.from = Date.now(); clk.running=true; } drawClock(); touch(); };
   $('ext').onclick = () => { clk.left += st.clockLen*1000; clk.end += st.clockLen*1000; clk.ext = true; drawClock(); touch(); };
-  const LENS = [30,45,60,0];
-  $('clockSet').onclick = () => { st.clockLen = LENS[(LENS.indexOf(st.clockLen)+1)%LENS.length]; save(); clk.end=0; clk.left=0; clk.running=false; render(); drawClock(); touch(); };
+  const LENS = [60,30,45,0];
+  $('clockSet').onclick = () => { st.clockLen = LENS[(LENS.indexOf(st.clockLen)+1)%LENS.length]; save(); clockReset(); render(); drawClock(); touch(); };
   // Tap the player who has solids; the other player gets stripes.
   const setSolids = i => act(() => { st.groups[i]='solids'; st.groups[1-i]='stripes'; });
   $('gs0').onclick = () => setSolids(0);
@@ -369,7 +379,7 @@
   for (const i of [0,1]) $('w'+i).onclick = () => {
     act(() => { st.racks.push({ w:i, b:breaker(), g:st.groups[i], turns:st.turns+1, t:Date.now() }); newRack(); });
     const p=$('p'+i); p.classList.remove('flash'); void p.offsetWidth; p.classList.add('flash'); buzz();
-    clk.end=0; clk.left=0; clk.running=false; drawClock(); touch();
+    clockReset(); drawClock(); touch();
   };
 
   const undo = () => { const prev = st.hist.pop(); if (!prev) return; st = { ...fresh(), ...JSON.parse(prev), game, hist: st.hist }; st.ts = Date.now(); save(); render(); sync(); };
