@@ -100,6 +100,8 @@
   .gcard .big{width:100%;font-size:18px;padding:16px}
   .glocked p{color:var(--text)}
   .gwait{display:block;margin-top:12px;padding:14px;border-radius:12px;background:var(--gold);color:#1d1606;font-weight:700;text-decoration:none;font-size:17px}
+  .gopts{width:100%;display:flex;flex-direction:column;gap:8px}
+  .gnote{font-size:14px;color:var(--gold)!important}
   .gback{color:var(--chalk);font-weight:700;text-decoration:none;padding:8px}
   .tchip{font-family:var(--num);font-weight:900;font-size:15px;padding:3px 8px;border-radius:7px;background:#139fdc;color:#fff;text-decoration:none;white-space:nowrap}
   .prog{display:block;height:8px;width:100%;max-width:140px;border-radius:4px;background:#26372f;overflow:hidden}
@@ -150,6 +152,14 @@
   .lockic.locked{border-color:var(--gold);color:var(--gold)}
   .qrbig svg{width:min(70vw,280px);height:min(70vw,280px)}
   .rulesum{font-size:13px;color:var(--text);margin:0;line-height:1.45;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+  .camwrap{position:relative;border-radius:12px;overflow:hidden;background:#000;aspect-ratio:16/9}
+  .camwrap video{width:100%;height:100%;object-fit:cover;display:block}
+  .recdot{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.6);color:#ff5a4e;font-weight:800;font-size:12px;padding:3px 8px;border-radius:6px}
+  .recdot b{color:#fff}
+  .btnlink{display:block;text-align:center;font-weight:700;font-size:14px;padding:10px;border-radius:10px;text-decoration:none;border:1px solid var(--line);color:var(--text)}
+  .btnlink.primary{background:var(--chalk);border-color:var(--chalk);color:#04162b}
+  #camBtn svg{fill:none;stroke:currentColor;stroke-width:2}
+  .seg.hl{outline:3px solid var(--gold);outline-offset:3px}
   .ver{font-size:11px;color:var(--muted);text-align:center;margin:0}
   .mb{--c:#d9302a;display:inline-block;width:14px;height:14px;border-radius:50%;background:var(--c);vertical-align:middle;
     box-shadow:inset -2px -2px 0 rgba(0,0,0,.28);flex:none}
@@ -215,7 +225,7 @@
 
 <div class="app">
   <header>
-    <div class="hdr-l"><a class="tchip home" id="tchip" hidden aria-label="All tables"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 12h3v8h5v-5h4v5h5v-8h3z"/></svg><span id="tchipN"></span></a><button class="lockic" id="lockIc" hidden aria-label="Lock or unlock the table"></button><button class="modeb" id="modeBtn" aria-label="Change format">1v1</button><div class="race" id="raceLbl" role="button" tabindex="0">Race 5–5</div></div>
+    <div class="hdr-l"><a class="tchip home" id="tchip" hidden aria-label="All tables"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 12h3v8h5v-5h4v5h5v-8h3z"/></svg><span id="tchipN"></span></a><button class="lockic" id="lockIc" hidden aria-label="Lock or unlock the table"></button><button class="lockic" id="camBtn" aria-label="Camera and recording"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h3l2-2h6l2 2h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></svg></button><button class="modeb" id="modeBtn" aria-label="Change players: singles or doubles">1v1</button><div class="race" id="raceLbl" role="button" tabindex="0">Race 5–5</div></div>
     <div class="hdr-r"><span class="live" id="live">Offline</span><div class="rackno" id="rackNo">Rack 1</div></div>
   </header>
 
@@ -276,6 +286,17 @@
     <div class="two3"><button class="primary" id="waitShare">Share waitlist</button><button id="qrOpen">Show QR code</button></div>
     <div id="board"></div>
   </section>
+</div>
+
+<div class="sheet" id="camSheet" hidden>
+  <div class="card">
+    <h2>Table camera</h2>
+    <p id="camMsg">Point this phone at the table. Recordings include the score and stay on this phone until you save them.</p>
+    <div class="camwrap"><video id="camVid" playsinline muted></video><canvas id="camCan" hidden></canvas><span class="recdot" id="recDot" hidden>● REC <b id="recTime">0:00</b></span></div>
+    <div class="two"><button class="primary" id="camStart">Start camera</button><button id="camRec" disabled>Record</button></div>
+    <div class="two" id="camSaveRow" hidden><a class="btnlink primary" id="camSave" download>Save video</a><button id="camShare">Share video</button></div>
+    <button id="camClose">Close</button>
+  </div>
 </div>
 
 <div class="sheet" id="qrSheet" hidden>
@@ -347,6 +368,7 @@
     <h2 id="nameH">Edit name</h2>
     <label><span id="neL">Name</span><input id="ne" autocomplete="off" enterkeyhint="done"></label>
     <label id="npWrap">Partner<input id="np" autocomplete="off" placeholder="Partner's name"></label>
+    <button type="button" id="nameMe" hidden>Use my profile name</button>
     <div class="two">
       <button type="button" id="nameCancel">Cancel</button>
       <button type="submit" class="primary">Save</button>
@@ -414,6 +436,11 @@
     <h2 id="gTitle">Table</h2>
     <p id="gSub"></p>
     <p id="gMsg" class="gmsg">Checking whether this table is free…</p>
+    <div class="gopts" id="gOpts" hidden>
+      <div class="seg" role="radiogroup" aria-label="Players"><button type="button" role="radio" data-gd="0">Singles 1v1</button><button type="button" role="radio" data-gd="1">Doubles 2v2</button></div>
+      <div class="seg seg3" role="radiogroup" aria-label="Game"><button type="button" role="radio" data-gg="8">8-ball</button><button type="button" role="radio" data-gg="9">9-ball</button><button type="button" role="radio" data-gg="10">10-ball</button></div>
+      <p class="gnote" id="gNote" hidden></p>
+    </div>
     <button class="primary big" id="gClaim" hidden>Start a game on this table</button>
     <div id="gLocked" hidden class="glocked">
       <p>This table is locked to the group playing on it. To join their game, ask them to tap <b>Share</b> and send you their link.</p>
@@ -428,7 +455,7 @@
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
-  const VERSION = '17';
+  const VERSION = '18';
   // Phones can hold on to an old copy of this page for a while. Check for a newer one and switch to it;
   // the score lives in storage and the relay, so nothing is lost by reloading.
   async function checkUpdate(){
@@ -456,11 +483,15 @@
   const myTables = () => { try { return JSON.parse(localStorage.getItem('poolar-mytables') || '{}'); } catch { return {}; } };
   const setMine = (k, v) => { const m = myTables(); if (v) m[k] = v; else delete m[k]; try { localStorage.setItem('poolar-mytables', JSON.stringify(m)); } catch {} };
   const hallUrl = () => `hall.html?hall=${HALL}` + (q0.get('relay') ? `&relay=${encodeURIComponent(q0.get('relay'))}` : '');
+  let tableConfig = null;   // what the hall admin has set this table up for (game, singles/doubles, format, race)
   const tableStatus = async () => {
-    let s = null;
+    let s = null, c = null;
     const txt = await (await fetch(`${RELAY0}/${HALL_TOPIC}/json?poll=1&since=12h`)).text();
     for (const line of txt.split('\n')) { try { const e = JSON.parse(line); if (e.event !== 'message') continue;
-      const m = JSON.parse(e.message); if (m.kind === 'table' && m.t === TNUM && (!s || m.ts >= s.ts)) s = m; } catch {} }
+      const m = JSON.parse(e.message);
+      if (m.kind === 'table' && m.t === TNUM && (!s || m.ts >= s.ts)) s = m;
+      if (m.kind === 'config' && m.t === TNUM && (!c || m.ts >= c.ts)) c = m; } catch {} }
+    tableConfig = c;
     return s;
   };
   const postStatus = body => fetch(`${RELAY0}/${HALL_TOPIC}`, { method: 'POST', body: JSON.stringify({ kind: 'table', t: TNUM, ts: Date.now(), ...body }) });
@@ -484,14 +515,34 @@
       el('gLocked').hidden = false;
       return;
     }
+    const c = tableConfig || {};
+    if (c.closed) {
+      el('gMsg').textContent = `Table ${TNUM} is reserved${c.note ? `: ${c.note}` : ''}.`;
+      el('gLocked').hidden = false; el('gLocked').querySelector('p').textContent = 'Ask the front desk, or join the waitlist.';
+      return;
+    }
     el('gMsg').textContent = checked ? 'This table is open.' : "Couldn't check this table right now. You can still start a game.";
+    // Singles or doubles, and which game. The admin's setup for this table picks the defaults.
+    let pick = { dbl: !!c.dbl, gt: c.gtype || 8 };
+    const paintPick = () => {
+      for (const b of el('gOpts').querySelectorAll('[data-gd]')) b.setAttribute('aria-checked', String(!!+b.dataset.gd === pick.dbl));
+      for (const b of el('gOpts').querySelectorAll('[data-gg]')) b.setAttribute('aria-checked', String(+b.dataset.gg === pick.gt));
+    };
+    el('gOpts').onclick = e => { const b = e.target.closest('[data-gd],[data-gg]'); if (!b) return;
+      if (b.dataset.gd) pick.dbl = !!+b.dataset.gd; if (b.dataset.gg) pick.gt = +b.dataset.gg; paintPick(); };
+    if (c.note || c.fmt) { el('gNote').hidden = false; el('gNote').textContent = [c.note, c.fmt === 'wso' ? 'Winner stays on' : c.fmt === 'rot' ? 'Rotating games' : ''].filter(Boolean).join(' · '); }
+    paintPick(); el('gOpts').hidden = false;
     el('gClaim').hidden = false;
     el('gClaim').onclick = async () => {
       el('gClaim').disabled = true; el('gClaim').textContent = 'Starting…';
       const key = (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)).slice(0, 16);
-      try { localStorage.setItem(KEY, JSON.stringify({ game: key, names: ['Player 1', 'Player 2'], clockV: 2, table: `${HALL}-${TNUM}`, qSince: Date.now() - 30 * 60 * 1000, locked: false })); } catch {}
+      const me = (window.POOLAR && POOLAR.profile()) || {};
+      const names = [me.name || 'Player 1', 'Player 2'];
+      const race = c.race ? [c.race, c.race] : [5, 5];
+      try { localStorage.setItem(KEY, JSON.stringify({ game: key, names, clockV: 2, table: `${HALL}-${TNUM}`, qSince: Date.now() - 30 * 60 * 1000, locked: false,
+        dbl: pick.dbl, gtype: pick.gt, fmtMode: c.fmt || 'race', rules: c.rules || 'bca', race, mode: c.rules === 'apa' ? 'win' : 'alt' })); } catch {}
       setMine(`${HALL}-${TNUM}`, key);
-      try { await Promise.race([postStatus({ state: 'busy', gh: hashKey(key), names: ['Player 1', 'Player 2'], score: [0, 0], race: [5, 5] }), new Promise(r => setTimeout(r, 2500))]); } catch {}
+      try { await Promise.race([postStatus({ state: 'busy', gh: hashKey(key), names, score: [0, 0], race, dbl: pick.dbl, gtype: pick.gt, open: true, key, q: 0 }), new Promise(r => setTimeout(r, 2500))]); } catch {}
       enter(key, true);
     };
   }
@@ -546,9 +597,18 @@
     } catch { setLive(false); }
     return latest;
   }
+  // Joining someone's game with a saved profile: take the first empty seat ("Player 1/2" or a missing partner).
+  function seatMe(){
+    const me = window.POOLAR && POOLAR.profile(); if (!me || !me.name) return;
+    const all = [...st.names, ...st.partners].map(x => String(x).toLowerCase());
+    if (all.includes(me.name.toLowerCase())) return;
+    const k = st.names.findIndex(n => /^Player [12]$/.test(n));
+    if (k >= 0) return quiet(() => { st.names[k] = me.name; });
+    if (st.dbl) { const j = st.partners.findIndex(x => !x); if (j >= 0) quiet(() => { st.partners[j] = me.name; }); }
+  }
   async function connect(){
     const latest = await pollLatest();
-    if (latest) applyRemote(latest, joinedNew); else if (liveOn) sync();
+    if (latest) { applyRemote(latest, joinedNew); if (joinedNew) seatMe(); } else if (liveOn) sync();
     // A phone that slept may have missed updates: catch up when it wakes.
     document.addEventListener('visibilitychange', async () => { if (document.visibilityState === 'visible') { const l = await pollLatest(); if (l) applyRemote(l); } });
     try {
@@ -766,10 +826,21 @@
       if (rotating()) nextUp(i);
       newRack();
       if (winner(scores()) >= 0) st.tEnd = Date.now(); });
+    if (winner(scores()) >= 0) saveResult('match');
     const p=$('p'+i); p.classList.remove('flash'); void p.offsetWidth; p.classList.add('flash'); buzz();
     clockReset(); drawClock(); touch();
   };
 
+  // Game history: every finished match (and a session's games when a table is freed) is kept on this phone
+  // and posted to the hall's results feed, which the admin page lists.
+  function saveResult(kind){
+    const rec = { id: `${game}-${st.racks.length}-${kind}`, kind, at: Date.now(), hall: HALL || '', table: TNUM || 0,
+      names: [side(0), side(1)], score: scores(), race: st.race, gtype: st.gtype, rules: st.rules, fmt: st.fmtMode, dbl: st.dbl,
+      racks: st.racks.length, games: st.games.slice(-40), dur: st.t0 ? (st.tEnd || Date.now()) - st.t0 : 0 };
+    try { const h = JSON.parse(localStorage.getItem('poolar-history') || '[]');
+      if (!h.some(x => x.id === rec.id)) { h.unshift(rec); localStorage.setItem('poolar-history', JSON.stringify(h.slice(0, 200))); } } catch {}
+    if (HALL) fetch(`${RELAY}/poolar-results-${HALL}`, { method: 'POST', body: JSON.stringify(rec) }).catch(() => {});
+  }
   // Winner stays / rotate: each rack is a game. Record it, then bring in the next people from the line.
   const wins = n => st.games.filter(g => g.w === n).length;
   const qid = () => 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
@@ -922,7 +993,7 @@
   $('fbs').addEventListener('change', paintForm);
   for (const b of document.querySelectorAll('[data-step^="fk"]')) b.addEventListener('click', () => setTimeout(paintForm));
   const openSetup = () => $('setBtn').onclick();
-  $('modeBtn').onclick = openSetup;
+  $('modeBtn').onclick = () => { openSetup(); const seg = $('fmt1').parentElement; seg.scrollIntoView({ block: 'center' }); seg.classList.add('hl'); setTimeout(() => seg.classList.remove('hl'), 1600); };
   $('raceLbl').onclick = openSetup;
   $('raceLbl').addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' ') { e.preventDefault(); openSetup(); } });
   let editing = 0;
@@ -932,6 +1003,8 @@
     $('npWrap').hidden = !st.dbl; $('nameSheet').hidden = false; $('ne').focus(); $('ne').select();
   };
   $('nameCancel').onclick = () => $('nameSheet').hidden = true;
+  { const me = window.POOLAR && POOLAR.profile();
+    if (me && me.name) { $('nameMe').hidden = false; $('nameMe').textContent = `Use my profile: ${me.name}`; $('nameMe').onclick = () => { $('ne').value = me.name; }; } }
   $('nameForm').addEventListener('submit', e => { e.preventDefault();
     const n = $('ne').value.trim(), pn = $('np').value.trim();
     act(() => { if (n) st.names[editing] = n; if (st.dbl) st.partners[editing] = pn; });
@@ -978,11 +1051,11 @@
   let lastStatus = '', statusT, freed = false;
   function statusTick(){
     if (!tableMode || freed) return;
-    const key = JSON.stringify([side(0), side(1), scores(), st.race, st.locked, st.queue.length]);
+    const key = JSON.stringify([side(0), side(1), scores(), st.race, st.locked, st.queue.length, st.dbl, st.gtype, st.fmtMode]);
     if (key === lastStatus) return;
     lastStatus = key; clearTimeout(statusT);
     statusT = setTimeout(() => postStatus({ state: 'busy', gh: hashKey(game), names: [side(0), side(1)], score: scores(), race: st.race, over: winner(scores()) >= 0,
-      open: !st.locked, ...(st.locked ? {} : { key: game }), q: st.queue.length }).catch(() => {}), 1500);
+      open: !st.locked, ...(st.locked ? {} : { key: game }), q: st.queue.length, dbl: st.dbl, gtype: st.gtype, fmt: st.fmtMode }).catch(() => {}), 1500);
   }
   if (tableMode) {
     setMine(`${HALL}-${TNUM}`, game);
@@ -990,6 +1063,7 @@
     $('lockRow').hidden = false; $('lockSw2').hidden = false; $('lockIc').hidden = false; paintLock();
     $('setFree').hidden = false; $('setFree').textContent = `Free table ${TNUM}`; $('winFree').hidden = false;
     const freeTable = async () => {
+      if (st.racks.length && winner(scores()) < 0) saveResult('session');
       freed = true; setMine(`${HALL}-${TNUM}`, null);
       try { await Promise.race([postStatus({ state: 'free' }), new Promise(r => setTimeout(r, 2500))]); } catch {}
       location.href = hallUrl();
@@ -1084,6 +1158,56 @@
   const shareOpen = $('shareBtn').onclick;
   $('shareBtn').onclick = () => { shareOpen(); const u = waitUrl(); $('waitUrl').value = u; drawQR(u); paintLine(); };
   $('waitCopy').onclick = async () => { try { await navigator.clipboard.writeText($('waitUrl').value); $('waitCopy').textContent = 'Copied'; } catch { $('waitUrl').select(); $('waitCopy').textContent = 'Selected'; } setTimeout(() => $('waitCopy').textContent = 'Copy', 1500); };
+  // Table camera: preview the rear camera, record it with the score drawn on top, then save or share the clip.
+  let camStream = null, rec = null, recChunks = [], recT0 = 0, recTimer = 0, drawing = 0, clip = null;
+  $('camBtn').onclick = () => { $('camSheet').hidden = false; };
+  $('camStart').onclick = async () => {
+    if (camStream) return;
+    try {
+      camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: true })
+        .catch(() => navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }));
+      $('camVid').srcObject = camStream; await $('camVid').play();
+      $('camRec').disabled = false; $('camStart').textContent = 'Camera on';
+    } catch { $('camMsg').textContent = "Couldn't open the camera. Allow camera access for this site in your browser settings, then try again."; }
+  };
+  function drawFrame(){
+    const v = $('camVid'), c = $('camCan'), x = c.getContext('2d');
+    x.drawImage(v, 0, 0, c.width, c.height);
+    const s = scores(), h = Math.round(c.height * .09);
+    x.fillStyle = 'rgba(8,14,12,.78)'; x.fillRect(0, c.height - h, c.width, h);
+    x.fillStyle = '#fff'; x.font = `700 ${Math.round(h * .5)}px system-ui, sans-serif`; x.textBaseline = 'middle';
+    const label = `${side(0)}  ${s[0]} – ${s[1]}  ${side(1)}`;
+    x.fillText(label, h * .4, c.height - h / 2);
+    x.textAlign = 'right'; x.fillStyle = '#f2c14e';
+    x.fillText([tableMode ? `Table ${TNUM}` : '', `${st.gtype}-ball`, rotating() ? '' : `Race ${st.race[0]}–${st.race[1]}`].filter(Boolean).join(' · '), c.width - h * .4, c.height - h / 2);
+    x.textAlign = 'left';
+    drawing = requestAnimationFrame(drawFrame);
+  }
+  $('camRec').onclick = () => {
+    if (rec && rec.state === 'recording') { rec.stop(); return; }
+    const v = $('camVid'), c = $('camCan');
+    c.width = v.videoWidth || 1280; c.height = v.videoHeight || 720;
+    let stream = camStream;
+    if (c.captureStream) { drawFrame(); stream = c.captureStream(30); camStream.getAudioTracks().forEach(t => stream.addTrack(t)); }
+    const type = ['video/mp4', 'video/webm;codecs=vp9', 'video/webm'].find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || '';
+    try { rec = new MediaRecorder(stream, type ? { mimeType: type } : undefined); } catch { $('camMsg').textContent = "This browser can't record video."; return; }
+    recChunks = []; rec.ondataavailable = e => { if (e.data.size) recChunks.push(e.data); };
+    rec.onstop = () => {
+      cancelAnimationFrame(drawing); clearInterval(recTimer); $('recDot').hidden = true; $('camRec').textContent = 'Record';
+      const mime = rec.mimeType || type || 'video/webm', ext = mime.includes('mp4') ? 'mp4' : 'webm';
+      clip = new File(recChunks, `table-${TNUM || 'game'}-${new Date().toISOString().slice(0,16).replace(/[:T]/g,'-')}.${ext}`, { type: mime });
+      $('camSave').href = URL.createObjectURL(clip); $('camSave').download = clip.name; $('camSaveRow').hidden = false;
+      $('camShare').hidden = !(navigator.canShare && navigator.canShare({ files: [clip] }));
+    };
+    rec.start(1000); recT0 = Date.now(); $('recDot').hidden = false; $('camRec').textContent = 'Stop'; $('camSaveRow').hidden = true;
+    recTimer = setInterval(() => { const t = Math.floor((Date.now() - recT0) / 1000); $('recTime').textContent = `${Math.floor(t/60)}:${String(t%60).padStart(2,'0')}`; }, 500);
+  };
+  $('camShare').onclick = () => { if (clip) navigator.share({ files: [clip], title: 'Pool game' }).catch(() => {}); };
+  $('camClose').onclick = () => {
+    if (rec && rec.state === 'recording') { $('camMsg').textContent = 'Stop the recording before closing.'; return; }
+    if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; $('camStart').textContent = 'Start camera'; $('camRec').disabled = true; }
+    $('camSheet').hidden = true;
+  };
   const renderBase = render;
   render = function(){ renderBase(); try { lineTick(); paintLineCard(); if (!$('shareSheet').hidden) paintLine(); } catch {} };
 

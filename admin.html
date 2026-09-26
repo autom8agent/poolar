@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0f14">
+<title>Hall Admin</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="common.css">
+<style>
+  .tables{display:flex;flex-direction:column;gap:10px}
+  .trow{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;display:grid;grid-template-columns:auto 1fr;gap:10px 12px}
+  .trow.busy{border-color:#2d5d78}
+  .trow .n{font-family:var(--num);font-weight:900;font-size:34px;line-height:1;min-width:36px;text-align:center}
+  .trow .n small{display:block;font-family:var(--ui);font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.06em}
+  .live{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px}
+  .ctl{grid-column:1 / -1;display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .ctl select,.ctl input{padding:8px;font-size:14px}
+  .ctl .wide{grid-column:span 2}
+  .acts{grid-column:1 / -1;display:flex;gap:6px;flex-wrap:wrap}
+  .acts button,.acts a{padding:8px 12px;font-size:13px}
+  .q{display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:20px;padding:0 6px;border-radius:10px;font-size:12px;font-weight:800;color:#10161c}
+  .chk{flex-direction:row;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:14px;color:var(--text)}
+  .chk input{width:auto}
+  .sel{accent-color:var(--gold);width:20px;height:20px}
+  @media (max-width:420px){ .ctl{grid-template-columns:1fr 1fr} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a id="back" href="hall.html">← All tables</a><span class="pill" id="live">Offline</span></div>
+  <h1 id="title">Hall admin</h1>
+
+  <form class="card" id="pinCard">
+    <h2>Admin PIN</h2>
+    <p>Enter the hall's admin PIN to set up tables and run events.</p>
+    <div class="row"><input id="pin" type="password" inputmode="numeric" autocomplete="off" placeholder="PIN"><button class="primary" type="submit">Unlock</button></div>
+    <p id="pinMsg"></p>
+  </form>
+
+  <div id="adminUi" hidden style="display:flex;flex-direction:column;gap:14px">
+    <div class="card">
+      <h2>Event</h2>
+      <label class="chk"><input type="checkbox" id="evOn"> Show an event banner on the tables page</label>
+      <input id="evTitle" placeholder="Event name, e.g. Friday 8-ball tournament" maxlength="60">
+      <input id="evNote" placeholder="Details, e.g. Check-in at the bar by 7:30" maxlength="120">
+      <button class="primary" id="evSave">Save event</button>
+    </div>
+
+    <div class="card">
+      <h2>Set up many tables at once</h2>
+      <p>Tick tables below (or none for all), pick settings, then apply. New games on those tables start with these settings.</p>
+      <div class="ctl" id="bulk">
+        <select data-k="gtype"><option value="8">8-ball</option><option value="9">9-ball</option><option value="10">10-ball</option></select>
+        <select data-k="dbl"><option value="0">Singles</option><option value="1">Doubles</option></select>
+        <select data-k="fmt"><option value="race">Race</option><option value="wso">Winner stays</option><option value="rot">Rotate</option></select>
+        <select data-k="rules"><option value="bca">BCA</option><option value="apa">APA</option><option value="custom">Custom</option></select>
+        <input data-k="race" type="number" min="1" max="21" placeholder="Race to">
+        <input class="wide" data-k="note" placeholder="Label, e.g. League, Tournament" maxlength="30">
+        <label class="chk"><input type="checkbox" data-k="closed"> Reserved</label>
+      </div>
+      <div class="row"><button id="bulkSel">Apply to ticked</button><button class="primary" id="bulkAll">Apply to all tables</button></div>
+    </div>
+
+    <h2>Tables</h2>
+    <div class="tables" id="tables"></div>
+
+    <div class="card">
+      <h2>Results tonight</h2>
+      <div id="results"><p>No finished matches yet.</p></div>
+      <button id="csv">Download results (CSV)</button>
+      <p>Results come from the scoring phones and stay on the relay for 12 hours. Download them to keep a copy.</p>
+    </div>
+  </div>
+</div>
+<script src="halls.js"></script>
+<script>
+(() => {
+  const qs = new URLSearchParams(location.search);
+  const HALL = (qs.get('hall') || 'surge-chicago').replace(/[^a-z0-9-]/gi, '');
+  const H = window.POOLAR_HALLS[HALL], P = window.POOLAR, RELAY = P.relay();
+  const TOPIC = 'poolar-hall-' + HALL, RESULTS = 'poolar-results-' + HALL, STALE = 30 * 60 * 1000;
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+  const keep = p => `${p}?hall=${HALL}` + (RELAY !== 'https://ntfy.sh' ? `&relay=${encodeURIComponent(RELAY)}` : '');
+  $('back').href = keep('hall.html'); $('title').textContent = `${H.name} admin`; document.title = `${H.name} Admin`;
+  const toast = t => { const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 1800); };
+  const post = (topic, body) => fetch(`${RELAY}/${topic}`, { method: 'POST', body: JSON.stringify({ ...body, ts: Date.now() }) });
+
+  // PIN check (a guard against accidental changes; anyone determined could still post to the relay)
+  const ok = () => { try { return sessionStorage.getItem('poolar-admin-' + HALL) === '1'; } catch { return false; } };
+  const unlock = () => { $('pinCard').hidden = true; $('adminUi').hidden = false; start(); };
+  $('pinCard').addEventListener('submit', e => { e.preventDefault();
+    if (P.hash(`${HALL}:${$('pin').value.trim()}`) === H.adminPin) { try { sessionStorage.setItem('poolar-admin-' + HALL, '1'); } catch {} unlock(); }
+    else $('pinMsg').textContent = "That PIN isn't right."; });
+  if (ok()) unlock();
+
+  const status = {}, config = {}; let event = null; const results = [];
+  function take(raw){
+    let m; try { m = JSON.parse(raw); } catch { return; }
+    if (!m) return;
+    if (m.kind === 'event' && (!event || m.ts >= event.ts)) event = m;
+    if (m.kind === 'config' && m.t && (!config[m.t] || m.ts >= config[m.t].ts)) config[m.t] = m;
+    if (m.kind === 'table' && m.t && (!status[m.t] || m.ts >= status[m.t].ts)) status[m.t] = m;
+  }
+  function takeResult(raw){ let m; try { m = JSON.parse(raw); } catch { return; } if (m && m.id && !results.some(r => r.id === m.id)) results.unshift(m); }
+  const busy = t => { const s = status[t]; return s && s.state === 'busy' && Date.now() - s.ts < STALE; };
+  const tables = [...H.tables].sort((a, b) => a.n - b.n);
+
+  function build(){
+    $('tables').innerHTML = tables.map(t => `<div class="trow" id="r${t.n}">
+      <div class="n">${t.n}<small>${t.ft}-FT</small></div>
+      <div class="live" id="l${t.n}"></div>
+      <div class="ctl" id="c${t.n}">
+        <select data-k="gtype"><option value="8">8-ball</option><option value="9">9-ball</option><option value="10">10-ball</option></select>
+        <select data-k="dbl"><option value="0">Singles</option><option value="1">Doubles</option></select>
+        <select data-k="fmt"><option value="race">Race</option><option value="wso">Winner stays</option><option value="rot">Rotate</option></select>
+        <select data-k="rules"><option value="bca">BCA</option><option value="apa">APA</option><option value="custom">Custom</option></select>
+        <input data-k="race" type="number" min="1" max="21" placeholder="Race to">
+        <input class="wide" data-k="note" placeholder="Label" maxlength="30">
+        <label class="chk"><input type="checkbox" data-k="closed"> Reserved</label>
+      </div>
+      <div class="acts">
+        <label class="chk"><input type="checkbox" class="sel" data-sel="${t.n}"> Tick</label>
+        <button class="primary" data-save="${t.n}">Save table ${t.n}</button>
+        <button data-free="${t.n}">Free table</button>
+        <a class="btn" id="go${t.n}" href="${esc(keep('deck.html') + '&t=' + t.n)}">Open</a>
+      </div></div>`).join('');
+    for (const t of tables) fill($('c' + t.n), config[t.n] || {});
+  }
+  const read = box => { const o = {}; for (const el of box.querySelectorAll('[data-k]')) {
+    const k = el.dataset.k; o[k] = el.type === 'checkbox' ? el.checked : el.value; }
+    return { gtype: +o.gtype, dbl: o.dbl === '1', fmt: o.fmt, rules: o.rules, race: o.race ? +o.race : 0, note: o.note.trim(), closed: o.closed }; };
+  function fill(box, c){ for (const el of box.querySelectorAll('[data-k]')) { const k = el.dataset.k, v = c[k];
+    if (el.type === 'checkbox') el.checked = !!v; else if (k === 'dbl') el.value = v ? '1' : '0'; else if (v != null && v !== 0) el.value = v; else if (k === 'gtype') el.value = '8'; } }
+  async function saveCfg(n, c){ config[n] = { kind: 'config', t: n, ...c, ts: Date.now() }; await post(TOPIC, { kind: 'config', t: n, ...c }); }
+
+  function paint(){
+    $('evOn').checked = !!(event && event.on);
+    if (event && document.activeElement !== $('evTitle')) $('evTitle').value = event.title || '';
+    if (event && document.activeElement !== $('evNote')) $('evNote').value = event.note || '';
+    for (const t of tables) {
+      const b = busy(t.n), s = status[t.n] || {}, c = config[t.n] || {};
+      $('r' + t.n).classList.toggle('busy', b);
+      const q = b ? s.q || 0 : 0;
+      $('l' + t.n).innerHTML = b
+        ? `${P.ballSvg(s.gtype || 8, 20)}${P.peopleSvg(!!s.dbl, 18)}<b>${esc(s.names ? `${s.names[0]} vs ${s.names[1]}` : 'In use')}</b>${s.score ? `<span class="pill">${s.score[0]}–${s.score[1]}</span>` : ''}<span class="q" style="background:${P.lineColor(q)}">${q}</span><span class="pill">${s.open ? 'Open' : 'Locked'}</span>`
+        : `${P.ballSvg(c.gtype || 8, 20)}${P.peopleSvg(!!c.dbl, 18)}<span class="muted">${c.closed ? 'Reserved' : 'Free'}${c.note ? ` · ${esc(c.note)}` : ''}</span>`;
+      if (b && s.open && s.key) $('go' + t.n).href = keep('deck.html') + `&t=${t.n}&game=${encodeURIComponent(s.key)}`;
+    }
+    const dur = ms => { const m = Math.round(ms / 60000); return m >= 60 ? `${Math.floor(m/60)}h ${m%60}m` : `${m}m`; };
+    if (results.length) $('results').innerHTML = `<table class="t"><thead><tr><th>Time</th><th>Table</th><th>Match</th><th>Score</th></tr></thead><tbody>${results.map(r =>
+      `<tr><td>${new Date(r.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</td><td>${r.table || '–'}</td><td>${esc(r.names[0])} vs ${esc(r.names[1])}<br><span class="muted">${r.gtype}-ball${r.dur ? ` · ${dur(r.dur)}` : ''}</span></td><td>${r.score[0]}–${r.score[1]}</td></tr>`).join('')}</tbody></table>`;
+  }
+
+  function start(){
+    build();
+    $('tables').addEventListener('click', async e => {
+      const sv = e.target.closest('[data-save]'), fr = e.target.closest('[data-free]');
+      if (sv) { const n = +sv.dataset.save; await saveCfg(n, read($('c' + n))).catch(() => {}); toast(`Table ${n} saved`); paint(); }
+      if (fr) { const n = +fr.dataset.free; await post(TOPIC, { kind: 'table', t: n, state: 'free' }).catch(() => {}); status[n] = { state: 'free', ts: Date.now() }; toast(`Table ${n} freed`); paint(); }
+    });
+    const bulk = async all => { const c = read($('bulk'));
+      const list = all ? tables.map(t => t.n) : [...document.querySelectorAll('[data-sel]:checked')].map(x => +x.dataset.sel);
+      if (!list.length) return toast('Tick some tables first');
+      for (const n of list) { await saveCfg(n, c).catch(() => {}); fill($('c' + n), c); }
+      toast(`${list.length} table${list.length > 1 ? 's' : ''} set up`); paint(); };
+    $('bulkSel').onclick = () => bulk(false); $('bulkAll').onclick = () => bulk(true);
+    $('evSave').onclick = async () => { event = { kind: 'event', on: $('evOn').checked, title: $('evTitle').value.trim(), note: $('evNote').value.trim(), ts: Date.now() };
+      await post(TOPIC, event).catch(() => {}); toast(event.on ? 'Event banner on' : 'Event banner off'); };
+    $('csv').onclick = () => {
+      const rows = [['time','table','game','player/team 1','player/team 2','score 1','score 2','format','minutes']].concat(results.map(r =>
+        [new Date(r.at).toISOString(), r.table, `${r.gtype}-ball`, r.names[0], r.names[1], r.score[0], r.score[1], r.fmt, Math.round((r.dur || 0) / 60000)]));
+      const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+      a.download = `${HALL}-results-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+    };
+    const setLive = on => { $('live').textContent = on ? 'Live' : 'Offline'; $('live').style.color = on ? 'var(--free)' : ''; };
+    const poll = async (topic, fn) => { const txt = await (await fetch(`${RELAY}/${topic}/json?poll=1&since=12h`)).text();
+      for (const l of txt.split('\n')) { try { const e = JSON.parse(l); if (e.event === 'message') fn(e.message); } catch {} } };
+    Promise.all([poll(TOPIC, take), poll(RESULTS, takeResult)]).then(() => { setLive(true); build(); paint(); }).catch(() => setLive(false));
+    for (const [topic, fn] of [[TOPIC, take], [RESULTS, takeResult]]) try { const es = new EventSource(`${RELAY}/${topic}/sse`);
+      es.onmessage = e => { try { const d = JSON.parse(e.data); if (d.event === 'message') { fn(d.message); paint(); } } catch {} }; } catch {}
+    setInterval(paint, 30000);
+  }
+})();
+</script>
+</body>
+</html>

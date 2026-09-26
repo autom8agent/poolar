@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0f14">
+<title>Tournament Bracket</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="common.css">
+<style>
+  .bracket{display:flex;gap:14px;overflow-x:auto;padding-bottom:8px;scroll-snap-type:x mandatory}
+  .round{flex:0 0 min(78vw,240px);display:flex;flex-direction:column;justify-content:space-around;gap:10px;scroll-snap-align:start}
+  .round h2{text-align:center}
+  .match{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .match.live{border-color:var(--felt)}
+  .p{display:flex;align-items:center;gap:8px;width:100%;padding:9px 10px;background:none;border:0;border-radius:0;text-align:left;font:600 15px var(--ui);color:var(--text)}
+  .p + .p{border-top:1px solid var(--line)}
+  .p.win{background:#1c2a1f;color:var(--free);font-weight:800}
+  .p.lose{color:var(--muted);text-decoration:line-through}
+  .p.tbd{color:var(--muted);font-style:italic}
+  .p span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .meta{display:flex;align-items:center;gap:6px;padding:6px 10px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+  .meta select{padding:4px 6px;font-size:12px;width:auto}
+  .meta a{color:var(--felt);font-weight:700;text-decoration:none;margin-left:auto}
+  .champ{text-align:center;background:linear-gradient(180deg,#3a2a08,#1a1305);border:1px solid var(--gold);border-radius:16px;padding:16px}
+  .champ b{display:block;font-family:var(--num);font-weight:900;font-size:40px;color:var(--gold);text-transform:uppercase}
+  .edit-only{display:none} body.edit .edit-only{display:revert}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a id="back" href="hall.html">← All tables</a><span class="pill" id="live">Offline</span></div>
+  <h1 id="title">Tournament</h1>
+  <p id="sub">No tournament running yet.</p>
+
+  <div class="champ" id="champ" hidden><span class="muted">Champion</span><b id="champName"></b></div>
+  <div class="bracket" id="bracket"></div>
+
+  <form class="card" id="pinCard">
+    <h2>Run the tournament</h2>
+    <p>Organizers enter the admin PIN to create the bracket and record winners. Everyone else can watch this page live.</p>
+    <div class="row"><input id="pin" type="password" inputmode="numeric" autocomplete="off" placeholder="Admin PIN"><button class="primary" type="submit">Unlock</button></div>
+    <p id="pinMsg"></p>
+  </form>
+
+  <form class="card edit-only" id="newCard">
+    <h2>New bracket</h2>
+    <label>Tournament name<input id="tName" maxlength="50" placeholder="Friday 8-ball"></label>
+    <div class="row3">
+      <label>Game<select id="tGame"><option value="8">8-ball</option><option value="9">9-ball</option><option value="10">10-ball</option></select></label>
+      <label>Race to<input id="tRace" type="number" min="1" max="21" value="3"></label>
+      <label>Players<select id="tDbl"><option value="0">Singles</option><option value="1">Doubles teams</option></select></label>
+    </div>
+    <label>Players or teams, one per line<textarea id="tPlayers" placeholder="Shag&#10;Terry&#10;Dave&#10;Mike"></textarea></label>
+    <label class="chk" style="flex-direction:row;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:14px;color:var(--text)"><input type="checkbox" id="tShuffle" checked style="width:auto"> Random draw</label>
+    <button class="primary" type="submit">Create bracket</button>
+    <p>Byes go to the top of the draw when the field isn't a power of two. Creating a new bracket replaces the current one.</p>
+  </form>
+</div>
+<script src="halls.js"></script>
+<script>
+(() => {
+  const qs = new URLSearchParams(location.search);
+  const HALL = (qs.get('hall') || 'surge-chicago').replace(/[^a-z0-9-]/gi, '');
+  const H = window.POOLAR_HALLS[HALL], P = window.POOLAR, RELAY = P.relay();
+  const TOPIC = 'poolar-tourney-' + HALL, HALL_TOPIC = 'poolar-hall-' + HALL, LS = 'poolar-tourney-' + HALL;
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+  const keep = p => `${p}?hall=${HALL}` + (RELAY !== 'https://ntfy.sh' ? `&relay=${encodeURIComponent(RELAY)}` : '');
+  $('back').href = keep('hall.html');
+  let T = null; try { T = JSON.parse(localStorage.getItem(LS) || 'null'); } catch {}
+  let editing = false; try { editing = sessionStorage.getItem('poolar-admin-' + HALL) === '1'; } catch {}
+
+  const publish = () => { T.ts = Date.now(); try { localStorage.setItem(LS, JSON.stringify(T)); } catch {}
+    fetch(`${RELAY}/${TOPIC}`, { method: 'POST', body: JSON.stringify(T) }).catch(() => {}); paint(); };
+
+  // Single elimination. Round 1 is seeded so byes meet real players; winners move to the next round's slot.
+  function create(names, opts){
+    const size = 2 ** Math.ceil(Math.log2(Math.max(2, names.length)));
+    const seeds = [...names]; while (seeds.length < size) seeds.push(null);
+    // spread byes: pair player i with seed size-1-i so byes land against the top of the draw
+    const r1 = []; for (let i = 0; i < size / 2; i++) r1.push({ a: seeds[i], b: seeds[size - 1 - i], w: null, table: 0 });
+    const rounds = [r1]; for (let n = size / 4; n >= 1; n /= 2) rounds.push(Array.from({ length: n }, () => ({ a: null, b: null, w: null, table: 0 })));
+    T = { title: opts.title || 'Tournament', gtype: opts.gtype, race: opts.race, dbl: opts.dbl, rounds, ts: Date.now() };
+    for (const m of r1) if (!m.a || !m.b) m.w = m.a ? 'a' : m.b ? 'b' : null;   // byes advance
+    advanceAll();
+  }
+  function advanceAll(){
+    for (let r = 0; r < T.rounds.length - 1; r++) T.rounds[r].forEach((m, i) => {
+      const next = T.rounds[r + 1][Math.floor(i / 2)], slot = i % 2 ? 'b' : 'a';
+      const who = m.w ? m[m.w] : null; if (next[slot] !== who) { next[slot] = who; if (next.w) next.w = null; }
+    });
+  }
+  const roundName = (r, n) => n - r === 1 ? 'Final' : n - r === 2 ? 'Semifinals' : n - r === 3 ? 'Quarterfinals' : `Round ${r + 1}`;
+
+  function paint(){
+    document.body.classList.toggle('edit', editing); $('pinCard').hidden = editing;
+    if (!T) { $('bracket').innerHTML = ''; $('champ').hidden = true; return; }
+    $('title').textContent = T.title; document.title = `${T.title} Bracket`;
+    const players = T.rounds[0].flatMap(m => [m.a, m.b]).filter(Boolean).length;
+    $('sub').textContent = `${players} ${T.dbl ? 'teams' : 'players'} · ${T.gtype}-ball · race to ${T.race} · ${H.name}`;
+    const final = T.rounds[T.rounds.length - 1][0];
+    $('champ').hidden = !final.w; if (final.w) $('champName').textContent = final[final.w];
+    const tableOpts = t => `<option value="0">Table –</option>` + H.tables.map(x => x.n).sort((a, b) => a - b).map(n => `<option value="${n}"${n === t ? ' selected' : ''}>Table ${n}</option>`).join('');
+    $('bracket').innerHTML = T.rounds.map((round, r) => `<div class="round"><h2>${roundName(r, T.rounds.length)}</h2>${round.map((m, i) => {
+      const cls = s => !m[s] ? 'tbd' : m.w === s ? 'win' : m.w ? 'lose' : '';
+      const btn = s => `<button class="p ${cls(s)}" data-r="${r}" data-i="${i}" data-s="${s}" ${!editing || !m.a || !m.b ? 'disabled' : ''}>${P.peopleSvg(!!T.dbl, 14)}<span>${esc(m[s] || (r === 0 ? 'Bye' : 'Winner of previous'))}</span>${m.w === s ? '✓' : ''}</button>`;
+      const live = m.a && m.b && !m.w;
+      return `<div class="match${live ? ' live' : ''}">${btn('a')}${btn('b')}${live || m.table ? `<div class="meta">${editing && live ? `<select data-tr="${r}" data-ti="${i}">${tableOpts(m.table)}</select>` : m.table ? `Table ${m.table}` : ''}${m.table && live ? `<a href="${esc(keep('deck.html') + '&t=' + m.table)}">Score it</a>` : ''}</div>` : ''}</div>`;
+    }).join('')}</div>`).join('');
+  }
+  $('bracket').addEventListener('click', e => {
+    const b = e.target.closest('.p'); if (!b || !editing) return;
+    const m = T.rounds[+b.dataset.r][+b.dataset.i]; if (!m.a || !m.b) return;
+    m.w = m.w === b.dataset.s ? null : b.dataset.s; advanceAll(); publish();
+  });
+  $('bracket').addEventListener('change', e => {
+    const sel = e.target.closest('[data-tr]'); if (!sel || !editing) return;
+    const m = T.rounds[+sel.dataset.tr][+sel.dataset.ti]; m.table = +sel.value; publish();
+    // Set the table up for this match so whoever starts scoring gets the right game and race.
+    if (m.table) fetch(`${RELAY}/${HALL_TOPIC}`, { method: 'POST', body: JSON.stringify({ kind: 'config', t: m.table, gtype: T.gtype, dbl: !!T.dbl, fmt: 'race', rules: 'custom', race: T.race, note: `${T.title}: ${m.a} vs ${m.b}`, closed: false, ts: Date.now() }) }).catch(() => {});
+  });
+  $('pinCard').addEventListener('submit', e => { e.preventDefault();
+    if (P.hash(`${HALL}:${$('pin').value.trim()}`) === H.adminPin) { editing = true; try { sessionStorage.setItem('poolar-admin-' + HALL, '1'); } catch {} paint(); }
+    else $('pinMsg').textContent = "That PIN isn't right."; });
+  $('newCard').addEventListener('submit', e => { e.preventDefault();
+    let names = $('tPlayers').value.split('\n').map(x => x.trim()).filter(Boolean).slice(0, 64);
+    if (names.length < 2) return alert('Add at least two players.');
+    if ($('tShuffle').checked) for (let i = names.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [names[i], names[j]] = [names[j], names[i]]; }
+    create(names, { title: $('tName').value.trim(), gtype: +$('tGame').value, race: +$('tRace').value || 3, dbl: $('tDbl').value === '1' });
+    publish(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+
+  const take = raw => { let m; try { m = JSON.parse(raw); } catch { return; } if (m && m.rounds && (!T || m.ts >= T.ts)) T = m; };
+  const setLive = on => { $('live').textContent = on ? 'Live' : 'Offline'; $('live').style.color = on ? 'var(--free)' : ''; };
+  (async () => {
+    try { const txt = await (await fetch(`${RELAY}/${TOPIC}/json?poll=1&since=12h`)).text();
+      for (const l of txt.split('\n')) { try { const e = JSON.parse(l); if (e.event === 'message') take(e.message); } catch {} } setLive(true); } catch { setLive(false); }
+    paint();
+  })();
+  try { const es = new EventSource(`${RELAY}/${TOPIC}/sse`); es.onopen = () => setLive(true);
+    es.onmessage = e => { try { const d = JSON.parse(e.data); if (d.event === 'message') { take(d.message); paint(); } } catch {} }; } catch {}
+  paint();
+})();
+</script>
+</body>
+</html>
