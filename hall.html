@@ -38,13 +38,22 @@
   .tbl.mine .rail{stroke:var(--gold);stroke-width:.8}
   .tnum{font-family:var(--num);font-weight:900;fill:#fff;paint-order:stroke;stroke:rgba(0,0,0,.35);stroke-width:.5}
   .tag{font-family:var(--ui);font-weight:700;fill:#fff}
-  .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
-  .grid a{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0;border-radius:10px;background:var(--panel);border:1px solid var(--line);
-    color:var(--text);text-decoration:none;font-family:var(--num);font-weight:900;font-size:22px;line-height:1}
-  .grid a small{font-family:var(--ui);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--free)}
-  .grid a.busy small{color:var(--busy)}
-  .grid a.mine small{color:var(--gold)}
-  .grid a:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+  .list{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .list a{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;align-items:center;padding:10px;border-radius:12px;background:var(--panel);border:1px solid var(--line);color:var(--text);text-decoration:none;min-width:0}
+  .list a:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+  .list .n{grid-row:1 / span 2;font-family:var(--num);font-weight:900;font-size:30px;line-height:1;min-width:28px;text-align:center}
+  .list .ic{display:flex;align-items:center;gap:6px;color:var(--muted);min-width:0}
+  .list .st{font-size:12px;font-weight:700;letter-spacing:.04em;color:var(--free);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .list a.busy .st{color:var(--text)}
+  .list a.mine{border-color:var(--gold)} .list a.mine .st{color:var(--gold)}
+  .list a.closed{opacity:.55}
+  .q{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:20px;padding:0 6px;border-radius:10px;font-size:12px;font-weight:800;color:#10161c}
+  .nav{display:flex;gap:8px;flex-wrap:wrap}
+  .nav a{flex:1;min-width:0;text-align:center;padding:10px 8px;border-radius:10px;background:var(--panel);border:1px solid var(--line);color:var(--text);text-decoration:none;font-weight:700;font-size:14px}
+  .nav a.me{border-color:var(--gold);color:var(--gold)}
+  .event{background:linear-gradient(90deg,#3a2a08,#2a1d06);border:1px solid var(--gold);border-radius:12px;padding:10px 12px;color:var(--gold);font-weight:700}
+  .event small{display:block;color:var(--text);font-weight:500;margin-top:2px}
+  .legend .q{margin-right:2px}
   .note{font-size:13px;color:var(--muted);margin:0;line-height:1.45}
   h2{margin:4px 0 0;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
 </style>
@@ -58,15 +67,18 @@
     </div>
     <span class="live" id="live">Offline</span>
   </header>
+  <nav class="nav"><a class="me" id="meLink" href="profile.html">My profile</a><a id="tourLink" href="tournament.html">Tournament</a><a id="adminLink" href="admin.html">Admin</a></nav>
+  <div class="event" id="event" hidden></div>
   <p class="prompt">Tap the table you're playing on to start scoring.</p>
   <div class="legend">
     <span><i class="sw" style="background:var(--felt)"></i>Open</span>
     <span><i class="sw" style="background:var(--felt-busy)"></i>In use</span>
     <span id="ftLegend">9-ft front · 7-ft back room</span>
+    <span>Line: <i class="q" style="background:#57d98a">0</i><i class="q" style="background:#c8e04a">1–2</i><i class="q" style="background:#f59a3a">3–4</i><i class="q" style="background:#e4574a">5+</i></span>
   </div>
   <div class="map"><svg id="plan" role="group" aria-label="Floor plan"></svg></div>
   <h2>All tables</h2>
-  <div class="grid" id="grid"></div>
+  <div class="list" id="grid"></div>
   <p class="note">A table locks to the first group that opens it. Friends join through the Share button inside the game. When you finish, tap <b>Free table</b> in the game so the next group can use it. A table that sits idle for 30 minutes frees up by itself.</p>
 </div>
 
@@ -87,6 +99,9 @@
   let mine = {};
   try { mine = JSON.parse(localStorage.getItem('poolar-mytables') || '{}'); } catch {}
   const status = {};   // table number -> latest status message
+  const config = {};   // table number -> what the admin has set the table up for
+  let event = null;
+  const P = window.POOLAR;
   const busy = t => { const s = status[t]; return s && s.state === 'busy' && Date.now() - s.ts < STALE; };
   const tableUrl = n => { const u = new URL('deck.html', location.href); u.searchParams.set('hall', HALL); u.searchParams.set('t', n);
     if (RELAY !== 'https://ntfy.sh') u.searchParams.set('relay', RELAY); return u.toString(); };
@@ -125,6 +140,7 @@
         ${pockets}${diamonds}
         <text class="tnum" x="${numX}" y="${numY}" text-anchor="middle" font-size="${fs}">${n}</text>
         <text class="tag" id="tt${n}" x="${tagX}" y="${tagY}" text-anchor="middle" font-size="2.1"></text>
+        <g id="ti${n}" data-x="${x}" data-y="${y}" data-w="${tw}"></g>
       </g>`;
     }
     svg.innerHTML = out;
@@ -134,10 +150,25 @@
       g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
     }
     $('grid').innerHTML = [...H.tables].sort((a, b) => a.n - b.n)
-      .map(t => `<a id="gl${t.n}" href="${esc(tableUrl(t.n))}">${t.n}<small id="gs${t.n}">Open</small></a>`).join('');
+      .map(t => `<a id="gl${t.n}" href="${esc(tableUrl(t.n))}"><span class="n">${t.n}</span><span class="ic" id="gi${t.n}"></span><span class="st" id="gs${t.n}">Open</span></a>`).join('');
   }
 
   function paint(){
+    const ev = event && event.on ? event : null;
+    $('event').hidden = !ev;
+    if (ev) $('event').innerHTML = `${esc(ev.title || 'Event on tonight')}${ev.note ? `<small>${esc(ev.note)}</small>` : ''}`;
+    for (const t of H.tables) {
+      const b0 = busy(t.n), s0 = status[t.n] || {}, c = config[t.n] || {};
+      const gt = (b0 && s0.gtype) || c.gtype || 8, dbl = b0 ? !!s0.dbl : !!c.dbl, q = b0 ? (s0.q || 0) : 0;
+      const closed = !b0 && c.closed;
+      // Map: game ball in the top-left corner, waitlist count in the top-right.
+      const g = $('ti' + t.n), x = +g.dataset.x, y = +g.dataset.y, w = +g.dataset.w;
+      g.innerHTML = (b0 || c.gtype ? `<circle cx="${x+1.2}" cy="${y+1.2}" r="2.3" fill="${P.BALL[(gt-1)%8]}" stroke="#000" stroke-width=".3"/><circle cx="${x+1.2}" cy="${y+1.2}" r="1.2" fill="#f4efe2"/><text x="${x+1.2}" y="${y+1.75}" text-anchor="middle" font-size="1.5" font-weight="700" fill="#111">${gt}</text>` : '')
+        + (b0 ? `<circle cx="${x+w-1.2}" cy="${y+1.2}" r="2.3" fill="${P.lineColor(q)}" stroke="#000" stroke-width=".3"/><text x="${x+w-1.2}" y="${y+2}" text-anchor="middle" font-size="2.3" font-weight="800" fill="#10161c">${q}</text>` : '');
+      $('gi' + t.n).innerHTML = `${P.ballSvg(gt, 18)}${P.peopleSvg(dbl, 16)}<span class="q" style="background:${P.lineColor(q)}">${q}</span>`;
+      $('gl' + t.n).classList.toggle('closed', !!closed);
+      $('gl' + t.n).title = c.note || '';
+    }
     for (const t of H.tables) {
       const b = busy(t.n), s = status[t.n], isMine = !!mine[`${HALL}-${t.n}`] && b;
       $('tb' + t.n).classList.toggle('busy', b); $('tb' + t.n).classList.toggle('mine', isMine);
@@ -145,13 +176,16 @@
       $('tt' + t.n).textContent = isMine ? 'YOURS' : b ? (s.open ? 'JOIN' : score || 'IN USE') : '';
       $('tb' + t.n).setAttribute('aria-label', `Table ${t.n}, ${t.ft}-foot, ${b ? `in use${s.names ? `: ${s.names[0]} vs ${s.names[1]} ${score}` : ''}` : 'open'}`);
       $('gl' + t.n).classList.toggle('busy', b); $('gl' + t.n).classList.toggle('mine', isMine);
-      $('gs' + t.n).textContent = isMine ? 'Yours' : b ? (s.open ? 'Join' : 'In use') : 'Open';
+      const c = config[t.n] || {};
+      $('gs' + t.n).textContent = isMine ? 'Yours' : b ? (s.names ? `${s.names[0]} v ${s.names[1]}${score ? ' · ' + score : ''}` : 'In use') : c.closed ? (c.note || 'Reserved') : c.note ? `Open · ${c.note}` : 'Open';
     }
   }
   function take(raw){
     let m; try { m = JSON.parse(raw); } catch { return; }
-    if (!m || m.kind !== 'table' || !m.t) return;
-    if (!status[m.t] || m.ts >= status[m.t].ts) status[m.t] = m;
+    if (!m) return;
+    if (m.kind === 'event' && (!event || m.ts >= event.ts)) event = m;
+    if (m.kind === 'config' && m.t && (!config[m.t] || m.ts >= config[m.t].ts)) config[m.t] = m;
+    if (m.kind === 'table' && m.t && (!status[m.t] || m.ts >= status[m.t].ts)) status[m.t] = m;
   }
   function setLive(on){ $('live').textContent = on ? 'Live' : 'Offline'; $('live').classList.toggle('on', on); }
 
@@ -163,6 +197,9 @@
     } catch { setLive(false); }
     paint();
   }
+  const keep = p => `${p}?hall=${HALL}` + (RELAY !== 'https://ntfy.sh' ? `&relay=${encodeURIComponent(RELAY)}` : '');
+  $('tourLink').href = keep('tournament.html'); $('adminLink').href = keep('admin.html'); $('meLink').href = keep('profile.html');
+  const prof = P.profile(); if (prof && prof.name) $('meLink').textContent = prof.name;
   drawPlan(); paint(); load();
   try {
     const es = new EventSource(`${RELAY}/${TOPIC}/sse`);

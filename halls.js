@@ -6,6 +6,9 @@ window.POOLAR_HALLS = {
     name: 'Surge Billiards',
     area: 'Chicago Ave',
     cloth: 'Blue Diamond',
+    // Admin and tournament pages ask for a PIN; this is a light guard against accidental edits, not real security.
+    // Hash of '<hall id>:<PIN>' made with POOLAR.hash below.
+    adminPin: '1vgiu2s',
     room: { w: 100, h: 170 },
     tables: [
       // Back room, 7-ft, left to right, lengthwise front-to-back
@@ -36,4 +39,24 @@ window.POOLAR_HALLS = {
       { kind: 'label', x: 50, y: 4.6, text: '7-FT TABLES' },
     ],
   },
+};
+
+// Shared helpers for the hall, admin, tournament, waitlist and profile pages.
+window.POOLAR = {
+  hash: k => { let h = 5381; for (const c of String(k)) h = ((h * 33) ^ c.charCodeAt(0)) >>> 0; return h.toString(36); },
+  relay: () => new URLSearchParams(location.search).get('relay') || 'https://ntfy.sh',
+  // Colour for a waitlist length: green when empty, then yellow-green, orange, red.
+  lineColor: n => n <= 0 ? '#57d98a' : n <= 2 ? '#c8e04a' : n <= 4 ? '#f59a3a' : '#e4574a',
+  BALL: ['#f5c518','#1f4fd1','#d9302a','#5b2a86','#f07b1a','#1e8a4c','#8a1f2a','#111'],
+  ballSvg(n, size = 18){
+    const c = this.BALL[(n - 1) % 8], stripe = n > 8;
+    return `<svg width="${size}" height="${size}" viewBox="0 0 20 20" aria-hidden="true"><defs><clipPath id="bc${n}"><circle cx="10" cy="10" r="9.5"/></clipPath></defs>` +
+      `<circle cx="10" cy="10" r="9.5" fill="${stripe ? '#f4efe2' : c}"/>` + (stripe ? `<rect x="0" y="5" width="20" height="10" fill="${c}" clip-path="url(#bc${n})"/>` : '') +
+      `<circle cx="10" cy="10" r="5" fill="#f4efe2"/><text x="10" y="13" text-anchor="middle" font-family="system-ui,sans-serif" font-weight="700" font-size="${n > 9 ? 6 : 7.5}" fill="#111">${n}</text></svg>`;
+  },
+  peopleSvg(dbl, size = 18){
+    const one = x => `<circle cx="${x}" cy="6" r="3.4"/><path d="M${x-5.5} 18c0-4 2.5-6.5 5.5-6.5s5.5 2.5 5.5 6.5z"/>`;
+    return `<svg width="${dbl ? size * 1.5 : size}" height="${size}" viewBox="0 0 ${dbl ? 30 : 20} 20" fill="currentColor" aria-hidden="true">${dbl ? one(9) + one(21) : one(10)}</svg>`;
+  },
+  profile(){ try { return JSON.parse(localStorage.getItem('poolar-profile') || 'null'); } catch { return null; } },
 };

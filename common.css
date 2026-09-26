@@ -1,0 +1,33 @@
+/* Shared look for the hall's side pages (profile, admin, tournament). */
+:root{
+  color-scheme:dark;
+  --bg:#0a0f14; --panel:#141d26; --line:#263241; --text:#eef3f7; --muted:#8c9bab; --felt:#139fdc; --gold:#f2c14e; --free:#57d98a; --bad:#e4574a;
+  --num:"Big Shoulders Display",Impact,"Arial Narrow",sans-serif;
+  --ui:"Barlow",system-ui,-apple-system,Roboto,sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--ui);-webkit-tap-highlight-color:transparent}
+.wrap{max-width:640px;margin:0 auto;padding:12px 16px;padding-top:calc(12px + env(safe-area-inset-top,0px));padding-bottom:calc(28px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:14px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.top a{color:var(--felt);font-weight:700;text-decoration:none}
+h1{margin:0;font-family:var(--num);font-weight:900;font-size:clamp(28px,8vw,38px);line-height:.95;text-transform:uppercase;text-wrap:balance}
+h2{margin:0;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+p{margin:0;color:var(--muted);font-size:14px;line-height:1.45}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px}
+label{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+input,select,textarea{font:600 16px var(--ui);color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
+textarea{min-height:120px;resize:vertical}
+button,.btn{font:700 15px var(--ui);color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 14px;cursor:pointer;text-decoration:none;text-align:center}
+button.primary,.btn.primary{background:var(--gold);border-color:var(--gold);color:#1d1606}
+button.blue{background:var(--felt);border-color:var(--felt);color:#04162b}
+button:disabled{opacity:.4}
+button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid var(--felt);outline-offset:2px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.muted{color:var(--muted)}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--bg);border:1px solid var(--line)}
+table.t{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:14px}
+table.t td,table.t th{padding:7px 4px;border-bottom:1px solid var(--line);text-align:left}
+table.t th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--free);color:#08130c;font-weight:700;padding:10px 16px;border-radius:10px}

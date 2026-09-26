@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0f14">
+<title>Player Profile</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="common.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a id="back" href="hall.html">← All tables</a><span class="pill" id="state">Not set up</span></div>
+  <h1>My profile</h1>
+  <p>Save your name once. It fills in by itself when you start a game, join someone's table or get in line.</p>
+  <form class="card" id="form">
+    <label>Name players see<input id="name" autocomplete="name" maxlength="24" required placeholder="e.g. Terry"></label>
+    <div class="row">
+      <label>APA member number<input id="apa" inputmode="numeric" maxlength="12"></label>
+      <label>Fargo rating<input id="fargo" inputmode="numeric" maxlength="4"></label>
+    </div>
+    <div class="row">
+      <label>APA 8-ball skill level<select id="sl8"><option value="">–</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option></select></label>
+      <label>APA 9-ball skill level<select id="sl9"><option value="">–</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option></select></label>
+    </div>
+    <div class="row"><button type="button" id="clear">Remove profile</button><button class="primary" type="submit">Save profile</button></div>
+  </form>
+  <p id="acctNote">Your profile is saved on this phone only. Signing in to use it on other phones needs an account system, which this site doesn't have yet.</p>
+
+  <div class="card">
+    <h2>My matches on this phone</h2>
+    <div id="hist"><p>No finished matches yet.</p></div>
+  </div>
+</div>
+<script src="halls.js"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+  const qs = new URLSearchParams(location.search);
+  $('back').href = `hall.html?hall=${(qs.get('hall') || 'surge-chicago').replace(/[^a-z0-9-]/gi, '')}`;
+  const fields = ['name', 'apa', 'fargo', 'sl8', 'sl9'];
+  const load = () => { const p = POOLAR.profile() || {}; for (const f of fields) $(f).value = p[f] || ''; $('state').textContent = p.name ? `Signed in as ${p.name}` : 'Not set up'; };
+  const toast = t => { const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 1800); };
+  $('form').addEventListener('submit', e => {
+    e.preventDefault();
+    const p = Object.fromEntries(fields.map(f => [f, $(f).value.trim()]));
+    try { localStorage.setItem('poolar-profile', JSON.stringify(p)); localStorage.setItem('poolar-my-name', p.name); } catch {}
+    load(); toast('Profile saved');
+  });
+  $('clear').onclick = () => { try { localStorage.removeItem('poolar-profile'); } catch {} load(); toast('Profile removed'); };
+  load();
+
+  let h = []; try { h = JSON.parse(localStorage.getItem('poolar-history') || '[]'); } catch {}
+  const dur = ms => { const m = Math.round(ms / 60000); return m >= 60 ? `${Math.floor(m/60)}h ${m%60}m` : `${m}m`; };
+  if (h.length) $('hist').innerHTML = `<table class="t"><thead><tr><th>When</th><th>Match</th><th>Score</th></tr></thead><tbody>${h.map(r =>
+    `<tr><td>${new Date(r.at).toLocaleDateString([], { month: 'short', day: 'numeric' })}<br><span class="muted">${r.table ? `Table ${r.table} · ` : ''}${r.gtype}-ball</span></td>
+     <td>${esc(r.names[0])} vs ${esc(r.names[1])}<br><span class="muted">${r.fmt === 'race' ? `Race ${r.race[0]}–${r.race[1]}` : r.fmt === 'wso' ? `Winner stays · ${r.games.length} games` : `Rotation · ${r.games.length} games`}${r.dur ? ` · ${dur(r.dur)}` : ''}</span></td>
+     <td>${r.score[0]}–${r.score[1]}</td></tr>`).join('')}</tbody></table>`;
+})();
+</script>
+</body>
+</html>
