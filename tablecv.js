@@ -204,7 +204,8 @@
           const p = stk.pop(), x = p % w, y = (p - x) / w, i = p * 4;
           b.n++; b.sx += x; b.sy += y; if (x < b.x0) b.x0 = x; if (x > b.x1) b.x1 = x; if (y < b.y0) b.y0 = y; if (y > b.y1) b.y1 = y;
           const r = d[i], g = d[i+1], bl = d[i+2], mx = Math.max(r, g, bl), mn = Math.min(r, g, bl);
-          if (mn > 160 && mx - mn < 50) b.wh++; else if (mx < 70) b.dk++;
+          // (compressed video greys the white bands a little, hence 145 / 60)
+          if (mn > 145 && mx - mn < 60) b.wh++; else if (mx < 70) b.dk++;
           else { const c = hsv(r, g, bl); if (c[1] > .3) { b.hue[Math.floor(c[0] / 10) % 36]++; b.vs += c[2]; b.cn++; } }
           const L = lab[s];
           if (x > 0 && mask[p-1] && !lab[p-1]) { lab[p-1] = L; stk.push(p-1); }
@@ -226,7 +227,7 @@
           if (wf > .5) cls = 'cue';
           else if (df > .45 && wf < .2) { cls = 'eight'; num = 8; }
           else {
-            cls = wf > .16 ? 'stripe' : 'solid';
+            cls = wf > .13 ? 'stripe' : 'solid';
             const hb = b.hue.indexOf(Math.max(...b.hue));
             num = b.cn ? ballNumber(hb * 10 + 5, b.vs / b.cn) + (cls === 'stripe' ? 8 : 0) : 0;
           }

@@ -465,7 +465,7 @@
     <div class="dcard djoin">
       <div class="jq"><div class="qr" id="qrWatch"></div><div><b>Watch on your phone</b><small>Live camera, score and highlights</small></div></div>
       <div class="jq"><div class="qr" id="qrLine"></div><div><b>Join the line</b><small>Put your name on the waitlist</small></div></div>
-      <div class="jbtns"><button type="button" id="jShare" class="primary">Share watch link</button><button type="button" id="jCopy">Copy</button></div>
+      <div class="jbtns"><button type="button" id="jShare" class="primary">Share watch link</button><button type="button" id="jCopy">Copy</button><button type="button" id="jGlasses" class="hostonly">🕶 Glasses</button></div>
     </div>
   </section>
 </div>
@@ -1997,6 +1997,9 @@
   qrInto($('qrWatch'), watchLink(), 'Watch this game'); qrInto($('qrLine'), waitUrl(), 'Join the line');
   $('jShare').onclick = () => navigator.share ? navigator.share({ title: 'Watch our pool game', url: watchLink() }).catch(() => {}) : $('jCopy').click();
   $('jCopy').onclick = async () => { try { await navigator.clipboard.writeText(watchLink()); $('jCopy').textContent = 'Copied'; } catch { $('jCopy').textContent = 'Copy failed'; } setTimeout(() => $('jCopy').textContent = 'Copy', 1500); };
+  // XREAL glasses view: coaching drawn from the same top-down camera, opened on the phone the glasses plug into.
+  const glassesLink = () => { const u = new URL('glasses.html', location.href); u.search = ''; u.searchParams.set('game', game); u.searchParams.set('cam', camKey || '1'); if (RELAY !== 'https://ntfy.sh') u.searchParams.set('relay', RELAY); return String(u); };
+  $('jGlasses').onclick = () => navigator.share ? navigator.share({ title: 'Pool Glasses', url: glassesLink() }).catch(() => {}) : navigator.clipboard.writeText(glassesLink()).then(() => { $('jGlasses').textContent = 'Link copied'; setTimeout(() => $('jGlasses').textContent = '🕶 Glasses', 1500); }, () => prompt('Glasses link', glassesLink()));
   if (VIEW) { const t = document.createElement('span'); t.className = 'viewtag'; t.textContent = 'WATCHING'; $('rackNo').before(t); }
 
   // ---------- Highlights ----------
