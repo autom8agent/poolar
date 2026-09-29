@@ -159,7 +159,6 @@
   .tv iframe,.tv video{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000}
   .tv video{object-fit:contain}
   .tv iframe{pointer-events:none} /* taps reach the tv, so they bring the controls back */
-  .tv.flip video{transform:rotate(180deg)}
   .tvadd{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:rgba(10,16,14,.92);border:2px dashed var(--line);border-radius:12px}
   .tvadd button{font-size:17px;padding:14px 22px}
   .tvadd small{color:var(--muted);font-size:13px}
@@ -291,7 +290,7 @@
         <p>Saves to this iPad: tap Save, then <b>Save Video</b> to put it in Photos.</p>
         <div class="row"><button class="primary" id="clipSave">Save clip to iPad</button><button id="clipNo">Discard</button></div>
       </div>
-      <canvas id="clipCan" hidden></canvas>
+      <canvas id="clipCan" hidden></canvas><canvas id="progCan" width="1280" height="720" hidden></canvas>
       <div class="tvbar" id="tvBar" hidden>
         <button id="tvRecBtn">● Record</button>
         <button id="rp30">⟲ 30s</button><button id="rp60">⟲ 1 min</button>
@@ -1277,8 +1276,7 @@
       // First connection: ask whether to record the match. Replays work either way.
       if (!asked && !(rec && rec.state === 'recording')) { asked = true; $('tvAsk').hidden = false; }
     }
-    $('tv').classList.toggle('flip', feedFlipped());
-    if (v) keepBuffer(v.srcObject);
+    if (v) { progOn(); keepBuffer(progStream); }
   }
   $('tvAddBtn').onclick = () => showFeed(qs.get('cam'));
   $('feedGo').onclick = () => { showFeed(qs.get('cam')); $('camSheet').hidden = true; };
@@ -1299,11 +1297,23 @@
   // ---------- Instant replay ----------
   // A rolling buffer of short standalone clips of the raw feed (last ~75 s, in memory only).
   // Replay cuts the current clip, then plays the newest clips back-to-back from the right point.
+  // Everything is recorded from one "program" canvas (feed + score bar), never from the raw WebRTC
+  // track: Chrome copies a remote track's H.264 through as-is, so a clip cut mid-stream starts without
+  // a keyframe and freezes. Drawing through a canvas forces a clean re-encode with a keyframe per clip.
+  let progStream = null, progRaf = 0;
+  function progOn(){
+    if (progRaf) return;
+    const c = $('progCan');
+    if (!progStream && c.captureStream) progStream = c.captureStream(30);
+    const tick = () => { const v = feedVideo(); if (v) paint(c, v, feedFlipped()); progRaf = requestAnimationFrame(tick); };
+    tick();
+  }
+  function progOff(){ cancelAnimationFrame(progRaf); progRaf = 0; }
   const SEG = 15000, KEEP = 5;
   let buf = [], bufRec = null, bufStream = null, bufTimer = 0, replaying = false;
   function newSeg(){
     let r;
-    try { const MR = $('feedFrame').contentWindow.MediaRecorder || MediaRecorder, t = vtype(); r = new MR(bufStream, t ? { mimeType: t, videoBitsPerSecond: 3e6 } : undefined); } catch { return null; }
+    try { const t = vtype(); r = new MediaRecorder(bufStream, t ? { mimeType: t, videoBitsPerSecond: 3e6 } : undefined); } catch { return null; }
     const chunks = [], t0 = Date.now();
     r.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
     r.onstop = () => {
@@ -1322,7 +1332,7 @@
     if (stream === bufStream && bufRec && bufRec.state === 'recording') return;
     bufStream = stream; rotate(); clearInterval(bufTimer); bufTimer = setInterval(() => rotate(), SEG);   // new stream after a reconnect: keep old clips
   }
-  function stopBuffer(){ clearInterval(bufTimer); bufStream = null; rotate(); buf = []; }
+  function stopBuffer(){ clearInterval(bufTimer); bufStream = null; rotate(); buf = []; progOff(); }
   function replay(sec){
     if (!bufRec && !buf.length) return;
     rotate(() => {
@@ -1339,8 +1349,8 @@
     const c = $('clipCan');
     if (clipRec || !c.captureStream || !window.MediaRecorder || !v.videoWidth) return;
     c.width = v.videoWidth; c.height = v.videoHeight;
-    const flip = $('tv').classList.contains('flip');
-    const tick = () => { paint(c, v, flip); clipDraw = requestAnimationFrame(tick); }; tick();
+    const x = c.getContext('2d');
+    const tick = () => { x.drawImage(v, 0, 0, c.width, c.height); clipDraw = requestAnimationFrame(tick); }; tick();
     const type = vtype(), chunks = [];
     try { clipRec = new MediaRecorder(c.captureStream(30), type ? { mimeType: type, videoBitsPerSecond: 4e6 } : undefined); } catch { clipRec = null; return; }
     const r = clipRec, t0 = Date.now();
@@ -1422,8 +1432,11 @@
   function paint(c, v, flip){
     const x = c.getContext('2d');
     if (v) {
-      if (flip) { x.save(); x.translate(c.width, c.height); x.rotate(Math.PI); x.drawImage(v, 0, 0, c.width, c.height); x.restore(); }
-      else x.drawImage(v, 0, 0, c.width, c.height);
+      // Fit without stretching: a phone mounted upright sends a tall picture.
+      const k = Math.min(c.width / (v.videoWidth || c.width), c.height / (v.videoHeight || c.height)), w = (v.videoWidth || c.width) * k, h = (v.videoHeight || c.height) * k;
+      if (Math.abs(w - c.width) > 2 || Math.abs(h - c.height) > 2) { x.fillStyle = '#000'; x.fillRect(0, 0, c.width, c.height); }
+      x.save(); if (flip) { x.translate(c.width, c.height); x.rotate(Math.PI); }
+      x.drawImage(v, (c.width - w) / 2, (c.height - h) / 2, w, h); x.restore();
     }
     const s = scores(), h = Math.round(c.height * .09);
     x.fillStyle = 'rgba(8,14,12,.78)'; x.fillRect(0, c.height - h, c.width, h);
@@ -1443,10 +1456,9 @@
     if (rec && rec.state === 'recording') return;
     const v = recSrc(), c = $('camCan');
     if (!v) { $('camMsg').textContent = camStream ? 'Camera is still starting.' : 'The top-down feed isn\'t live yet.'; return; }
-    c.width = v.videoWidth || 1280; c.height = v.videoHeight || 720;
     let stream = camStream;
-    if (c.captureStream) { drawFrame(); stream = c.captureStream(30); if (camStream) camStream.getAudioTracks().forEach(t => stream.addTrack(t)); }
-    else if (!camStream) { $('camMsg').textContent = "This browser can't record the feed."; return; }
+    if (!camStream) { progOn(); stream = progStream; if (!stream) { $('camMsg').textContent = "This browser can't record the feed."; return; } }
+    else if (c.captureStream) { c.width = v.videoWidth || 1280; c.height = v.videoHeight || 720; drawFrame(); stream = c.captureStream(30); camStream.getAudioTracks().forEach(t => stream.addTrack(t)); }
     const type = vtype();
     try { rec = new MediaRecorder(stream, type ? { mimeType: type, videoBitsPerSecond: 2.5e6 } : undefined); } catch { $('camMsg').textContent = "This browser can't record video."; return; }
     const mime = (rec.mimeType || type || 'video/webm').split(';')[0], d = new Date(), pad = n => String(n).padStart(2, '0');
