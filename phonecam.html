@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0f14">
+<title>Pool Cam</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="common.css">
+<style>
+  body{background:radial-gradient(120% 60% at 50% 0%,#12303f,var(--bg) 70%) fixed var(--bg)}
+  .big{display:flex;flex-direction:column;gap:10px}
+  .big button{font-size:18px;padding:16px}
+  .code{font-family:var(--num);font-weight:900;font-size:44px;line-height:1;color:var(--gold);letter-spacing:.06em}
+  .stage{position:relative;background:#000;border-radius:16px;overflow:hidden;border:1px solid var(--line);aspect-ratio:16/9}
+  .stage video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000}
+  .stage .pill{position:absolute;top:10px;left:10px;background:rgba(0,0,0,.6)}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+  .pill.on .dot{background:var(--free)} .pill.bad .dot{background:var(--bad)}
+  .qr{background:#fff;border-radius:12px;padding:10px;width:180px;align-self:center}
+  .qr svg{display:block;width:100%;height:auto}
+  .link{font-size:13px;word-break:break-all;color:var(--felt)}
+  form{display:flex;gap:8px} form input{flex:1;min-width:0;text-transform:uppercase;letter-spacing:.1em}
+  /* Watching: the video fills the screen, controls float on top. */
+  body.watch{background:#000}
+  body.watch .wrap{max-width:none;padding:0;gap:0}
+  body.watch .stage{position:fixed;inset:0;border:0;border-radius:0;aspect-ratio:auto}
+  .wbar{position:fixed;left:0;right:0;bottom:0;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));background:linear-gradient(transparent,rgba(0,0,0,.7));transition:opacity .3s}
+  .wbar.dim{opacity:0}
+  .wmsg{position:fixed;inset:0;display:grid;place-items:center;text-align:center;padding:24px;pointer-events:none}
+  .wmsg p{font-size:16px;max-width:340px}
+  .flip video{transform:rotate(180deg)}
+  button.rec{background:var(--bad);border-color:var(--bad);color:#fff}
+  .recdot{position:absolute;top:10px;right:10px;background:var(--bad);color:#fff;font-weight:700;font-size:13px;padding:3px 9px;border-radius:999px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Pick a role -->
+  <section id="pick" hidden class="big">
+    <div class="top"><h1>Pool Cam</h1><a href="hall.html">Tables</a></div>
+    <p>Stream one phone's camera to any other phone, tablet or laptop. Works on any network, no app to install.</p>
+    <div class="card big">
+      <h2>On the phone pointed at the table</h2>
+      <button class="primary" id="goCam">Use this phone as the camera</button>
+    </div>
+    <div class="card">
+      <h2>On the screen you want to watch on</h2>
+      <form id="joinF"><input id="joinCode" placeholder="Camera code" autocomplete="off" autocapitalize="characters" maxlength="12" aria-label="Camera code"><button class="blue">Watch</button></form>
+      <p>Or scan the QR code shown on the camera phone.</p>
+    </div>
+  </section>
+
+  <!-- Camera -->
+  <section id="cam" hidden class="big">
+    <div class="top"><h1>Pool Cam</h1><a href="phonecam.html">Back</a></div>
+    <div class="stage"><video id="preview" playsinline muted autoplay></video><span class="pill" id="camState"><span class="dot"></span><span id="camStateT">Starting…</span></span></div>
+    <p id="camMsg" hidden></p>
+    <div class="row"><button class="primary" id="camRec">● Record</button><button id="stop">Stop</button></div>
+    <div class="row"><button id="swap">Flip camera</button><select id="res" aria-label="Quality"><option value="720">720p</option><option value="1080">1080p</option><option value="480">480p</option></select></div>
+    <p>For a top-down view, mount the phone over the middle of the table, rear camera facing down.</p>
+    <div class="card">
+      <h2>Watch from another screen</h2>
+      <div class="code" id="code"></div>
+      <div class="qr" id="qr"></div>
+      <a class="link" id="link" target="_blank" rel="noopener"></a>
+      <div class="row"><button class="blue" id="share">Share link</button><button id="copy">Copy link</button></div>
+      <p>Keep this page open with the screen on. Anyone with the link can watch.</p>
+    </div>
+  </section>
+
+  <!-- Watch -->
+  <section id="watch" hidden>
+    <div class="stage" id="wstage"><video id="remote" playsinline muted autoplay></video><span class="pill" id="wState"><span class="dot"></span><span id="wStateT">Connecting…</span></span></div>
+    <div class="wmsg" id="wmsg"><p id="wmsgT">Waiting for the camera…</p></div>
+    <div class="wbar" id="wbar"><button class="primary" id="wRec" disabled>● Record</button><button id="full">Full screen</button><button id="rot">Rotate 180°</button><a class="btn" href="phonecam.html">Exit</a></div>
+  </section>
+
+</div>
+<div class="toast" id="toast" hidden></div>
+<div class="card" id="saved" hidden style="position:fixed;left:16px;right:16px;bottom:calc(80px + env(safe-area-inset-bottom,0px));max-width:420px;margin:0 auto;z-index:5">
+  <h2>Clip recorded</h2><p id="savedT"></p>
+  <div class="row"><button class="primary" id="savedShare">Save / share</button><button id="savedClose">Close</button></div>
+</div>
+<script src="qrcode.js"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const qs = new URLSearchParams(location.search);
+  const RELAY = qs.get('relay') || 'https://ntfy.sh';
+  const rid = n => Array.from(crypto.getRandomValues(new Uint8Array(n)), b => 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[b % 31]).join('');
+  const clean = s => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+  const me = rid(10);
+  const ICE = { iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }] };
+  const toast = t => { const el = $('toast'); el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => el.hidden = true, 1800); };
+
+  // Signaling rides on an ntfy.sh topic named after the camera code. ntfy caps a message at 4 KB,
+  // so each message is split into plain-text chunks "id|i|n|data" and reassembled on arrival.
+  let topic = '', es = null;
+  const parts = {};
+  function send(obj){
+    const s = JSON.stringify({ ...obj, from: me }), id = rid(6), N = 3000, n = Math.ceil(s.length / N);
+    for (let i = 0; i < n; i++)
+      fetch(`${RELAY}/${topic}`, { method: 'POST', body: `${id}|${i}|${n}|${s.slice(i * N, (i + 1) * N)}` }).catch(() => {});
+  }
+  function listen(code, onMsg, onState){
+    topic = 'poolar-cam-' + code;
+    const open = () => {
+      es = new EventSource(`${RELAY}/${topic}/sse`);
+      es.onopen = () => onState(true);
+      es.onerror = () => onState(false);
+      es.onmessage = e => {
+        let d; try { d = JSON.parse(e.data); } catch { return; }
+        if (d.event !== 'message' || typeof d.message !== 'string') return;
+        const m = d.message.match(/^(\w+)\|(\d+)\|(\d+)\|([\s\S]*)$/); if (!m) return;
+        const [, id, i, n] = m, p = parts[id] || (parts[id] = { n: +n, got: 0, s: [] });
+        if (p.s[i] === undefined) { p.s[i] = m[4]; p.got++; }
+        if (p.got < p.n) return;
+        delete parts[id];
+        let o; try { o = JSON.parse(p.s.join('')); } catch { return; }
+        if (o.from !== me && (!o.to || o.to === me)) onMsg(o);
+      };
+    };
+    open();
+    // Phones drop the connection when they sleep; reopen on wake.
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && es && es.readyState === 2) open(); });
+  }
+  // Send a complete description (no trickle ICE) so each side needs only one message.
+  const gathered = pc => new Promise(res => {
+    if (pc.iceGatheringState === 'complete') return res();
+    const t = setTimeout(res, 2500);
+    pc.addEventListener('icegatheringstatechange', () => { if (pc.iceGatheringState === 'complete') { clearTimeout(t); res(); } });
+  });
+
+  // Record whatever stream is on screen. Safari records MP4, Chrome WebM; the clip is offered
+  // through the share sheet (Save Video on iPhone/iPad) or downloaded where sharing isn't available.
+  function recorder(btn, getStream, stage){
+    let rec = null, chunks = [], t0 = 0, tick = null;
+    const badge = document.createElement('span'); badge.className = 'recdot'; badge.hidden = true; stage.appendChild(badge);
+    const type = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'].find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || '';
+    const reset = () => { btn.textContent = '● Record'; btn.classList.remove('rec'); badge.hidden = true; clearInterval(tick); };
+    btn.onclick = () => {
+      if (rec) { rec.stop(); return; }
+      const stream = getStream(); if (!stream) return toast('No video yet');
+      try { rec = new MediaRecorder(stream, type ? { mimeType: type, videoBitsPerSecond: 6e6 } : undefined); }
+      catch { rec = null; return toast("This browser can't record video"); }
+      chunks = [];
+      rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+      rec.onstop = () => {
+        const mime = rec.mimeType || type || 'video/webm'; rec = null; reset();
+        if (!chunks.length) return toast('Nothing was recorded');
+        const ext = mime.includes('mp4') ? 'mp4' : 'webm';
+        const d = new Date(), pad = n => String(n).padStart(2, '0');
+        const name = `poolcam-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}.${ext}`;
+        offerClip(new File(chunks, name, { type: mime.split(';')[0] }), Math.round((Date.now() - t0) / 1000));
+      };
+      rec.start(1000); t0 = Date.now();
+      btn.textContent = '■ Stop recording'; btn.classList.add('rec'); badge.hidden = false;
+      const show = () => { const s = Math.floor((Date.now() - t0) / 1000); badge.textContent = `● REC ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+      show(); tick = setInterval(show, 500);
+    };
+    return () => { if (!rec) return false; rec.stop(); return true; }; // true: a recording was stopped
+  }
+  // Sharing needs a fresh tap on iOS, so the finished clip waits behind its own button.
+  function offerClip(file, secs){
+    $('savedT').textContent = `${file.name} · ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')} · ${(file.size / 1048576).toFixed(1)} MB`;
+    $('saved').hidden = false;
+    $('savedClose').onclick = () => $('saved').hidden = true;
+    $('savedShare').onclick = async () => {
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file], title: 'Pool Cam clip' }); $('saved').hidden = true; return; }
+        catch (e) { if (e && e.name === 'AbortError') return; }
+      }
+      const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name;
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+    };
+  }
+
+  // ---------- Camera ----------
+  async function camera(code){
+    $('cam').hidden = false;
+    let stream = null, facing = 'environment', lock = null, stopRec = () => false;
+    const pcs = new Map();
+    const setState = (t, cls) => { $('camStateT').textContent = t; $('camState').className = 'pill ' + (cls || ''); };
+    const viewers = () => [...pcs.values()].filter(pc => pc.connectionState === 'connected').length;
+    const showCount = () => { const n = viewers(); setState(n ? `Live · ${n} watching` : 'Live · no one watching', 'on'); };
+    const watchUrl = new URL('phonecam.html', location.href); watchUrl.search = ''; watchUrl.searchParams.set('watch', code);
+    if (RELAY !== 'https://ntfy.sh') watchUrl.searchParams.set('relay', RELAY);
+    $('code').textContent = code; $('link').textContent = $('link').href = watchUrl;
+    try { const q = qrcode(0, 'M'); q.addData(String(watchUrl)); q.make(); $('qr').innerHTML = q.createSvgTag({ cellSize: 4, margin: 0, scalable: true, alt: 'Watch link QR code' }); } catch { $('qr').hidden = true; }
+    $('share').onclick = () => navigator.share ? navigator.share({ title: 'Pool Cam', url: String(watchUrl) }).catch(() => {}) : $('copy').click();
+    $('copy').onclick = () => navigator.clipboard.writeText(String(watchUrl)).then(() => toast('Link copied'), () => toast(String(watchUrl)));
+    $('stop').onclick = () => { if (stopRec()) return; stream && stream.getTracks().forEach(t => t.stop()); pcs.forEach(pc => pc.close()); location.href = 'phonecam.html'; };
+
+    async function wake(){ try { lock = await navigator.wakeLock.request('screen'); } catch {} }
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') wake(); });
+
+    async function start(){
+      const h = +$('res').value;
+      const next = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: facing }, width: { ideal: Math.round(h * 16 / 9) }, height: { ideal: h }, frameRate: { ideal: 30 } } });
+      const track = next.getVideoTracks()[0];
+      track.onended = () => setState('Camera stopped — tap Flip camera to restart', 'bad');
+      if (stream) stream.getTracks().forEach(t => t.stop());
+      stream = next; $('preview').srcObject = stream;
+      // Viewers already connected keep their connection and just get the new picture.
+      for (const pc of pcs.values()) for (const s of pc.getSenders()) if (s.track && s.track.kind === 'video') s.replaceTrack(track).catch(() => {});
+    }
+    try { await start(); wake(); }
+    catch (e) {
+      setState('No camera', 'bad'); $('camMsg').hidden = false;
+      $('camMsg').textContent = "Couldn't open the camera. Allow camera access for this site in your browser settings, then reload.";
+      return;
+    }
+    stopRec = recorder($('camRec'), () => stream, $('preview').parentNode);
+    $('swap').onclick = () => { facing = facing === 'environment' ? 'user' : 'environment'; start().catch(() => toast('No other camera')); };
+    $('res').onchange = () => start().catch(() => toast("That quality isn't available"));
+
+    async function offerTo(vid){
+      const old = pcs.get(vid); if (old) old.close();
+      const pc = new RTCPeerConnection(ICE); pcs.set(vid, pc);
+      stream.getTracks().forEach(t => pc.addTrack(t, stream));
+      pc.onconnectionstatechange = () => {
+        if (['failed', 'closed'].includes(pc.connectionState) && pcs.get(vid) === pc) pcs.delete(vid);
+        showCount();
+      };
+      await pc.setLocalDescription(await pc.createOffer());
+      await gathered(pc);
+      send({ t: 'offer', to: vid, sdp: pc.localDescription.sdp });
+    }
+    listen(code, async m => {
+      if (m.t === 'hello') offerTo(m.from).catch(() => {});
+      else if (m.t === 'answer' && pcs.has(m.from)) pcs.get(m.from).setRemoteDescription({ type: 'answer', sdp: m.sdp }).catch(() => {});
+      else if (m.t === 'bye' && pcs.has(m.from)) { pcs.get(m.from).close(); pcs.delete(m.from); showCount(); }
+    }, ok => {
+      if (!ok) return setState('Reconnecting…', 'bad');
+      showCount(); send({ t: 'ready' }); // viewers that were already waiting say hello again
+    });
+  }
+
+  // ---------- Watch ----------
+  function watch(code){
+    document.body.classList.add('watch'); $('watch').hidden = false;
+    document.title = 'Pool Cam ' + code;
+    let pc = null, helloT = null, linked = false;
+    const v = $('remote');
+    const setState = (t, cls) => { $('wStateT').textContent = t; $('wState').className = 'pill ' + (cls || ''); };
+    const msg = t => { $('wmsgT').textContent = t; $('wmsg').hidden = !t; };
+    const hello = () => { if (!linked) send({ t: 'hello' }); };
+    const keepAsking = () => { clearInterval(helloT); hello(); helloT = setInterval(hello, 5000); };
+
+    listen(code, async m => {
+      if (m.t === 'ready') { linked = false; keepAsking(); return; }
+      if (m.t !== 'offer') return;
+      if (pc) pc.close();
+      pc = new RTCPeerConnection(ICE);
+      const mine = pc;
+      pc.ontrack = e => { v.srcObject = e.streams[0] || new MediaStream([e.track]); v.play().catch(() => {}); $('wRec').disabled = false; };
+      pc.onconnectionstatechange = () => {
+        if (pc !== mine) return;
+        const s = pc.connectionState;
+        if (s === 'connected') { linked = true; clearInterval(helloT); setState('Live', 'on'); msg(''); }
+        else if (s === 'failed' || s === 'disconnected') {
+          linked = false; setState('Reconnecting…', 'bad');
+          msg(s === 'failed' ? "Can't reach the camera directly. Trying again… (putting both on the same Wi-Fi helps)" : 'Camera went quiet. Reconnecting…');
+          keepAsking();
+        }
+      };
+      try {
+        await pc.setRemoteDescription({ type: 'offer', sdp: m.sdp });
+        await pc.setLocalDescription(await pc.createAnswer());
+        await gathered(pc);
+        send({ t: 'answer', to: m.from, sdp: pc.localDescription.sdp });
+        setState('Connecting…');
+      } catch { setState('Error — retrying', 'bad'); }
+    }, ok => {
+      if (!ok) return setState('Offline — retrying', 'bad');
+      if (!linked) { setState('Waiting for camera…'); keepAsking(); }
+    });
+    addEventListener('pagehide', () => send({ t: 'bye' }));
+    recorder($('wRec'), () => v.srcObject, $('wstage'));
+
+    // Controls fade out after a few seconds; tap anywhere to bring them back.
+    let dimT; const wakeBar = () => { $('wbar').classList.remove('dim'); clearTimeout(dimT); dimT = setTimeout(() => $('wbar').classList.add('dim'), 4000); };
+    document.addEventListener('pointerdown', wakeBar); wakeBar();
+    let flip = false; try { flip = localStorage.getItem('poolcam-flip') === '1'; } catch {}
+    const applyFlip = () => $('wstage').classList.toggle('flip', flip); applyFlip();
+    $('rot').onclick = () => { flip = !flip; applyFlip(); try { localStorage.setItem('poolcam-flip', flip ? '1' : '0'); } catch {} };
+    $('full').onclick = () => {
+      const el = $('wstage');
+      if (document.fullscreenElement || document.webkitFullscreenElement) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      else if (el.requestFullscreen) el.requestFullscreen().catch(() => v.webkitEnterFullscreen && v.webkitEnterFullscreen());
+      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+      else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen(); // iPhone Safari only allows the video itself
+    };
+  }
+
+  // ---------- Route ----------
+  const w = clean(qs.get('watch')), c = clean(qs.get('cam'));
+  if (w) watch(w);
+  else if (c) camera(c);
+  else {
+    $('pick').hidden = false;
+    $('goCam').onclick = () => { const code = rid(6); qs.set('cam', code); location.search = qs; };
+    $('joinF').onsubmit = e => { e.preventDefault(); const code = clean($('joinCode').value); if (code) { qs.set('watch', code); location.search = qs; } };
+  }
+})();
+</script>
+</body>
+</html>
