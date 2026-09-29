@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>Pool Glasses</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
+<style>
+  /* XREAL glasses show black as see-through, so the page is black and only the coaching glows. */
+  :root{color-scheme:dark;--gold:#f2c14e;--cyan:#5ce1ff;--green:#57d98a;--red:#ff5a4e;--text:#eef4ef;--muted:#8ea69a;
+    --num:"Big Shoulders Display",Impact,sans-serif;--ui:"Barlow",system-ui,-apple-system,sans-serif}
+  [hidden]{display:none!important}
+  html,body{margin:0;height:100%;background:#000;color:var(--text);font-family:var(--ui);overflow:hidden}
+  #stage{position:fixed;inset:0}
+  #view{position:absolute;inset:0;width:100%;height:100%}
+  #feedFrame{position:absolute;width:320px;height:180px;left:-9999px;top:0;border:0}
+  .hud{position:fixed;left:0;right:0;top:0;display:flex;align-items:center;gap:14px;padding:14px 22px;font-size:22px;font-weight:700;pointer-events:none}
+  .hud .who{font-family:var(--num);font-weight:900;font-size:34px;letter-spacing:.04em;text-transform:uppercase;color:var(--gold)}
+  .hud .grp{color:var(--cyan)} .hud .sc{margin-left:auto;font-family:var(--num);font-size:34px;font-weight:900}
+  .coach{position:fixed;left:0;right:0;bottom:0;padding:14px 22px 20px;font-size:24px;font-weight:700;color:var(--cyan);text-align:center;pointer-events:none}
+  .coach small{display:block;color:var(--muted);font-size:17px;font-weight:600}
+  .toast{position:fixed;left:50%;top:18%;transform:translateX(-50%);display:flex;align-items:center;gap:14px;border:3px solid var(--gold);border-radius:18px;padding:14px 24px;font-size:30px;font-weight:800;color:var(--gold);background:#000}
+  .toast .bl{display:flex;gap:8px}
+  .ball{--c:#888;width:40px;height:40px;border-radius:50%;background:var(--c);display:grid;place-items:center}
+  .ball.st{background:linear-gradient(#f4efe2 0 24%,var(--c) 24% 76%,#f4efe2 76%)}
+  .ball span{background:#f4efe2;color:#111;border-radius:50%;width:58%;aspect-ratio:1;display:grid;place-items:center;font:800 14px/1 var(--ui)}
+  .ctl{position:fixed;right:14px;bottom:14px;display:flex;gap:8px;opacity:.25;transition:opacity .3s}
+  .ctl:hover,.ctl:focus-within,.ctl.show{opacity:1}
+  .ctl button{font:700 14px var(--ui);color:var(--text);background:#111;border:1px solid #333;border-radius:10px;padding:9px 12px}
+  .ctl button[aria-pressed="true"]{border-color:var(--cyan);color:var(--cyan)}
+  .start{position:fixed;inset:0;display:grid;place-items:center;text-align:center;padding:24px;background:#000}
+  .start div{max-width:560px;display:flex;flex-direction:column;gap:14px}
+  .start h1{margin:0;font-family:var(--num);font-weight:900;font-size:52px;letter-spacing:.03em;text-transform:uppercase;color:var(--gold)}
+  .start p{margin:0;color:var(--muted);font-size:18px}
+  .start button{font:800 22px var(--ui);padding:16px;border-radius:14px;border:0;background:var(--cyan);color:#001b24}
+  .stat{position:fixed;left:22px;bottom:14px;color:var(--muted);font-size:14px;pointer-events:none}
+</style>
+</head>
+<body>
+<div id="stage">
+  <iframe id="feedFrame" title="Table camera" allow="autoplay"></iframe>
+  <canvas id="view"></canvas>
+  <canvas id="warp" hidden></canvas>
+</div>
+<div class="hud"><span class="who" id="who">Waiting for the game…</span><span class="grp" id="grp"></span><span class="sc" id="sc"></span></div>
+<div class="coach" id="coach"></div>
+<div class="toast" id="toast" hidden><span class="bl" id="toastB"></span><span id="toastT"></span></div>
+<div class="stat" id="stat">Connecting to the table camera…</div>
+<div class="ctl" id="ctl">
+  <button id="bVideo" aria-pressed="false">Camera picture</button>
+  <button id="bAim" aria-pressed="true">Shot lines</button>
+  <button id="bFlip" aria-pressed="false">Flip</button>
+  <button id="bFull">Full screen</button>
+</div>
+<div class="start" id="start">
+  <div>
+    <h1>Pool Glasses</h1>
+    <p>Coaching from the table's top-down camera: whose shot it is, their balls, the best shot line, and the ref's calls. Black is see-through in XREAL glasses.</p>
+    <p>Plug the glasses into this phone, turn the phone sideways, then tap Start.</p>
+    <button id="go">Start</button>
+  </div>
+</div>
+<script src="tablecv.js"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const qs = new URLSearchParams(location.search);
+  const RELAY = qs.get('relay') || 'https://ntfy.sh';
+  const game = (qs.get('game') || '').replace(/[^a-z0-9]/gi, '').slice(0, 24);
+  const cam = (qs.get('cam') || '1').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12) || '1';
+  const BC = ['#f5c518','#1f4fd1','#d9302a','#5b2a86','#f07b1a','#1e8a4c','#8a1f2a','#111'];
+  const ballEl = n => n ? `<span class="ball${n > 8 ? ' st' : ''}" style="--c:${BC[(n - 1) % 8]}"><span>${n}</span></span>` : '';
+  let showVideo = false, showAim = true, flip = false;
+
+  // ---- camera: the Pool Cam feed in watch mode, same origin so its video can be drawn here ----
+  function openFeed(){
+    const u = new URL('phonecam.html', location.href); u.search = '';
+    u.searchParams.set('watch', cam); u.searchParams.set('embed', '1'); if (RELAY !== 'https://ntfy.sh') u.searchParams.set('relay', RELAY);
+    $('feedFrame').src = u;
+  }
+  const feedVideo = () => { try { const v = $('feedFrame').contentDocument.getElementById('remote'); return v && v.videoWidth ? v : null; } catch { return null; } };
+
+  // ---- straightening + tracking (same code as the scoreboard) ----
+  const warp = new TableCV.Warper($('warp'), [960, 480]);
+  const small = new TableCV.Warper(document.createElement('canvas'), [480, 240]);
+  const tracker = new TableCV.Tracker();
+  const grab = document.createElement('canvas'); grab.width = 320; grab.height = 180;
+  let corners = null, tries = [], lastTry = 0;
+  try { const q = JSON.parse(localStorage.getItem('poolar-corners-' + cam)); if (q && q.tl) corners = q; } catch {}
+  if (corners) { warp.setQuad(corners); small.setQuad(corners); }
+  function findTable(v){
+    const x = grab.getContext('2d', { willReadFrequently: true }); x.drawImage(v, 0, 0, 320, 180);
+    let q = null; try { q = TableCV.findCorners(x.getImageData(0, 0, 320, 180)); } catch {}
+    if (!q) { tries = []; return; }
+    tries.push(q); if (tries.length > 3) tries.shift();
+    if (tries.length === 3 && TableCV.cornerDiff(tries[0], tries[2]) < .02) {
+      corners = {}; ['tl', 'tr', 'br', 'bl'].forEach(k => corners[k] = { x: tries.reduce((a, c) => a + c[k].x, 0) / 3, y: tries.reduce((a, c) => a + c[k].y, 0) / 3 });
+      warp.setQuad(corners); small.setQuad(corners); try { localStorage.setItem('poolar-corners-' + cam, JSON.stringify(corners)); } catch {}
+    }
+  }
+
+  // ---- game state from the scoreboard (read-only) ----
+  let st = null;
+  function listenGame(){
+    if (!game) { $('who').textContent = 'Open this from the scoreboard\'s glasses link'; return; }
+    const es = new EventSource(`${RELAY}/poolar-${game}/sse?since=all`);
+    es.onmessage = e => { let d; try { d = JSON.parse(e.data); } catch { return; } if (d.event !== 'message') return;
+      let m; try { m = JSON.parse(d.message); } catch { return; } if (!m || !m.st) return;
+      if (st && (m.ts || 0) < (st.ts || 0)) return;
+      const prev = st; st = { ...m.st, ts: m.ts }; onState(prev); };
+  }
+  const GROUP = { solids: [1, 2, 3, 4, 5, 6, 7], stripes: [9, 10, 11, 12, 13, 14, 15] };
+  const shooterName = () => st ? (st.dbl ? (st.rot && st.rot[st.shooter] ? st.partners[st.shooter] : st.names[st.shooter]) : st.names[st.shooter]) : '';
+  function onState(prev){
+    const i = st.shooter, g = st.groups && st.groups[i];
+    $('who').textContent = shooterName();
+    const left = g ? GROUP[g].filter(n => !(st.down || []).includes(n)).length : 0;
+    $('grp').textContent = g ? (left ? `${g} · ${left} left` : 'on the 8') : 'table open';
+    const s = [0, 0]; (st.racks || []).forEach((r, k) => { if (k >= (st.pairStart || 0)) s[r.w]++; });
+    $('sc').textContent = `${s[0]} – ${s[1]}`;
+    if (!prev) return;
+    const made = (st.down || []).filter(n => !(prev.down || []).includes(n));
+    if ((st.racks || []).length > (prev.racks || []).length) toast([], `${st.names[st.racks[st.racks.length - 1].w]} wins the rack`);
+    else if (made.length) toast(made, made.length > 1 ? 'Balls made' : 'Ball made');
+    else if (prev.shooter !== st.shooter) toast([], `Turn over → ${shooterName()}`);
+  }
+  let toastT = 0;
+  function toast(balls, text){ $('toastB').innerHTML = balls.map(ballEl).join(''); $('toastT').textContent = text; $('toast').hidden = false; clearTimeout(toastT); toastT = setTimeout(() => $('toast').hidden = true, 3500); }
+
+  // ---- best shot: straight-in and cut shots from the cue ball, legal balls only ----
+  // Table units: x 0..2 along the long rail, y 0..1 (a 2:1 table); a ball is 2.25 in on a 50 in bed.
+  const R = 1.125 / 50, P = TableCV.POCKETS.map(([x, y]) => ({ x: x * 2, y }));
+  const sub = (a, b) => ({ x: a.x - b.x, y: a.y - b.y }), len = a => Math.hypot(a.x, a.y), nrm = a => { const l = len(a) || 1; return { x: a.x / l, y: a.y / l }; };
+  const segDist = (p, a, b) => { const ab = sub(b, a), t = Math.max(0, Math.min(1, ((p.x - a.x) * ab.x + (p.y - a.y) * ab.y) / (ab.x * ab.x + ab.y * ab.y || 1))); return len(sub(p, { x: a.x + ab.x * t, y: a.y + ab.y * t })); };
+  function bestShots(balls){
+    const cue = balls.find(b => b.cls === 'cue'); if (!cue) return [];
+    const i = st ? st.shooter : 0, g = st && st.groups && st.groups[i];
+    const left = g ? GROUP[g].filter(n => !(st.down || []).includes(n)) : null;
+    const want = !g ? ['solid', 'stripe'] : left.length ? [g === 'solids' ? 'solid' : 'stripe'] : ['eight'];
+    const C = { x: cue.x * 2, y: cue.y }, others = balls.filter(b => b !== cue).map(b => ({ ...b, p: { x: b.x * 2, y: b.y } }));
+    const shots = [];
+    for (const o of others) {
+      if (!want.includes(o.cls)) continue;
+      for (let k = 0; k < P.length; k++) {
+        const pk = P[k], d = nrm(sub(pk, o.p)), ghost = { x: o.p.x - d.x * 2 * R, y: o.p.y - d.y * 2 * R };
+        const aim = nrm(sub(ghost, C)), cut = Math.acos(Math.max(-1, Math.min(1, aim.x * d.x + aim.y * d.y))) * 180 / Math.PI;
+        if (cut > 65) continue;
+        const blocked = others.some(b => b !== o && (segDist(b.p, C, ghost) < 2 * R || segDist(b.p, o.p, pk) < 2 * R));
+        if (blocked) continue;
+        // side pockets take a narrow angle: penalise shallow approaches
+        const side = k === 1 || k === 4, approach = Math.abs(Math.atan2(Math.abs(d.y), Math.abs(d.x)) * 180 / Math.PI);
+        if (side && approach < 35) continue;
+        const score = cut * 1.4 + len(sub(ghost, C)) * 12 + len(sub(pk, o.p)) * 18;
+        shots.push({ o, pk, k, ghost, cut, score });
+      }
+    }
+    return shots.sort((a, b) => a.score - b.score);
+  }
+  const PN = ['top-left corner', 'top side', 'top-right corner', 'bottom-left corner', 'bottom side', 'bottom-right corner'];
+
+  // ---- drawing ----
+  function draw(){
+    const c = $('view'), W = c.width = innerWidth * devicePixelRatio, H = c.height = innerHeight * devicePixelRatio, x = c.getContext('2d');
+    x.fillStyle = '#000'; x.fillRect(0, 0, W, H);
+    // table area: 2:1, leaving room for the HUD and the coaching line
+    const m = 80 * devicePixelRatio, tw = Math.min(W - m, (H - m * 2) * 2), th = tw / 2, ox = (W - tw) / 2, oy = (H - th) / 2 + 6 * devicePixelRatio;
+    const T = (u, v) => [ox + (flip ? 1 - u : u) * tw, oy + (flip ? 1 - v : v) * th];
+    const v = feedVideo();
+    if (v && showVideo && warp.draw(v, false)) { x.globalAlpha = .55; x.save(); if (flip) { x.translate(W, H); x.rotate(Math.PI); x.drawImage($('warp'), W - ox - tw, H - oy - th, tw, th); } else x.drawImage($('warp'), ox, oy, tw, th); x.restore(); x.globalAlpha = 1; }
+    x.strokeStyle = 'rgba(92,225,255,.5)'; x.lineWidth = 2 * devicePixelRatio; x.strokeRect(ox, oy, tw, th);
+    TableCV.POCKETS.forEach(([u, w]) => { x.beginPath(); x.arc(...T(u, w), 12 * devicePixelRatio, 0, 7); x.stroke(); });
+    // Settled tracks (labels voted over many frames), not one frame's guesses.
+    const nowT = performance.now(), L = { balls: tracker.tracks.filter(tr => nowT - tr.seen < 500) };
+    if (!L.balls.length) return;
+    const br = th * R * 1.15, i = st ? st.shooter : 0, g = st && st.groups && st.groups[i];
+    const mine = b => !g ? (b.cls === 'solid' || b.cls === 'stripe') : b.cls === (g === 'solids' ? 'solid' : 'stripe');
+    for (const b of L.balls) {
+      const [px, py] = T(b.x, b.y);
+      x.lineWidth = 3 * devicePixelRatio;
+      x.strokeStyle = b.cls === 'cue' ? '#ffffff' : b.cls === 'eight' ? '#b388ff' : mine(b) ? '#57d98a' : 'rgba(255,255,255,.25)';
+      x.beginPath(); x.arc(px, py, br, 0, 7); x.stroke();
+      if (b.num && b.cls !== 'cue') { x.fillStyle = x.strokeStyle; x.font = `800 ${14 * devicePixelRatio}px Barlow, sans-serif`; x.fillText(String(b.num), px + br + 3, py - br); }
+    }
+    const shots = showAim ? bestShots(L.balls) : [];
+    shots.slice(0, 2).forEach((s, n) => {
+      const cue = L.balls.find(b => b.cls === 'cue'); if (!cue) return;
+      x.globalAlpha = n ? .35 : 1; x.lineWidth = (n ? 2 : 4) * devicePixelRatio; x.setLineDash(n ? [8, 8] : []);
+      x.strokeStyle = '#f2c14e'; x.beginPath(); x.moveTo(...T(cue.x, cue.y)); x.lineTo(...T(s.ghost.x / 2, s.ghost.y)); x.stroke();
+      x.beginPath(); x.arc(...T(s.ghost.x / 2, s.ghost.y), br, 0, 7); x.stroke();
+      x.strokeStyle = '#5ce1ff'; x.beginPath(); x.moveTo(...T(s.o.x, s.o.y)); x.lineTo(...T(s.pk.x / 2, s.pk.y)); x.stroke();
+      x.setLineDash([]); x.globalAlpha = 1;
+    });
+    const top = shots[0];
+    $('coach').innerHTML = top ? `${top.o.num ? 'The ' + top.o.num : 'That ball'} → ${PN[top.k]} · cut ${Math.round(top.cut)}°<small>${shots.length > 1 ? shots.length - 1 + ' other makeable shot' + (shots.length > 2 ? 's' : '') : 'only clear shot'}</small>`
+      : L.balls.some(b => b.cls === 'cue') ? 'No clear pot: play safe<small>no open line to a pocket for your balls</small>' : '';
+  }
+
+  // ---- loop ----
+  let lastTrack = 0;
+  function loop(now){
+    const v = feedVideo();
+    $('stat').textContent = !v ? 'Connecting to the table camera…' : !corners ? 'Finding the table edges…' : '';
+    if (v) {
+      if (!corners && now - lastTry > 1500) { lastTry = now; findTable(v); }
+      if (corners && now - lastTrack > 110 && small.draw(v, false)) { lastTrack = now; try { tracker.feed(small.read(), now); } catch {} }
+    }
+    draw();
+    requestAnimationFrame(loop);
+  }
+  const tog = (id, get, set) => { $(id).onclick = () => { set(!get()); $(id).setAttribute('aria-pressed', String(get())); }; };
+  tog('bVideo', () => showVideo, v => showVideo = v);
+  tog('bAim', () => showAim, v => showAim = v);
+  tog('bFlip', () => flip, v => { flip = v; try { localStorage.setItem('poolar-glasses-flip', v ? '1' : '0'); } catch {} });
+  try { flip = localStorage.getItem('poolar-glasses-flip') === '1'; $('bFlip').setAttribute('aria-pressed', String(flip)); } catch {}
+  $('bFull').onclick = () => { const d = document.documentElement; (d.requestFullscreen || d.webkitRequestFullscreen || (() => {})).call(d); };
+  addEventListener('pointerdown', () => { $('ctl').classList.add('show'); clearTimeout(window.__ct); window.__ct = setTimeout(() => $('ctl').classList.remove('show'), 4000); });
+  let wake; const keepAwake = async () => { try { wake = await navigator.wakeLock.request('screen'); } catch {} };
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') keepAwake(); });
+  $('go').onclick = () => { $('start').hidden = true; $('bFull').click(); keepAwake(); };
+  if (qs.get('auto')) $('start').hidden = true;
+  openFeed(); listenGame(); requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
