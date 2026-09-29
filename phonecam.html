@@ -30,7 +30,7 @@
   .flip video{transform:rotate(180deg)}
   /* Embedded in the scoreboard: the scoreboard records, so only the rotate button stays. */
   body.embed .wbar{justify-content:flex-start;padding:8px;background:none}
-  body.embed #wRec, body.embed #full, body.embed .wbar a{display:none}
+  body.embed .wbar{display:none} /* the scoreboard has its own bar; its Rotate button clicks #rot */
   body.embed .wmsg p{font-size:14px}
   button.rec{background:var(--bad);border-color:var(--bad);color:#fff}
   .recdot{position:absolute;top:10px;right:10px;background:var(--bad);color:#fff;font-weight:700;font-size:13px;padding:3px 9px;border-radius:999px}
@@ -59,7 +59,7 @@
     <div class="top"><h1>Pool Cam</h1><a href="phonecam.html">Back</a></div>
     <div class="stage"><video id="preview" playsinline muted autoplay></video><span class="pill" id="camState"><span class="dot"></span><span id="camStateT">Starting…</span></span></div>
     <p id="camMsg" hidden></p>
-    <div class="row"><button class="primary" id="camRec">● Record</button><button id="stop">Stop</button></div>
+    <div class="row"><button id="stop">Stop camera</button></div>
     <div class="row"><button id="swap">Flip camera</button><select id="res" aria-label="Quality"><option value="720">720p</option><option value="1080">1080p</option><option value="480">480p</option></select></div>
     <p id="lens"></p>
     <p>For a top-down view, mount the phone over the middle of the table, rear camera facing down.</p>
@@ -239,7 +239,7 @@
       $('camMsg').textContent = "Couldn't open the camera. Allow camera access for this site in your browser settings, then reload.";
       return;
     }
-    stopRec = recorder($('camRec'), () => stream, $('preview').parentNode);
+    // No recording on the camera phone: it only streams. Recording and clips happen on the iPad.
     $('swap').onclick = () => { facing = facing === 'environment' ? 'user' : 'environment'; start().catch(() => toast('No other camera')); };
     $('res').onchange = () => start().catch(() => toast("That quality isn't available"));
 
