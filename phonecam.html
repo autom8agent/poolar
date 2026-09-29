@@ -11,7 +11,6 @@
   body{background:radial-gradient(120% 60% at 50% 0%,#12303f,var(--bg) 70%) fixed var(--bg)}
   .big{display:flex;flex-direction:column;gap:10px}
   .big button{font-size:18px;padding:16px}
-  .code{font-family:var(--num);font-weight:900;font-size:44px;line-height:1;color:var(--gold);letter-spacing:.06em}
   .stage{position:relative;background:#000;border-radius:16px;overflow:hidden;border:1px solid var(--line);aspect-ratio:16/9}
   .stage video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000}
   .stage .pill{position:absolute;top:10px;left:10px;background:rgba(0,0,0,.6)}
@@ -20,7 +19,6 @@
   .qr{background:#fff;border-radius:12px;padding:10px;width:180px;align-self:center}
   .qr svg{display:block;width:100%;height:auto}
   .link{font-size:13px;word-break:break-all;color:var(--felt)}
-  form{display:flex;gap:8px} form input{flex:1;min-width:0;text-transform:uppercase;letter-spacing:.1em}
   /* Watching: the video fills the screen, controls float on top. */
   body.watch{background:#000}
   body.watch .wrap{max-width:none;padding:0;gap:0}
@@ -51,8 +49,8 @@
     </div>
     <div class="card">
       <h2>On the screen you want to watch on</h2>
-      <form id="joinF"><input id="joinCode" placeholder="Camera code" autocomplete="off" autocapitalize="characters" maxlength="12" aria-label="Camera code"><button class="blue">Watch</button></form>
-      <p>Or scan the QR code shown on the camera phone.</p>
+      <button class="blue" id="goWatch">Watch the camera</button>
+      <p>No code needed: the iPad or TV finds the camera by itself.</p>
     </div>
   </section>
 
@@ -63,14 +61,14 @@
     <p id="camMsg" hidden></p>
     <div class="row"><button class="primary" id="camRec">● Record</button><button id="stop">Stop</button></div>
     <div class="row"><button id="swap">Flip camera</button><select id="res" aria-label="Quality"><option value="720">720p</option><option value="1080">1080p</option><option value="480">480p</option></select></div>
+    <p id="lens"></p>
     <p>For a top-down view, mount the phone over the middle of the table, rear camera facing down.</p>
     <div class="card">
       <h2>Watch from another screen</h2>
-      <div class="code" id="code"></div>
       <div class="qr" id="qr"></div>
       <a class="link" id="link" target="_blank" rel="noopener"></a>
       <div class="row"><button class="blue" id="share">Share link</button><button id="copy">Copy link</button></div>
-      <p>Keep this page open with the screen on. Anyone with the link can watch.</p>
+      <p>On the iPad just open Pool Cam and tap <b>Watch the camera</b>, or scan this. Keep this page open with the screen on.</p>
     </div>
   </section>
 
@@ -96,6 +94,8 @@
   const rid = n => Array.from(crypto.getRandomValues(new Uint8Array(n)), b => 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[b % 31]).join('');
   const clean = s => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
   const me = rid(10);
+  // One fixed channel, so nobody types a code. ?t=3 (or ?hall=…&t=3) gives a table its own channel.
+  const CHANNEL = clean((qs.get('hall') || '') + (qs.get('t') ? 'T' + qs.get('t') : '')) || 'MAIN';
   const ICE = { iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }] };
   const toast = t => { const el = $('toast'); el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => el.hidden = true, 1800); };
 
@@ -189,9 +189,10 @@
     const setState = (t, cls) => { $('camStateT').textContent = t; $('camState').className = 'pill ' + (cls || ''); };
     const viewers = () => [...pcs.values()].filter(pc => pc.connectionState === 'connected').length;
     const showCount = () => { const n = viewers(); setState(n ? `Live · ${n} watching` : 'Live · no one watching', 'on'); };
-    const watchUrl = new URL('phonecam.html', location.href); watchUrl.search = ''; watchUrl.searchParams.set('watch', code);
+    const watchUrl = new URL('phonecam.html', location.href); watchUrl.search = ''; watchUrl.searchParams.set('watch', code === CHANNEL ? '1' : code);
+    for (const k of ['hall', 't']) if (qs.get(k)) watchUrl.searchParams.set(k, qs.get(k));
     if (RELAY !== 'https://ntfy.sh') watchUrl.searchParams.set('relay', RELAY);
-    $('code').textContent = code; $('link').textContent = $('link').href = watchUrl;
+    $('link').textContent = $('link').href = watchUrl;
     try { const q = qrcode(0, 'M'); q.addData(String(watchUrl)); q.make(); $('qr').innerHTML = q.createSvgTag({ cellSize: 4, margin: 0, scalable: true, alt: 'Watch link QR code' }); } catch { $('qr').hidden = true; }
     $('share').onclick = () => navigator.share ? navigator.share({ title: 'Pool Cam', url: String(watchUrl) }).catch(() => {}) : $('copy').click();
     $('copy').onclick = () => navigator.clipboard.writeText(String(watchUrl)).then(() => toast('Link copied'), () => toast(String(watchUrl)));
@@ -200,10 +201,32 @@
     async function wake(){ try { lock = await navigator.wakeLock.request('screen'); } catch {} }
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') wake(); });
 
+    // Ultra-wide on the back: the only lens that covers a whole table from a realistic mount height
+    // (same approach as the self-scoring cam). Lens names only appear after camera permission,
+    // so open any back camera first, then re-open the one named "Ultra Wide" if the phone has it.
+    let ultraId = null;
     async function start(){
       const h = +$('res').value;
-      const next = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: facing }, width: { ideal: Math.round(h * 16 / 9) }, height: { ideal: h }, frameRate: { ideal: 30 } } });
+      const want = id => ({ audio: false, video: Object.assign(id ? { deviceId: { exact: id } } : { facingMode: { ideal: facing } },
+        { width: { ideal: Math.round(h * 16 / 9) }, height: { ideal: h }, aspectRatio: { ideal: 16 / 9 }, frameRate: { ideal: 30 } }) });
+      const back = facing === 'environment';
+      let next = await navigator.mediaDevices.getUserMedia(want(back ? ultraId : null)).catch(e => { if (!ultraId) throw e; ultraId = null; return navigator.mediaDevices.getUserMedia(want(null)); });
+      if (back && !ultraId) {
+        try {
+          const cams = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
+          const uw = cams.find(d => /ultra/i.test(d.label)) || cams.find(d => /0\.5/.test(d.label));
+          if (uw && uw.deviceId && next.getVideoTracks()[0].getSettings().deviceId !== uw.deviceId) {
+            next.getTracks().forEach(t => t.stop());
+            next = await navigator.mediaDevices.getUserMedia(want(uw.deviceId)).catch(() => navigator.mediaDevices.getUserMedia(want(null)));
+          }
+          if (uw) ultraId = uw.deviceId;
+        } catch {}
+      }
       const track = next.getVideoTracks()[0];
+      // Android phones often expose the wide lens as zoom below 1× instead of a separate camera.
+      try { const c = track.getCapabilities && track.getCapabilities(); if (back && c && c.zoom && c.zoom.min < 1) await track.applyConstraints({ advanced: [{ zoom: c.zoom.min }] }); } catch {}
+      const lbl = track.label || 'camera', wide = /ultra|0\.5/i.test(lbl) || (track.getSettings().zoom || 1) < 1;
+      $('lens').textContent = back ? (wide ? `Lens: ${lbl} (ultra-wide)` : `Lens: ${lbl}. This phone has no ultra-wide camera, so this is the widest view available.`) : `Lens: ${lbl}`;
       track.onended = () => setState('Camera stopped — tap Flip camera to restart', 'bad');
       if (stream) stream.getTracks().forEach(t => t.stop());
       stream = next; $('preview').srcObject = stream;
@@ -245,7 +268,7 @@
   // ---------- Watch ----------
   function watch(code){
     document.body.classList.add('watch'); $('watch').hidden = false;
-    document.title = 'Pool Cam ' + code;
+    document.title = 'Pool Cam';
     let pc = null, helloT = null, linked = false;
     const v = $('remote');
     const setState = (t, cls) => { $('wStateT').textContent = t; $('wState').className = 'pill ' + (cls || ''); };
@@ -300,14 +323,15 @@
   }
 
   // ---------- Route ----------
-  const w = clean(qs.get('watch')), c = clean(qs.get('cam'));
+  // ?watch / ?cam with no value use the shared channel; an old link's code (?watch=K7QX2P) still works.
+  const chan = k => { const v = clean(qs.get(k)); return v && v !== '1' ? v : CHANNEL; };
   if (qs.get('embed')) document.body.classList.add('embed');
-  if (w) watch(w);
-  else if (c) camera(c);
+  if (qs.has('watch')) watch(chan('watch'));
+  else if (qs.has('cam')) camera(chan('cam'));
   else {
     $('pick').hidden = false;
-    $('goCam').onclick = () => { const code = rid(6); qs.set('cam', code); location.search = qs; };
-    $('joinF').onsubmit = e => { e.preventDefault(); const code = clean($('joinCode').value); if (code) { qs.set('watch', code); location.search = qs; } };
+    $('goCam').onclick = () => { qs.set('cam', '1'); location.search = qs; };
+    $('goWatch').onclick = () => { qs.set('watch', '1'); location.search = qs; };
   }
 })();
 </script>

@@ -24,7 +24,10 @@ on yellow felt — with a dark halo so they read against any cloth.
 **https://autom8agent.github.io/poolar/phonecam.html**
 
 1. On the phone mounted over the table: open the link → **Use this phone as the camera**.
-2. On the iPad/TV/laptop: scan the QR code (or type the code) — the live view opens full screen.
+   It switches to the ultra-wide lens automatically (iPhone "Back Ultra Wide Camera", or 0.5× zoom on Android).
+2. On the iPad/TV/laptop: open the link → **Watch the camera** (or scan the QR). No code — the live view opens full screen.
+   The scoreboard's camera button → **Show top-down feed** does the same beside the score.
+   Everything shares one channel; add `?t=3` to both the camera and watch links to give a table its own.
 3. Tap **● Record** on either screen; when you stop, **Save / share** puts the clip in Photos/Files.
 
 Peer-to-peer WebRTC; the ntfy.sh relay only carries the connection handshake. Works across
