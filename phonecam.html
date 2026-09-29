@@ -30,6 +30,10 @@
   .wmsg{position:fixed;inset:0;display:grid;place-items:center;text-align:center;padding:24px;pointer-events:none}
   .wmsg p{font-size:16px;max-width:340px}
   .flip video{transform:rotate(180deg)}
+  /* Embedded in the scoreboard: the scoreboard records, so only the rotate button stays. */
+  body.embed .wbar{justify-content:flex-start;padding:8px;background:none}
+  body.embed #wRec, body.embed #full, body.embed .wbar a{display:none}
+  body.embed .wmsg p{font-size:14px}
   button.rec{background:var(--bad);border-color:var(--bad);color:#fff}
   .recdot{position:absolute;top:10px;right:10px;background:var(--bad);color:#fff;font-weight:700;font-size:13px;padding:3px 9px;border-radius:999px}
 </style>
@@ -297,6 +301,7 @@
 
   // ---------- Route ----------
   const w = clean(qs.get('watch')), c = clean(qs.get('cam'));
+  if (qs.get('embed')) document.body.classList.add('embed');
   if (w) watch(w);
   else if (c) camera(c);
   else {
