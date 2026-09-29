@@ -4,6 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#000000">
+<!-- iPhone: Safari can't hide its toolbars for a page, but "Add to Home Screen" opens it full screen. -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pool Glasses">
 <title>Pool Glasses</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -58,6 +63,7 @@
     <h1>Pool Glasses</h1>
     <p>Coaching from the table's top-down camera: whose shot it is, their balls, the best shot line, and the ref's calls. Black is see-through in XREAL glasses.</p>
     <p>Plug the glasses into this phone, turn the phone sideways, then tap Start.</p>
+    <p id="iosTip" hidden>iPhone: for true full screen, tap Share → <b>Add to Home Screen</b>, then open Pool Glasses from the Home Screen.</p>
     <button id="go">Start</button>
   </div>
 </div>
@@ -219,6 +225,7 @@
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') keepAwake(); });
   $('go').onclick = () => { $('start').hidden = true; $('bFull').click(); keepAwake(); };
   if (qs.get('auto')) $('start').hidden = true;
+  if (/iPhone|iPad/.test(navigator.userAgent) && !navigator.standalone) $('iosTip').hidden = false;
   openFeed(); listenGame(); requestAnimationFrame(loop);
 })();
 </script>
