@@ -152,6 +152,17 @@
   .lockic.locked{border-color:var(--gold);color:var(--gold)}
   .qrbig svg{width:min(70vw,280px);height:min(70vw,280px)}
   .rulesum{font-size:13px;color:var(--text);margin:0;line-height:1.45;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+  /* Top-down Pool Cam feed: beside the score on a wide screen, above it on a phone. */
+  .feed{position:relative;flex:none;height:34vh;border-radius:14px;overflow:hidden;background:#000;border:2px solid var(--line)}
+  .feed iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+  .feed .feedx{position:absolute;top:8px;right:8px;z-index:2;width:34px;height:34px;padding:0;border-radius:50%;background:rgba(0,0,0,.6);border:1px solid var(--line);color:#fff;font-size:20px;line-height:1}
+  @media (min-width:800px) and (orientation:landscape){
+    body.hasfeed .app{margin-right:58vw}
+    body.hasfeed .feed{position:fixed;top:0;right:0;bottom:0;width:58vw;height:auto;border-radius:0;border:0;border-left:2px solid var(--line);
+      padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+  }
+  .feedrow{display:flex;gap:8px}
+  .feedrow input{flex:1;min-width:0;text-transform:uppercase;letter-spacing:.1em}
   .camwrap{position:relative;border-radius:12px;overflow:hidden;background:#000;aspect-ratio:16/9}
   .camwrap video{width:100%;height:100%;object-fit:cover;display:block}
   .recdot{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.6);color:#ff5a4e;font-weight:800;font-size:12px;padding:3px 8px;border-radius:6px}
@@ -229,6 +240,8 @@
     <div class="hdr-r"><span class="live" id="live">Offline</span><div class="rackno" id="rackNo">Rack 1</div></div>
   </header>
 
+  <div class="feed" id="feed" hidden><iframe id="feedFrame" title="Top-down table camera" allow="autoplay; fullscreen"></iframe><button class="feedx" id="feedX" aria-label="Hide camera feed">×</button></div>
+
   <div class="players">
     <section class="p" id="p0">
       <div class="top"><button class="name nameb" id="nb0" aria-label="Edit name"><span id="n0"></span><svg class="pen" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z M14 6l4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></button><span class="chip you" id="y0" hidden>You</span><span class="chip" id="g0"></span><span class="chip brk" id="b0">Break</span><span class="chip shoot" id="t0">Shooting</span><span class="chip bih" id="h0">Ball in hand</span></div>
@@ -290,6 +303,9 @@
 
 <div class="sheet" id="camSheet" hidden>
   <div class="card">
+    <h2>Top-down camera</h2>
+    <p>Open <a href="phonecam.html" target="_blank" rel="noopener" style="color:var(--chalk)">Pool Cam</a> on the phone over the table, then enter its code to show the feed next to the score.</p>
+    <form class="feedrow" id="feedForm"><input id="feedCode" placeholder="Camera code" autocomplete="off" autocapitalize="characters" maxlength="12" aria-label="Pool Cam code"><button class="primary" id="feedGo">Show feed</button></form>
     <h2>Table camera</h2>
     <p id="camMsg">Point this phone at the table. Recordings include the score and stay on this phone until you save them.</p>
     <div class="camwrap"><video id="camVid" playsinline muted></video><canvas id="camCan" hidden></canvas><span class="recdot" id="recDot" hidden>● REC <b id="recTime">0:00</b></span></div>
@@ -1161,6 +1177,31 @@
   // Table camera: preview the rear camera, record it with the score drawn on top, then save or share the clip.
   let camStream = null, rec = null, recChunks = [], recT0 = 0, recTimer = 0, drawing = 0, clip = null;
   $('camBtn').onclick = () => { $('camSheet').hidden = false; };
+  // Pool Cam feed: phonecam.html in watch mode, embedded. Same origin, so its video can be recorded here with the score on top.
+  const FEEDKEY = 'poolar-feed';
+  const feedVideo = () => { try { const v = $('feedFrame').contentDocument.getElementById('remote'); return v && v.videoWidth ? v : null; } catch { return null; } };
+  const feedFlipped = () => { try { return $('feedFrame').contentDocument.getElementById('wstage').classList.contains('flip'); } catch { return false; } };
+  function showFeed(code){
+    code = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+    if (!code) return;
+    const u = new URL('phonecam.html', location.href); u.search = '';
+    u.searchParams.set('watch', code); u.searchParams.set('embed', '1'); if (RELAY !== 'https://ntfy.sh') u.searchParams.set('relay', RELAY);
+    $('feedFrame').src = u; $('feed').hidden = false; document.body.classList.add('hasfeed');
+    $('feedCode').value = code; $('camRec').disabled = false;
+    try { localStorage.setItem(FEEDKEY, code); } catch {}
+    if (qs.get('cam') !== code) { qs.set('cam', code); try { history.replaceState(null, '', '?' + qs); } catch {} }
+  }
+  $('feedForm').onsubmit = e => { e.preventDefault(); showFeed($('feedCode').value); $('camSheet').hidden = true; };
+  $('feedX').onclick = () => {
+    if (rec && rec.state === 'recording' && !camStream) return;
+    $('feedFrame').src = 'about:blank'; $('feed').hidden = true; document.body.classList.remove('hasfeed');
+    if (!camStream) $('camRec').disabled = true;
+    try { localStorage.removeItem(FEEDKEY); } catch {}
+    qs.delete('cam'); try { history.replaceState(null, '', '?' + qs); } catch {}
+  };
+  { let c = qs.get('cam'); if (!c) try { c = localStorage.getItem(FEEDKEY); } catch {} if (c) showFeed(c); }
+  // Record the phone's own camera if it's on, otherwise the top-down feed.
+  const recSrc = () => camStream ? $('camVid') : feedVideo();
   $('camStart').onclick = async () => {
     if (camStream) return;
     try {
@@ -1171,8 +1212,11 @@
     } catch { $('camMsg').textContent = "Couldn't open the camera. Allow camera access for this site in your browser settings, then try again."; }
   };
   function drawFrame(){
-    const v = $('camVid'), c = $('camCan'), x = c.getContext('2d');
-    x.drawImage(v, 0, 0, c.width, c.height);
+    const v = recSrc(), c = $('camCan'), x = c.getContext('2d');
+    if (v) {
+      if (!camStream && feedFlipped()) { x.save(); x.translate(c.width, c.height); x.rotate(Math.PI); x.drawImage(v, 0, 0, c.width, c.height); x.restore(); }
+      else x.drawImage(v, 0, 0, c.width, c.height);
+    }
     const s = scores(), h = Math.round(c.height * .09);
     x.fillStyle = 'rgba(8,14,12,.78)'; x.fillRect(0, c.height - h, c.width, h);
     x.fillStyle = '#fff'; x.font = `700 ${Math.round(h * .5)}px system-ui, sans-serif`; x.textBaseline = 'middle';
@@ -1185,10 +1229,12 @@
   }
   $('camRec').onclick = () => {
     if (rec && rec.state === 'recording') { rec.stop(); return; }
-    const v = $('camVid'), c = $('camCan');
+    const v = recSrc(), c = $('camCan');
+    if (!v) { $('camMsg').textContent = camStream ? 'Camera is still starting.' : 'The top-down feed isn\'t live yet.'; $('camSheet').hidden = false; return; }
     c.width = v.videoWidth || 1280; c.height = v.videoHeight || 720;
     let stream = camStream;
-    if (c.captureStream) { drawFrame(); stream = c.captureStream(30); camStream.getAudioTracks().forEach(t => stream.addTrack(t)); }
+    if (c.captureStream) { drawFrame(); stream = c.captureStream(30); if (camStream) camStream.getAudioTracks().forEach(t => stream.addTrack(t)); }
+    else if (!camStream) { $('camMsg').textContent = "This browser can't record the feed."; return; }
     const type = ['video/mp4', 'video/webm;codecs=vp9', 'video/webm'].find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || '';
     try { rec = new MediaRecorder(stream, type ? { mimeType: type } : undefined); } catch { $('camMsg').textContent = "This browser can't record video."; return; }
     recChunks = []; rec.ondataavailable = e => { if (e.data.size) recChunks.push(e.data); };

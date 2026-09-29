@@ -19,6 +19,17 @@ on yellow felt — with a dark halo so they read against any cloth.
 
 ---
 
+## 📹 Pool Cam — top-down camera + recording
+
+**https://autom8agent.github.io/poolar/phonecam.html**
+
+1. On the phone mounted over the table: open the link → **Use this phone as the camera**.
+2. On the iPad/TV/laptop: scan the QR code (or type the code) — the live view opens full screen.
+3. Tap **● Record** on either screen; when you stop, **Save / share** puts the clip in Photos/Files.
+
+Peer-to-peer WebRTC; the ntfy.sh relay only carries the connection handshake. Works across
+networks, most reliably with both devices on the same Wi-Fi.
+
 ## ⚡ The one gotcha: the camera needs HTTPS
 
 Android Chrome only grants camera access on `https://` or `localhost`. Opening the file
