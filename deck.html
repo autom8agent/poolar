@@ -152,15 +152,45 @@
   .lockic.locked{border-color:var(--gold);color:var(--gold)}
   .qrbig svg{width:min(70vw,280px);height:min(70vw,280px)}
   .rulesum{font-size:13px;color:var(--text);margin:0;line-height:1.45;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
-  /* Top-down Pool Cam feed: beside the score on a wide screen, above it on a phone. */
-  .feed{position:relative;flex:none;height:34vh;border-radius:14px;overflow:hidden;background:#000;border:2px solid var(--line)}
-  .feed iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
-  .feed .feedx{position:absolute;top:8px;right:8px;z-index:2;width:34px;height:34px;padding:0;border-radius:50%;background:rgba(0,0,0,.6);border:1px solid var(--line);color:#fff;font-size:20px;line-height:1}
-  @media (min-width:800px) and (orientation:landscape){
-    body.hasfeed .app{margin-right:58vw}
-    body.hasfeed .feed{position:fixed;top:0;right:0;bottom:0;width:58vw;height:auto;border-radius:0;border:0;border-left:2px solid var(--line);
-      padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+  /* Top-down Pool Cam feed ("tv"). iPad/laptop landscape: floats in the middle of the two player cards,
+     between the ball rows and the big scores. Phone: its own row above the cards (only once added). */
+  .players{position:relative}
+  .tv{position:relative;border-radius:14px;overflow:hidden;background:#000;border:2px solid var(--line);min-height:0}
+  .tv iframe,.tv video{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000}
+  .tv video{object-fit:contain}
+  .tv iframe{pointer-events:none} /* taps reach the tv, so they bring the controls back */
+  .tv.flip video{transform:rotate(180deg)}
+  .tvadd{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:rgba(10,16,14,.92);border:2px dashed var(--line);border-radius:12px}
+  .tvadd button{font-size:17px;padding:14px 22px}
+  .tvadd small{color:var(--muted);font-size:13px}
+  .tvover{position:absolute;inset:0;z-index:3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:12px;background:rgba(6,10,8,.82)}
+  .tvover b{font-size:18px}
+  .tvover p{margin:0;color:var(--muted);font-size:13px;max-width:320px}
+  .tvover .row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+  .tvover .qr{padding:8px}
+  .tvover .qr svg{width:120px;height:120px}
+  .tvbar{position:absolute;left:0;right:0;bottom:0;z-index:4;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;padding:8px;background:linear-gradient(transparent,rgba(0,0,0,.75));transition:opacity .3s}
+  .tvbar.dim{opacity:0;pointer-events:none}
+  .tvbar button{font-size:13px;padding:8px 11px;background:rgba(21,32,27,.9)}
+  .tvbar button.on{background:#d9463b;border-color:#d9463b;color:#fff}
+  .tvtag{position:absolute;top:8px;z-index:4;font-weight:800;font-size:12px;padding:3px 8px;border-radius:6px;background:rgba(0,0,0,.65)}
+  #tvRecTag{right:8px;color:#ff5a4e} #tvRecTag b{color:#fff}
+  #tvReplayTag{left:8px;background:var(--gold);color:#1d1606;letter-spacing:.08em}
+  .tv.full{position:fixed!important;inset:0!important;z-index:40;border:0;border-radius:0;width:auto!important;height:auto!important}
+  .tv.full .tvbar{padding-bottom:calc(10px + env(safe-area-inset-bottom,0px))}
+  .tv.full .tvbar button{font-size:15px;padding:11px 16px}
+  @media (max-width:799px), (orientation:portrait){
+    body:not(.hastv) .tv{display:none}
+    body.hastv .players{grid-template-rows:minmax(160px,34vh) 1fr 1fr}
   }
+  @media (min-width:800px) and (orientation:landscape){
+    .tv{position:absolute;z-index:3;top:52px;bottom:0;left:21%;right:16%}
+  }
+  .reclist{display:flex;flex-direction:column;gap:6px}
+  .reclist div{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:6px 6px 6px 10px}
+  .reclist span{flex:1;min-width:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .reclist small{color:var(--muted)}
+  .reclist button{padding:6px 10px;flex:none}
   .camwrap{position:relative;border-radius:12px;overflow:hidden;background:#000;aspect-ratio:16/9}
   .camwrap video{width:100%;height:100%;object-fit:cover;display:block}
   .recdot{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.6);color:#ff5a4e;font-weight:800;font-size:12px;padding:3px 8px;border-radius:6px}
@@ -238,9 +268,39 @@
     <div class="hdr-r"><span class="live" id="live">Offline</span><div class="rackno" id="rackNo">Rack 1</div></div>
   </header>
 
-  <div class="feed" id="feed" hidden><iframe id="feedFrame" title="Top-down table camera" allow="autoplay; fullscreen"></iframe><button class="feedx" id="feedX" aria-label="Hide camera feed">×</button></div>
-
   <div class="players">
+    <div class="tv" id="tv">
+      <div class="tvadd" id="tvAdd"><button class="primary" id="tvAddBtn">+ Add camera</button><small>Top-down table view · replays · recording</small></div>
+      <iframe id="feedFrame" title="Top-down table camera" allow="autoplay; fullscreen" hidden></iframe>
+      <video id="replayVid" playsinline muted hidden></video>
+      <span class="tvtag" id="tvRecTag" hidden>● REC <b id="tvRecT">0:00</b></span>
+      <span class="tvtag" id="tvReplayTag" hidden>REPLAY</span>
+      <div class="tvover" id="tvWait" hidden>
+        <b>Waiting for the camera…</b>
+        <div class="qr" id="tvQr"></div>
+        <p>Scan with the phone over the table, or open Pool Cam on it and tap <b>Use this phone as the camera</b>.</p>
+        <div class="row"><button id="tvCancel">Cancel</button></div>
+      </div>
+      <div class="tvover" id="tvAsk" hidden>
+        <b>Camera connected. Record this match?</b>
+        <p>Replays of the last 30 s / 1 min work either way.</p>
+        <div class="row"><button class="primary" id="askRec">● Record match</button><button id="askNo">Don't record</button></div>
+      </div>
+      <div class="tvover" id="tvClip" hidden>
+        <b id="tvClipT">Clip ready</b>
+        <p>Saves to this iPad: tap Save, then <b>Save Video</b> to put it in Photos.</p>
+        <div class="row"><button class="primary" id="clipSave">Save clip to iPad</button><button id="clipNo">Discard</button></div>
+      </div>
+      <canvas id="clipCan" hidden></canvas>
+      <div class="tvbar" id="tvBar" hidden>
+        <button id="tvRecBtn">● Record</button>
+        <button id="rp30">⟲ 30s</button><button id="rp60">⟲ 1 min</button>
+        <button id="tvLiveBtn" hidden>● Back to live</button>
+        <button id="tvRot" aria-label="Rotate 180 degrees">↻ Rotate</button>
+        <button id="tvFull">⛶ Full screen</button>
+        <button id="tvX" aria-label="Remove camera">✕</button>
+      </div>
+    </div>
     <section class="p" id="p0">
       <div class="top"><button class="name nameb" id="nb0" aria-label="Edit name"><span id="n0"></span><svg class="pen" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z M14 6l4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></button><span class="chip you" id="y0" hidden>You</span><span class="chip" id="g0"></span><span class="chip brk" id="b0">Break</span><span class="chip shoot" id="t0">Shooting</span><span class="chip bih" id="h0">Ball in hand</span></div>
       <div class="left"><div class="mini" id="m0"></div><div class="need" id="d0"></div><div class="pips" id="k0"></div></div>
@@ -304,6 +364,9 @@
     <h2>Top-down camera</h2>
     <p>Open <a href="phonecam.html" target="_blank" rel="noopener" style="color:var(--chalk)">Pool Cam</a> on the phone over the table and tap <b>Use this phone as the camera</b>. No code needed.</p>
     <button class="primary" id="feedGo">Show top-down feed</button>
+    <h2>Recordings</h2>
+    <p>Saved on this device as they record, so nothing is lost if the page reloads. Tap <b>Save</b> to put one in Photos (Save Video) or Files.</p>
+    <div class="reclist" id="recList"></div>
     <h2>Table camera</h2>
     <p id="camMsg">Point this phone at the table. Recordings include the score and stay on this phone until you save them.</p>
     <div class="camwrap"><video id="camVid" playsinline muted></video><canvas id="camCan" hidden></canvas><span class="recdot" id="recDot" hidden>● REC <b id="recTime">0:00</b></span></div>
@@ -1173,32 +1236,175 @@
   $('shareBtn').onclick = () => { shareOpen(); const u = waitUrl(); $('waitUrl').value = u; drawQR(u); paintLine(); };
   $('waitCopy').onclick = async () => { try { await navigator.clipboard.writeText($('waitUrl').value); $('waitCopy').textContent = 'Copied'; } catch { $('waitUrl').select(); $('waitCopy').textContent = 'Selected'; } setTimeout(() => $('waitCopy').textContent = 'Copy', 1500); };
   // Table camera: preview the rear camera, record it with the score drawn on top, then save or share the clip.
-  let camStream = null, rec = null, recChunks = [], recT0 = 0, recTimer = 0, drawing = 0, clip = null;
-  $('camBtn').onclick = () => { $('camSheet').hidden = false; };
-  // Pool Cam feed: phonecam.html in watch mode, embedded. Same origin, so its video can be recorded here with the score on top.
+  let camStream = null, rec = null, recT0 = 0, recTimer = 0, drawing = 0;
+  $('camBtn').onclick = () => { paintRecs(); $('camSheet').hidden = false; };
+  const vtype = () => ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'].find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || '';
+  const mmss = ms => { const t = Math.floor(ms / 1000); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
+
+  // ---------- Pool Cam feed in the middle of the scoreboard ("tv") ----------
+  // phonecam.html in watch mode, embedded. Same origin, so its video can be recorded and replayed here.
   const FEEDKEY = 'poolar-feed';
-  const feedVideo = () => { try { const v = $('feedFrame').contentDocument.getElementById('remote'); return v && v.videoWidth ? v : null; } catch { return null; } };
-  const feedFlipped = () => { try { return $('feedFrame').contentDocument.getElementById('wstage').classList.contains('flip'); } catch { return false; } };
+  const fdoc = () => { try { return $('feedFrame').contentDocument; } catch { return null; } };
+  const feedVideo = () => { const d = fdoc(), v = d && d.getElementById('remote'); return v && v.videoWidth ? v : null; };
+  const feedFlipped = () => { const d = fdoc(), w = d && d.getElementById('wstage'); return !!(w && w.classList.contains('flip')); };
+  let feedLive = false, asked = false, liveT = 0;
+  const camLink = () => { const u = new URL('phonecam.html', location.href); u.search = ''; u.searchParams.set('cam', '1'); if (RELAY !== 'https://ntfy.sh') u.searchParams.set('relay', RELAY); return String(u); };
   // No code: Pool Cam's shared channel is "1". An old ?cam=K7QX2P link still picks that camera.
   function showFeed(code){
     code = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12) || '1';
     const u = new URL('phonecam.html', location.href); u.search = '';
     u.searchParams.set('watch', code); u.searchParams.set('embed', '1'); if (RELAY !== 'https://ntfy.sh') u.searchParams.set('relay', RELAY);
-    $('feedFrame').src = u; $('feed').hidden = false; document.body.classList.add('hasfeed');
-    $('camRec').disabled = false;
+    $('feedFrame').src = u; $('feedFrame').hidden = false; $('tvAdd').hidden = true; document.body.classList.add('hastv');
+    feedLive = false; $('tvBar').hidden = true; $('tvWait').hidden = false;
+    try { const q = qrcode(0, 'M'); q.addData(camLink()); q.make(); $('tvQr').innerHTML = q.createSvgTag({ cellSize: 4, margin: 0, scalable: true, alt: 'Open Pool Cam camera' }); } catch { $('tvQr').hidden = true; }
     try { localStorage.setItem(FEEDKEY, code); } catch {}
     if (code !== '1' && qs.get('cam') !== code) { qs.set('cam', code); try { history.replaceState(null, '', '?' + qs); } catch {} }
+    clearInterval(liveT); liveT = setInterval(watchLive, 700);
   }
-  $('feedGo').onclick = () => { showFeed(qs.get('cam')); $('camSheet').hidden = true; };
-  $('feedX').onclick = () => {
-    if (rec && rec.state === 'recording' && !camStream) return;
-    $('feedFrame').src = 'about:blank'; $('feed').hidden = true; document.body.classList.remove('hasfeed');
-    if (!camStream) $('camRec').disabled = true;
+  function hideFeed(){
+    if (rec && rec.state === 'recording' && !camStream) { if (!confirm('Stop recording and remove the camera?')) return; rec.stop(); }
+    clearInterval(liveT); stopBuffer(); backToLive(); setFull(false);
+    $('feedFrame').src = 'about:blank'; $('feedFrame').hidden = true; $('tvAdd').hidden = false; document.body.classList.remove('hastv');
+    ['tvWait', 'tvAsk', 'tvBar'].forEach(id => $(id).hidden = true);
+    feedLive = false; asked = false;
     try { localStorage.removeItem(FEEDKEY); } catch {}
     qs.delete('cam'); try { history.replaceState(null, '', '?' + qs); } catch {}
-  };
+  }
+  function watchLive(){
+    const v = feedVideo();
+    if (v && !feedLive) {
+      feedLive = true; $('tvWait').hidden = true; $('tvBar').hidden = false; $('camRec').disabled = false; wakeBar();
+      // First connection: ask whether to record the match. Replays work either way.
+      if (!asked && !(rec && rec.state === 'recording')) { asked = true; $('tvAsk').hidden = false; }
+    }
+    $('tv').classList.toggle('flip', feedFlipped());
+    if (v) keepBuffer(v.srcObject);
+  }
+  $('tvAddBtn').onclick = () => showFeed(qs.get('cam'));
+  $('feedGo').onclick = () => { showFeed(qs.get('cam')); $('camSheet').hidden = true; };
+  $('tvCancel').onclick = $('tvX').onclick = hideFeed;
+  $('askRec').onclick = () => { $('tvAsk').hidden = true; startRec(); };
+  $('askNo').onclick = () => { $('tvAsk').hidden = true; };
+  $('tvRot').onclick = () => { const d = fdoc(), b = d && d.getElementById('rot'); if (b) b.click(); setTimeout(watchLive, 50); };
+  // Full screen inside the page (reliable on iPad Safari); the same button puts it back in its spot.
+  function setFull(on){ $('tv').classList.toggle('full', on); $('tvFull').textContent = on ? '⤡ Exit full screen' : '⛶ Full screen'; wakeBar(); }
+  $('tvFull').onclick = () => setFull(!$('tv').classList.contains('full'));
+  addEventListener('keydown', e => { if (e.key === 'Escape' && $('tv').classList.contains('full')) setFull(false); });
+  // Controls fade after a few seconds; tap the video to bring them back.
+  let dimT = 0;
+  function wakeBar(){ $('tvBar').classList.remove('dim'); clearTimeout(dimT); dimT = setTimeout(() => { if (!replaying) $('tvBar').classList.add('dim'); }, 5000); }
+  $('tv').addEventListener('pointerdown', wakeBar);
   { let c = qs.get('cam'); if (!c) try { c = localStorage.getItem(FEEDKEY); } catch {} if (c) showFeed(c); }
-  // Record the phone's own camera if it's on, otherwise the top-down feed.
+
+  // ---------- Instant replay ----------
+  // A rolling buffer of short standalone clips of the raw feed (last ~75 s, in memory only).
+  // Replay cuts the current clip, then plays the newest clips back-to-back from the right point.
+  const SEG = 15000, KEEP = 5;
+  let buf = [], bufRec = null, bufStream = null, bufTimer = 0, replaying = false;
+  function newSeg(){
+    let r;
+    try { const MR = $('feedFrame').contentWindow.MediaRecorder || MediaRecorder, t = vtype(); r = new MR(bufStream, t ? { mimeType: t, videoBitsPerSecond: 3e6 } : undefined); } catch { return null; }
+    const chunks = [], t0 = Date.now();
+    r.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+    r.onstop = () => {
+      if (chunks.length && Date.now() - t0 > 500) { buf.push({ blob: new Blob(chunks, { type: (r.mimeType || 'video/mp4').split(';')[0] }), t0, t1: Date.now() }); while (buf.length > KEEP) buf.shift(); }
+      if (r.done) r.done();
+    };
+    try { r.start(); } catch { return null; }
+    return r;
+  }
+  function rotate(done){
+    const old = bufRec; bufRec = bufStream ? newSeg() : null;
+    if (old && old.state !== 'inactive') { old.done = done; old.stop(); } else if (done) done();
+  }
+  function keepBuffer(stream){
+    if (!stream || !window.MediaRecorder) return;
+    if (stream === bufStream && bufRec && bufRec.state === 'recording') return;
+    bufStream = stream; rotate(); clearInterval(bufTimer); bufTimer = setInterval(() => rotate(), SEG);   // new stream after a reconnect: keep old clips
+  }
+  function stopBuffer(){ clearInterval(bufTimer); bufStream = null; rotate(); buf = []; }
+  function replay(sec){
+    if (!bufRec && !buf.length) return;
+    rotate(() => {
+      const segs = []; let tot = 0;
+      for (let i = buf.length - 1; i >= 0 && tot < sec * 1000; i--) { segs.unshift(buf[i]); tot += buf[i].t1 - buf[i].t0; }
+      if (!segs.length) return;
+      playSegs(segs, Math.max(0, (tot - sec * 1000) / 1000));
+    });
+  }
+  // While a replay plays it is also drawn (with the score) into a canvas and recorded, so when it
+  // finishes it is one ready-made clip file. Leaving the replay early throws the clip away.
+  let clipRec = null, clipDraw = 0, clipFile = null;
+  function clipStart(v){
+    const c = $('clipCan');
+    if (clipRec || !c.captureStream || !window.MediaRecorder || !v.videoWidth) return;
+    c.width = v.videoWidth; c.height = v.videoHeight;
+    const flip = $('tv').classList.contains('flip');
+    const tick = () => { paint(c, v, flip); clipDraw = requestAnimationFrame(tick); }; tick();
+    const type = vtype(), chunks = [];
+    try { clipRec = new MediaRecorder(c.captureStream(30), type ? { mimeType: type, videoBitsPerSecond: 4e6 } : undefined); } catch { clipRec = null; return; }
+    const r = clipRec, t0 = Date.now();
+    r.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+    r.onstop = () => {
+      cancelAnimationFrame(clipDraw);
+      if (!r.keep || !chunks.length) return;
+      const mime = (r.mimeType || type || 'video/mp4').split(';')[0], d = new Date(), pad = n => String(n).padStart(2, '0');
+      clipFile = new File(chunks, `clip-${tableMode ? 'table-' + TNUM + '-' : ''}${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}.${mime.includes('mp4') ? 'mp4' : 'webm'}`, { type: mime });
+      const secs = Math.round((Date.now() - t0) / 1000);
+      $('tvClipT').textContent = `Clip ready · ${mmss(secs * 1000)}`; $('tvClip').hidden = false;
+      // Also keep it in Recordings on this iPad, so a missed Save isn't a lost clip.
+      const m = { id: Date.now(), name: clipFile.name, mime, secs, done: true };
+      putRec(m).then(() => tx('chunks', 'readwrite', o => o.add({ rec: m.id, blob: clipFile }))).then(() => { clipFile.recId = m.id; }).catch(() => {});
+    };
+    r.start(1000);
+  }
+  function clipStop(keep){ if (clipRec) { clipRec.keep = keep; try { clipRec.stop(); } catch {} clipRec = null; } }
+  $('clipSave').onclick = () => {
+    const f = clipFile; if (!f) return;
+    if (navigator.canShare && navigator.canShare({ files: [f] })) navigator.share({ files: [f], title: 'Pool clip' }).then(() => { $('tvClip').hidden = true; }).catch(() => {});
+    else { const a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = f.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000); $('tvClip').hidden = true; }
+  };
+  $('clipNo').onclick = async () => {
+    $('tvClip').hidden = true; const id = clipFile && clipFile.recId; clipFile = null;
+    if (id) { await tx('chunks', 'readwrite', o => { const q = o.index('rec').openCursor(IDBKeyRange.only(id)); q.onsuccess = () => { const c = q.result; if (c) { c.delete(); c.continue(); } }; }).catch(() => {}); await tx('recs', 'readwrite', o => o.delete(id)).catch(() => {}); }
+  };
+  function playSegs(segs, skip){
+    const v = $('replayVid'); let i = 0, url = '';
+    clipStop(false); $('tvClip').hidden = true;
+    replaying = true; v.hidden = false; $('tvReplayTag').hidden = false; $('tvLiveBtn').hidden = false; wakeBar();
+    v.onplaying = () => clipStart(v);
+    const next = () => {
+      if (url) URL.revokeObjectURL(url);
+      if (!replaying) return;
+      if (i >= segs.length) { clipStop(true); return backToLive(); }
+      url = URL.createObjectURL(segs[i].blob); const first = i === 0; i++;
+      v.onloadedmetadata = () => { if (first && skip > .3) { try { v.currentTime = skip; } catch {} } v.play().catch(() => {}); };
+      v.onended = next; v.onerror = next; v.src = url;
+    };
+    next();
+  }
+  function backToLive(){
+    replaying = false; const v = $('replayVid'); clipStop(false);
+    v.onended = v.onerror = v.onloadedmetadata = v.onplaying = null; v.pause(); v.removeAttribute('src'); v.load();
+    v.hidden = true; $('tvReplayTag').hidden = true; $('tvLiveBtn').hidden = true; wakeBar();
+  }
+  $('rp30').onclick = () => replay(30);
+  $('rp60').onclick = () => replay(60);
+  $('tvLiveBtn').onclick = backToLive;
+
+  // ---------- Recordings, saved on this device as they record ----------
+  // Each chunk goes into IndexedDB the moment it arrives, so a long match never sits in memory and
+  // survives a reload or crash. Save hands the finished file to the share sheet (Save Video -> Photos).
+  let dbP = null;
+  const db = () => dbP || (dbP = new Promise((res, rej) => {
+    const r = indexedDB.open('poolar-recordings', 1);
+    r.onupgradeneeded = () => { const d = r.result; d.createObjectStore('recs', { keyPath: 'id' }); d.createObjectStore('chunks', { autoIncrement: true }).createIndex('rec', 'rec'); };
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  }));
+  const tx = (store, mode, fn) => db().then(d => new Promise((res, rej) => { const t = d.transaction(store, mode), q = fn(t.objectStore(store)); t.oncomplete = () => res(q && q.result); t.onerror = () => rej(t.error); }));
+  const putRec = m => tx('recs', 'readwrite', o => o.put(m)).catch(() => {});
+  let recMeta = null;
+  // Record the phone's own camera if it's on, otherwise the top-down feed, with the score drawn on top.
   const recSrc = () => camStream ? $('camVid') : feedVideo();
   $('camStart').onclick = async () => {
     if (camStream) return;
@@ -1210,9 +1416,13 @@
     } catch { $('camMsg').textContent = "Couldn't open the camera. Allow camera access for this site in your browser settings, then try again."; }
   };
   function drawFrame(){
-    const v = recSrc(), c = $('camCan'), x = c.getContext('2d');
+    paint($('camCan'), recSrc(), !camStream && feedFlipped());
+    drawing = requestAnimationFrame(drawFrame);
+  }
+  function paint(c, v, flip){
+    const x = c.getContext('2d');
     if (v) {
-      if (!camStream && feedFlipped()) { x.save(); x.translate(c.width, c.height); x.rotate(Math.PI); x.drawImage(v, 0, 0, c.width, c.height); x.restore(); }
+      if (flip) { x.save(); x.translate(c.width, c.height); x.rotate(Math.PI); x.drawImage(v, 0, 0, c.width, c.height); x.restore(); }
       else x.drawImage(v, 0, 0, c.width, c.height);
     }
     const s = scores(), h = Math.round(c.height * .09);
@@ -1223,33 +1433,76 @@
     x.textAlign = 'right'; x.fillStyle = '#f2c14e';
     x.fillText([tableMode ? `Table ${TNUM}` : '', `${st.gtype}-ball`, rotating() ? '' : `Race ${st.race[0]}–${st.race[1]}`].filter(Boolean).join(' · '), c.width - h * .4, c.height - h / 2);
     x.textAlign = 'left';
-    drawing = requestAnimationFrame(drawFrame);
   }
-  $('camRec').onclick = () => {
-    if (rec && rec.state === 'recording') { rec.stop(); return; }
+  function recUI(on){
+    $('recDot').hidden = $('tvRecTag').hidden = !on;
+    $('camRec').textContent = on ? 'Stop' : 'Record';
+    $('tvRecBtn').textContent = on ? '■ Stop recording' : '● Record'; $('tvRecBtn').classList.toggle('on', on);
+  }
+  function startRec(){
+    if (rec && rec.state === 'recording') return;
     const v = recSrc(), c = $('camCan');
-    if (!v) { $('camMsg').textContent = camStream ? 'Camera is still starting.' : 'The top-down feed isn\'t live yet.'; $('camSheet').hidden = false; return; }
+    if (!v) { $('camMsg').textContent = camStream ? 'Camera is still starting.' : 'The top-down feed isn\'t live yet.'; return; }
     c.width = v.videoWidth || 1280; c.height = v.videoHeight || 720;
     let stream = camStream;
     if (c.captureStream) { drawFrame(); stream = c.captureStream(30); if (camStream) camStream.getAudioTracks().forEach(t => stream.addTrack(t)); }
     else if (!camStream) { $('camMsg').textContent = "This browser can't record the feed."; return; }
-    const type = ['video/mp4', 'video/webm;codecs=vp9', 'video/webm'].find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || '';
-    try { rec = new MediaRecorder(stream, type ? { mimeType: type } : undefined); } catch { $('camMsg').textContent = "This browser can't record video."; return; }
-    recChunks = []; rec.ondataavailable = e => { if (e.data.size) recChunks.push(e.data); };
+    const type = vtype();
+    try { rec = new MediaRecorder(stream, type ? { mimeType: type, videoBitsPerSecond: 2.5e6 } : undefined); } catch { $('camMsg').textContent = "This browser can't record video."; return; }
+    const mime = (rec.mimeType || type || 'video/webm').split(';')[0], d = new Date(), pad = n => String(n).padStart(2, '0');
+    const who = `${side(0)} vs ${side(1)}`.replace(/[^\w &-]+/g, '').trim().replace(/\s+/g, '-');
+    recMeta = { id: Date.now(), mime, secs: 0, done: false,
+      name: `${tableMode ? 'table-' + TNUM + '-' : ''}${who || 'game'}-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.${mime.includes('mp4') ? 'mp4' : 'webm'}` };
+    const meta = recMeta; putRec(meta);
+    try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch {}
+    rec.ondataavailable = e => { if (e.data && e.data.size) tx('chunks', 'readwrite', o => o.add({ rec: meta.id, blob: e.data })).catch(() => {}); };
     rec.onstop = () => {
-      cancelAnimationFrame(drawing); clearInterval(recTimer); $('recDot').hidden = true; $('camRec').textContent = 'Record';
-      const mime = rec.mimeType || type || 'video/webm', ext = mime.includes('mp4') ? 'mp4' : 'webm';
-      clip = new File(recChunks, `table-${TNUM || 'game'}-${new Date().toISOString().slice(0,16).replace(/[:T]/g,'-')}.${ext}`, { type: mime });
-      $('camSave').href = URL.createObjectURL(clip); $('camSave').download = clip.name; $('camSaveRow').hidden = false;
-      $('camShare').hidden = !(navigator.canShare && navigator.canShare({ files: [clip] }));
+      cancelAnimationFrame(drawing); clearInterval(recTimer); recUI(false);
+      meta.secs = Math.round((Date.now() - recT0) / 1000); meta.done = true;
+      setTimeout(() => putRec(meta).then(() => { paintRecs(); $('camSheet').hidden = false; }), 300);   // let the last chunk land first
     };
-    rec.start(1000); recT0 = Date.now(); $('recDot').hidden = false; $('camRec').textContent = 'Stop'; $('camSaveRow').hidden = true;
-    recTimer = setInterval(() => { const t = Math.floor((Date.now() - recT0) / 1000); $('recTime').textContent = `${Math.floor(t/60)}:${String(t%60).padStart(2,'0')}`; }, 500);
-  };
-  $('camShare').onclick = () => { if (clip) navigator.share({ files: [clip], title: 'Pool game' }).catch(() => {}); };
+    rec.start(4000); recT0 = Date.now(); recUI(true); $('camSaveRow').hidden = true;
+    recTimer = setInterval(() => { const t = mmss(Date.now() - recT0); $('recTime').textContent = $('tvRecT').textContent = t; if (Date.now() - recT0 > (meta.secs + 30) * 1000) { meta.secs = Math.round((Date.now() - recT0) / 1000); putRec(meta); } }, 500);
+  }
+  const toggleRec = () => { if (rec && rec.state === 'recording') rec.stop(); else startRec(); };
+  $('camRec').onclick = () => { toggleRec(); if (!recSrc()) $('camSheet').hidden = false; };
+  $('tvRecBtn').onclick = toggleRec;
+  // Files are built ahead of time: iOS only opens the share sheet straight from a tap.
+  const files = new Map();
+  async function paintRecs(){
+    const box = $('recList');
+    let recs = []; try { recs = (await tx('recs', 'readonly', o => o.getAll())) || []; } catch {}
+    recs.sort((a, b) => b.id - a.id); box.innerHTML = '';
+    if (!recs.length) { box.innerHTML = '<p>No recordings yet.</p>'; return; }
+    for (const m of recs) {
+      const live = rec && rec.state === 'recording' && recMeta && recMeta.id === m.id;
+      const row = document.createElement('div');
+      const name = document.createElement('span'); name.textContent = m.name;
+      const info = document.createElement('small'); info.textContent = live ? ' recording…' : ` ${mmss(m.secs * 1000)}${m.done ? '' : ' · cut off'}`; name.appendChild(info);
+      const save = document.createElement('button'); save.className = 'primary'; save.textContent = 'Save'; save.disabled = live;
+      const del = document.createElement('button'); del.textContent = 'Delete'; del.disabled = live;
+      row.append(name, save, del); box.appendChild(row);
+      if (live) continue;
+      if (!files.has(m.id)) tx('chunks', 'readonly', o => o.index('rec').getAll(m.id)).then(cs => {
+        const f = new File((cs || []).map(c => c.blob), m.name, { type: m.mime }); files.set(m.id, f);
+        info.textContent += ` · ${(f.size / 1048576).toFixed(0)} MB`;
+      }).catch(() => {});
+      save.onclick = () => {
+        const f = files.get(m.id); if (!f) return;
+        if (navigator.canShare && navigator.canShare({ files: [f] })) navigator.share({ files: [f], title: 'Pool game' }).catch(() => {});
+        else { const a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = f.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000); }
+      };
+      del.onclick = async () => {
+        if (!confirm(`Delete ${m.name} from this device?`)) return;
+        await tx('chunks', 'readwrite', o => { const q = o.index('rec').openCursor(IDBKeyRange.only(m.id)); q.onsuccess = () => { const c = q.result; if (c) { c.delete(); c.continue(); } }; }).catch(() => {});
+        await tx('recs', 'readwrite', o => o.delete(m.id)).catch(() => {});
+        files.delete(m.id); paintRecs();
+      };
+    }
+  }
   $('camClose').onclick = () => {
-    if (rec && rec.state === 'recording') { $('camMsg').textContent = 'Stop the recording before closing.'; return; }
-    if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; $('camStart').textContent = 'Start camera'; $('camRec').disabled = true; }
+    if (camStream && rec && rec.state === 'recording') { $('camMsg').textContent = 'Stop the recording before closing.'; return; }
+    if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; $('camStart').textContent = 'Start camera'; $('camRec').disabled = !feedLive; }
     $('camSheet').hidden = true;
   };
   const renderBase = render;
