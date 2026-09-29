@@ -158,7 +158,25 @@
   .tv{position:relative;border-radius:14px;overflow:hidden;background:#000;border:2px solid var(--line);min-height:0}
   .tv iframe,.tv video{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000}
   .tv video{object-fit:contain}
-  .tv iframe{pointer-events:none} /* taps reach the tv, so they bring the controls back */
+  .tv iframe{pointer-events:none}
+  #viewCan{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;z-index:1}
+  .tv .tvover,.tv #replayVid{z-index:3}
+  .handle{position:absolute;z-index:6;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;border:3px solid var(--gold);background:rgba(242,193,78,.25);touch-action:none}
+  .handle::after{content:"";position:absolute;left:50%;top:50%;width:4px;height:4px;margin:-2px;border-radius:50%;background:var(--gold)}
+  .adjbar{position:absolute;top:8px;left:50%;transform:translateX(-50%);z-index:7;display:flex;gap:6px;align-items:center;background:rgba(10,16,14,.92);border-radius:12px;padding:6px 8px;font-size:13px;white-space:nowrap}
+  .refpop{position:absolute;right:8px;bottom:60px;z-index:6;width:min(340px,calc(100% - 16px));background:rgba(12,20,17,.96);border:2px solid var(--gold);border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:8px;box-shadow:0 8px 30px rgba(0,0,0,.5);overflow:hidden}
+  .refpop .rtop{display:flex;align-items:center;gap:8px}
+  .refpop .rtop b{font-size:17px;flex:1}
+  .refpop .rballs{display:flex;gap:4px}
+  .refpop .rballs .ball{width:30px;cursor:default}
+  .refpop p{margin:0;font-size:13px;color:var(--text)}
+  .refpop .rbtn{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .refpop .rbtn button.sel{background:var(--gold);border-color:var(--gold);color:#1d1606}
+  .refpop textarea{font:500 14px var(--ui);color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 8px;resize:none;width:100%}
+  .refpop .rfoot{display:flex;align-items:center;gap:8px}
+  .refpop .rfoot span{flex:1;font-size:12px;color:var(--muted)}
+  .refpop .rbar{position:absolute;left:0;bottom:0;height:3px;background:var(--gold);transition:width .25s linear}
+  .tvbar button.refon{border-color:#57d98a;color:#57d98a} /* taps reach the tv, so they bring the controls back */
   .tvadd{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:rgba(10,16,14,.92);border:2px dashed var(--line);border-radius:12px}
   .tvadd button{font-size:17px;padding:14px 22px}
   .tvadd small{color:var(--muted);font-size:13px}
@@ -283,6 +301,23 @@
     <div class="tv" id="tv">
       <div class="tvadd" id="tvAdd"><button class="primary" id="tvAddBtn">+ Add camera</button><small>Top-down table view · replays · recording</small></div>
       <iframe id="feedFrame" title="Top-down table camera" allow="autoplay; fullscreen" hidden></iframe>
+      <canvas id="viewCan" hidden></canvas>
+      <div id="handles" hidden><i class="handle" data-k="tl"></i><i class="handle" data-k="tr"></i><i class="handle" data-k="br"></i><i class="handle" data-k="bl"></i>
+        <div class="adjbar"><span>Drag the 4 dots onto the table corners</span><button class="primary" id="adjDone">Done</button><button id="adjCancel">Cancel</button></div></div>
+      <div class="tvover" id="tvTable" hidden>
+        <b>Table view</b>
+        <p id="tvTableS"></p>
+        <div class="row"><button class="primary" id="tAuto">Straighten automatically</button><button id="tAdjust">Adjust corners</button></div>
+        <div class="row"><button id="tRaw">Show camera as-is</button><button id="tClose">Close</button></div>
+      </div>
+      <div class="refpop" id="refPop" hidden>
+        <div class="rtop"><b id="refT"></b><span class="rballs" id="refBalls"></span></div>
+        <p id="refS"></p>
+        <div class="rbtn"><button data-c="yes">Yes</button><button data-c="no">No</button><button data-c="other">Other</button></div>
+        <textarea id="refC" rows="2" placeholder="Comment (optional) — tell it what really happened"></textarea>
+        <div class="rfoot"><span id="refAuto"></span><button id="refStop">⏸ Stop timer</button><button class="primary" id="refSubmit">Submit</button></div>
+        <i class="rbar" id="refBar"></i>
+      </div>
       <video id="replayVid" playsinline muted hidden></video>
       <span class="tvtag" id="tvRecTag" hidden>● REC <b id="tvRecT">0:00</b></span>
       <span class="tvtag" id="tvReplayTag" hidden>REPLAY</span>
@@ -308,6 +343,8 @@
         <button id="tvRecBtn">● Record</button>
         <button id="rp30">⟲ 30s</button><button id="rp60">⟲ 1 min</button>
         <button id="tvLiveBtn" hidden>● Back to live</button>
+        <button id="tvRef" class="refon">🤖 Ref on</button>
+        <button id="tvTableBtn">⊞ Table</button>
         <button id="tvRot" aria-label="Rotate 180 degrees">↻ Rotate</button>
         <button id="tvFull">⛶ Full screen</button>
         <button id="tvX" aria-label="Remove camera">✕</button>
@@ -552,6 +589,7 @@
 
 <script src="halls.js"></script>
 <script src="qrcode.js"></script>
+<script src="tablecv.js"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -1267,6 +1305,7 @@
   // ---------- Pool Cam feed in the middle of the scoreboard ("tv") ----------
   // phonecam.html in watch mode, embedded. Same origin, so its video can be recorded and replayed here.
   const FEEDKEY = 'poolar-feed';
+  let camKey = '1', corners = null, cornerTry = [], cornerT = 0, rawView = false, viewLast = 0;   // straightened view state (see tablecv)
   const fdoc = () => { try { return $('feedFrame').contentDocument; } catch { return null; } };
   const feedVideo = () => { const d = fdoc(), v = d && d.getElementById('remote'); return v && v.videoWidth ? v : null; };
   const feedFlipped = () => { const d = fdoc(), w = d && d.getElementById('wstage'); return !!(w && w.classList.contains('flip')); };
@@ -1277,7 +1316,8 @@
     code = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12) || '1';
     const u = new URL('phonecam.html', location.href); u.search = '';
     u.searchParams.set('watch', code); u.searchParams.set('embed', '1'); if (RELAY !== 'https://ntfy.sh') u.searchParams.set('relay', RELAY);
-    $('feedFrame').src = u; $('feedFrame').hidden = false; $('tvAdd').hidden = true; document.body.classList.add('hastv');
+    $('feedFrame').src = u; $('feedFrame').hidden = false; $('viewCan').hidden = false; $('tvAdd').hidden = true; document.body.classList.add('hastv');
+    camKey = code;
     feedLive = false; $('tvBar').hidden = true; $('tvWait').hidden = false;
     try { const q = qrcode(0, 'M'); q.addData(camLink()); q.make(); $('tvQr').innerHTML = q.createSvgTag({ cellSize: 4, margin: 0, scalable: true, alt: 'Open Pool Cam camera' }); } catch { $('tvQr').hidden = true; }
     try { localStorage.setItem(FEEDKEY, code); } catch {}
@@ -1287,8 +1327,8 @@
   function hideFeed(){
     if (rec && rec.state === 'recording' && !camStream) { if (!confirm('Stop recording and remove the camera?')) return; rec.stop(); }
     clearInterval(liveT); stopBuffer(); backToLive(); setFull(false);
-    $('feedFrame').src = 'about:blank'; $('feedFrame').hidden = true; $('tvAdd').hidden = false; document.body.classList.remove('hastv');
-    ['tvWait', 'tvAsk', 'tvBar'].forEach(id => $(id).hidden = true);
+    $('feedFrame').src = 'about:blank'; $('feedFrame').hidden = true; $('viewCan').hidden = true; $('tvAdd').hidden = false; document.body.classList.remove('hastv');
+    ['tvWait', 'tvAsk', 'tvBar', 'refPop', 'tvTable', 'handles'].forEach(id => $(id).hidden = true); closePop();
     feedLive = false; asked = false;
     try { localStorage.removeItem(FEEDKEY); } catch {}
     qs.delete('cam'); try { history.replaceState(null, '', '?' + qs); } catch {}
@@ -1297,6 +1337,7 @@
     const v = feedVideo();
     if (v && !feedLive) {
       feedLive = true; $('tvWait').hidden = true; $('tvBar').hidden = false; $('camRec').disabled = false; wakeBar();
+      if (!corners) loadCorners();
       // First connection: ask whether to record the match. Replays work either way.
       if (!asked && !(rec && rec.state === 'recording')) { asked = true; $('tvAsk').hidden = false; }
     }
@@ -1318,6 +1359,187 @@
   $('tv').addEventListener('pointerdown', wakeBar);
   { let c = qs.get('cam'); if (!c) try { c = localStorage.getItem(FEEDKEY); } catch {} if (c) showFeed(c); }
 
+  // ---------- Straightened table view + automatic referee ----------
+  // The camera is never exactly square to the table. tablecv.js finds the felt, fits the four rails
+  // and straightens the picture (WebGL keystone), so the feed, recordings and replays all show a
+  // clean 2:1 table. The same straightened picture feeds the shot tracker behind the ref pop-ups.
+  const CKEY = () => 'poolar-corners-' + camKey;
+  const warper = window.TableCV ? new TableCV.Warper($('viewCan')) : null;
+  const smallC = document.createElement('canvas'), smallW = window.TableCV ? new TableCV.Warper(smallC, [480, 240]) : null;
+  const grabC = document.createElement('canvas'); grabC.width = 320; grabC.height = 180;
+  function setCorners(q, save){
+    corners = q; const use = rawView ? null : q;
+    if (warper && warper.ok) warper.setQuad(use); if (smallW && smallW.ok) smallW.setQuad(q);
+    if (save) try { localStorage.setItem(CKEY(), JSON.stringify(q)); } catch {}
+  }
+  function loadCorners(){ try { const q = JSON.parse(localStorage.getItem(CKEY())); if (q && q.tl) { setCorners(q); return true; } } catch {} setCorners(null); return false; }
+  // Draw the (straightened) feed into the view canvas. Returns false when there is no picture yet.
+  function viewTick(){
+    const v = feedVideo(); if (!v || !warper || !warper.ok) return !!v && false;
+    if (!warper.draw(v, feedFlipped())) return false;
+    const now = performance.now();
+    if (!corners && !rawView && now - cornerT > 1500) { cornerT = now; autoCorners(v); }
+    if (refOn && corners && now - viewLast > 110) { viewLast = now; refTick(v); }
+    return true;
+  }
+  // Automatic corners: a few frames in a row must agree before the view switches over.
+  function autoCorners(v){
+    const x = grabC.getContext('2d', { willReadFrequently: true }); x.drawImage(v, 0, 0, 320, 180);
+    let q = null; try { q = TableCV.findCorners(x.getImageData(0, 0, 320, 180)); } catch {}
+    if (!q) { cornerTry = []; return; }
+    cornerTry.push(q); if (cornerTry.length > 3) cornerTry.shift();
+    if (cornerTry.length === 3 && TableCV.cornerDiff(cornerTry[0], cornerTry[2]) < .02) {
+      const avg = {}; ['tl', 'tr', 'br', 'bl'].forEach(k => avg[k] = { x: cornerTry.reduce((a, c) => a + c[k].x, 0) / 3, y: cornerTry.reduce((a, c) => a + c[k].y, 0) / 3 });
+      setCorners(avg, true); cornerTry = [];
+      note('Table straightened automatically. ⊞ Table to adjust.');
+    }
+  }
+  let noteEl = null;
+  function note(t){ $('tvNoteT').textContent = t; $('tvNote').hidden = false; $('tvNoteW').hidden = $('tvNoteS').hidden = true; clearTimeout(noteT); noteT = setTimeout(() => { $('tvNote').hidden = true; $('tvNoteW').hidden = $('tvNoteS').hidden = false; }, 5000); }
+  // Table menu
+  $('tvTableBtn').onclick = () => { $('tvTableS').textContent = corners ? (rawView ? 'Showing the camera as-is.' : 'Straightened to the table corners.') : 'Looking for the table edges…'; $('tvTable').hidden = false; };
+  $('tClose').onclick = () => $('tvTable').hidden = true;
+  $('tAuto').onclick = () => { rawView = false; cornerTry = []; cornerT = 0; setCorners(null); try { localStorage.removeItem(CKEY()); } catch {} $('tvTable').hidden = true; note('Looking for the table edges…'); };
+  $('tRaw').onclick = () => { rawView = !rawView; setCorners(corners); $('tRaw').textContent = rawView ? 'Straighten again' : 'Show camera as-is'; $('tvTable').hidden = true; };
+  // Adjust corners by hand: show the plain camera picture with four draggable dots.
+  let adj = null;
+  $('tAdjust').onclick = () => {
+    $('tvTable').hidden = true; adj = JSON.parse(JSON.stringify(corners || { tl: { x: .1, y: .1 }, tr: { x: .9, y: .1 }, br: { x: .9, y: .9 }, bl: { x: .1, y: .9 } }));
+    warper.setQuad(null); $('handles').hidden = false; placeHandles();
+  };
+  function viewRect(){ // where the canvas picture sits inside the tv box (object-fit: contain)
+    const b = $('tv').getBoundingClientRect(), c = $('viewCan'), k = Math.min(b.width / c.width, b.height / c.height), w = c.width * k, h = c.height * k;
+    return { x: (b.width - w) / 2, y: (b.height - h) / 2, w, h, b };
+  }
+  const flipPt = p => feedFlipped() ? { x: 1 - p.x, y: 1 - p.y } : p;
+  function placeHandles(){ const r = viewRect(); document.querySelectorAll('.handle').forEach(el => { const p = flipPt(adj[el.dataset.k]); el.style.left = r.x + p.x * r.w + 'px'; el.style.top = r.y + p.y * r.h + 'px'; }); }
+  document.querySelectorAll('.handle').forEach(el => el.addEventListener('pointerdown', e => {
+    e.preventDefault(); e.stopPropagation(); el.setPointerCapture(e.pointerId);
+    const move = ev => { const r = viewRect(); const p = { x: Math.min(1, Math.max(0, (ev.clientX - r.b.left - r.x) / r.w)), y: Math.min(1, Math.max(0, (ev.clientY - r.b.top - r.y) / r.h)) }; adj[el.dataset.k] = flipPt(p); placeHandles(); };
+    const up = () => { el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); };
+    el.addEventListener('pointermove', move); el.addEventListener('pointerup', up);
+  }));
+  $('adjDone').onclick = () => { rawView = false; setCorners(adj, true); $('handles').hidden = true; adj = null; };
+  $('adjCancel').onclick = () => { setCorners(corners); $('handles').hidden = true; adj = null; };
+
+  // ---------- Ref: suggestions with Yes / No / Other + comment ----------
+  // After groups are picked it watches each shot: first ball the cue ball touches (must be the
+  // shooter's group, or the 8 once they're cleared), balls pocketed, cue ball pocketed. Each call is a
+  // pop-up; with no answer it applies itself after a countdown. Every answer (and comment) is sent to
+  // Claude with a picture of the shot, and nudges how sure the ref must be before it speaks up.
+  const REFKEY = 'poolar-ref-params', FBTOPIC = 'poolar-ref-fb';
+  let refOn = true, refP = { gates: { scratch: .4, foul: .5, made: .4, turn: .3, eight: .5 }, autoSec: 12 };
+  try { const p = JSON.parse(localStorage.getItem(REFKEY)); if (p && p.gates) refP = { ...refP, ...p, gates: { ...refP.gates, ...p.gates } }; if (p && p.off) refOn = false; } catch {}
+  const saveRefP = () => { try { localStorage.setItem(REFKEY, JSON.stringify({ ...refP, off: !refOn })); } catch {} };
+  const tracker = window.TableCV ? new TableCV.Tracker() : null;
+  if (tracker) tracker.onShot = ev => { try { judge(ev); } catch (e) { console.warn(e); } };
+  function refUI(){ $('tvRef').textContent = refOn ? '🤖 Ref on' : '🤖 Ref off'; $('tvRef').classList.toggle('refon', refOn); }
+  $('tvRef').onclick = () => { refOn = !refOn; saveRefP(); refUI(); if (!refOn) closePop(); };
+  refUI();
+  function refTick(v){ if (!smallW || !smallW.ok || !smallW.draw(v, feedFlipped())) return; try { tracker.feed(smallW.read(), performance.now()); } catch {} }
+  const GROUP = { solids: [1, 2, 3, 4, 5, 6, 7], stripes: [9, 10, 11, 12, 13, 14, 15] };
+  const PNAME = ['top-left corner', 'top side', 'top-right corner', 'bottom-left corner', 'bottom side', 'bottom-right corner'];
+  const ballEl = n => n ? `<span class="ball${n > 8 ? ' st' : ''}" style="--c:${BC[(n - 1) % 8]}"><span>${n}</span></span>` : '<span class="ball" style="--c:#777"><span>?</span></span>';
+  const clsName = b => b.cls === 'eight' ? 'the 8' : b.num ? `the ${b.num}` : `a ${b.cls}`;
+  function judge(ev){
+    if (!refOn || winner(scores()) >= 0) return;
+    const i = st.shooter, opp = 1 - i, g = st.groups[i], me = whoShoots(i), them = st.dbl ? side(opp) : st.names[opp];
+    const made = ev.pocketed.filter(b => !(b.num && st.down.includes(b.num)));
+    const nums = made.map(b => b.num).filter(Boolean);
+    const mine = g ? GROUP[g].filter(n => !st.down.includes(n)) : null;
+    const onEight = g && mine.length === 0;
+    const eightIn = made.some(b => b.cls === 'eight' || b.num === 8);
+    let sug;
+    if (eightIn) {
+      const legal = onEight && !ev.scratch;
+      sug = { type: 'eight', conf: .7, balls: [8], title: legal ? '8 ball made' : '8 ball made early', text: legal ? `${me} made the 8. ${side(i)} won the rack?` : `${me} made the 8 ${ev.scratch ? 'and scratched' : 'before clearing their group'}. ${side(opp)} wins the rack?`, apply: () => $('w' + (legal ? i : opp)).click(), auto: 'Win rack' };
+    } else if (ev.scratch) {
+      sug = { type: 'scratch', conf: .7, balls: nums, title: 'Scratch', text: `Cue ball went in the ${PNAME[ev.cuePocket] || 'pocket'}. Ball in hand → ${them}?`, apply: () => { markMade(nums); passTable(true); }, auto: 'Foul' };
+    } else if (g && ev.first && ev.first.cls !== 'cluster' && ev.first.cls !== 'cue') {
+      const want = onEight ? 'eight' : g === 'solids' ? 'solid' : 'stripe';
+      if (ev.first.cls !== want) sug = { type: 'foul', conf: ev.first.conf, balls: [ev.first.num || 0], title: 'Bad hit', text: `${me} is on ${onEight ? 'the 8' : g} but hit ${clsName(ev.first)} first. Foul → ball in hand to ${them}?`, apply: () => { markMade(nums); passTable(true); }, auto: 'Foul' };
+    }
+    if (!sug && made.length) {
+      const own = !g ? made.filter(b => b.cls === 'solid' || b.cls === 'stripe') : made.filter(b => b.num ? GROUP[g].includes(b.num) : b.cls === (g === 'solids' ? 'solid' : 'stripe'));
+      const keep = own.length > 0;
+      sug = { type: 'made', conf: .7, balls: nums.length ? nums : [0], title: made.length > 1 ? `${made.length} balls made` : 'Ball made',
+        text: `${made.map(clsName).join(', ')} in. ${keep ? `${me} keeps shooting?` : `Not ${me}'s group → turn over to ${them}?`}`,
+        apply: () => { markMade(nums); if (!keep) passTable(false); }, auto: keep ? 'Mark ball' : 'Turn over' };
+    }
+    // Only call a turn over when the tracker saw the cue ball actually hit something: a shaky read
+    // must never end someone's turn by itself.
+    if (!sug && !ev.first) return;
+    if (!sug) sug = { type: 'turn', conf: .6, balls: [], title: 'Turn over?', text: `No ball made. ${them} to shoot.`, apply: () => passTable(false), auto: 'Turn over' };
+    if (sug.conf < (refP.gates[sug.type] || .5)) return;       // not sure enough yet: stay quiet
+    sug.ev = ev; sug.key = stateKey(); sug.shooter = i; sug.group = g || null;
+    shotSnap().then(b => { sug.snap = b; });
+    showPop(sug);
+  }
+  function markMade(nums){ nums.forEach(n => { if (n && !st.down.includes(n)) $('ball' + n).click(); }); }
+  // Picture of the shot for the feedback: the straightened table with what the ref saw drawn on it.
+  function shotSnap(){
+    return new Promise(res => {
+      const c = document.createElement('canvas'); c.width = 640; c.height = 320; const x = c.getContext('2d');
+      try { x.drawImage($('viewCan'), 0, 0, 640, 320); } catch {}
+      const L = tracker && tracker.last;
+      if (L) { x.lineWidth = 2; x.font = '700 12px system-ui'; L.balls.forEach(b => { x.strokeStyle = b.cls === 'cue' ? '#fff' : b.cls === 'eight' ? '#f0f' : b.cls === 'stripe' ? '#ff0' : '#0ff'; x.beginPath(); x.arc(b.x * 640, b.y * 320, 9, 0, 7); x.stroke(); x.fillStyle = x.strokeStyle; x.fillText(b.cls === 'cue' ? 'C' : String(b.num || b.cls[0]), b.x * 640 + 10, b.y * 320 - 8); }); }
+      c.toBlob(b => res(b), 'image/jpeg', .7);
+    });
+  }
+  let pop = null, popT = 0;
+  function showPop(sug){
+    // The next shot already happened with a call still unanswered: that call stands.
+    if (pop && !pop.touched) finish('auto');
+    closePop(); pop = sug; sug.choice = null;
+    $('refT').textContent = sug.title; $('refS').textContent = sug.text;
+    $('refBalls').innerHTML = sug.balls.map(ballEl).join('');
+    $('refC').value = ''; document.querySelectorAll('#refPop .rbtn button').forEach(b => b.classList.remove('sel'));
+    $('refPop').hidden = false; wakeBar();
+    const t0 = Date.now(), T = refP.autoSec * 1000;
+    const tick = () => {
+      if (!pop || pop !== sug) return;
+      $('refStop').hidden = !!sug.touched;
+      if (sug.touched) { $('refAuto').textContent = 'Timer stopped. Pick an answer, comment, Submit.'; $('refBar').style.width = '0'; return; }
+      const left = T - (Date.now() - t0);
+      if (stateKey() !== sug.key) return closePop();            // someone already tapped on the scoreboard
+      if (left <= 0) { finish('auto'); return; }
+      $('refAuto').textContent = `${sug.auto} automatically in ${Math.ceil(left / 1000)}s`; $('refBar').style.width = (left / T * 100) + '%';
+      popT = setTimeout(tick, 250);
+    };
+    tick();
+  }
+  function closePop(){ clearTimeout(popT); pop = null; $('refPop').hidden = true; }
+  const touch2 = () => { if (pop) pop.touched = true; };
+  document.querySelectorAll('#refPop .rbtn button').forEach(b => b.onclick = () => { if (!pop) return; touch2(); pop.choice = b.dataset.c; document.querySelectorAll('#refPop .rbtn button').forEach(x => x.classList.toggle('sel', x === b)); if (b.dataset.c === 'other') $('refC').focus(); });
+  $('refStop').onclick = () => { touch2(); $('refStop').hidden = true; $('refAuto').textContent = 'Timer stopped. Pick an answer, comment, Submit.'; $('refBar').style.width = '0'; };
+  $('refC').addEventListener('focus', touch2); $('refC').addEventListener('input', touch2);
+  $('refSubmit').onclick = () => { if (!pop) return; if (!pop.choice && !$('refC').value.trim()) { $('refAuto').textContent = 'Pick Yes, No or Other first'; return; } finish(pop.choice || 'other'); };
+  $('refPop').addEventListener('pointerdown', e => e.stopPropagation());
+  function finish(choice){
+    const sug = pop; if (!sug) return; closePop();
+    const comment = $('refC').value.trim();
+    if ((choice === 'yes' || choice === 'auto') && stateKey() === sug.key) sug.apply();
+    // Learn: a "No" makes the ref more cautious about that kind of call, a "Yes" slightly bolder.
+    const g = refP.gates;
+    if (choice === 'no') g[sug.type] = Math.min(.95, (g[sug.type] || .5) + .1);
+    if (choice === 'yes') g[sug.type] = Math.max(.2, (g[sug.type] || .5) - .03);
+    saveRefP();
+    sendFb(sug, choice, comment);
+  }
+  // Feedback goes to Claude (ntfy topic) with the picture attached, and stays in a local log too.
+  async function sendFb(sug, choice, comment){
+    const ev = sug.ev, meta = { v: 1, game, table: TNUM || 0, names: st.names, shooter: sug.shooter, group: sug.group, rack: st.racks.length + 1,
+      type: sug.type, title: sug.title, text: sug.text, choice, comment, conf: sug.conf, gates: refP.gates,
+      shot: { first: ev.first, pocketed: ev.pocketed, scratch: ev.scratch, ms: Math.round(ev.ms) }, corners: corners && ['tl', 'tr', 'br', 'bl'].map(k => [+corners[k].x.toFixed(3), +corners[k].y.toFixed(3)]), t: Date.now() };
+    try { const log = JSON.parse(localStorage.getItem('poolar-ref-log') || '[]'); log.push(meta); localStorage.setItem('poolar-ref-log', JSON.stringify(log.slice(-300))); } catch {}
+    const j = JSON.stringify(meta).replace(/[\u007f-￿]/g, c => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0')).slice(0, 3800);
+    for (let k = 0; k < 20 && !sug.snap; k++) await new Promise(r => setTimeout(r, 100));
+    try {
+      const r = await fetch(`${RELAY}/${FBTOPIC}`, sug.snap ? { method: 'PUT', body: sug.snap, headers: { 'X-Filename': `shot-${meta.t}.jpg`, 'X-Message': j } } : { method: 'POST', body: j });
+      if (!r.ok) throw 0;
+    } catch { try { await fetch(`${RELAY}/${FBTOPIC}`, { method: 'POST', body: j }); } catch {} }
+  }
+
   // ---------- Instant replay ----------
   // A rolling buffer of short standalone clips of the raw feed (last ~75 s, in memory only).
   // Replay cuts the current clip, then plays the newest clips back-to-back from the right point.
@@ -1329,7 +1551,7 @@
     if (progRaf) return;
     const c = $('progCan');
     if (!progStream && c.captureStream) progStream = c.captureStream(30);
-    const tick = () => { const v = feedVideo(); if (v) paint(c, v, feedFlipped()); progRaf = requestAnimationFrame(tick); };
+    const tick = () => { if (viewTick()) paint(c, $('viewCan'), false, true); progRaf = requestAnimationFrame(tick); };
     tick();
   }
   function progOff(){ cancelAnimationFrame(progRaf); progRaf = 0; }
@@ -1453,16 +1675,18 @@
     paint($('camCan'), recSrc(), !camStream && feedFlipped());
     drawing = requestAnimationFrame(drawFrame);
   }
-  function paint(c, v, flip){
-    const x = c.getContext('2d');
+  // above: fit the picture above the score bar (the straightened 2:1 table fits exactly).
+  function paint(c, v, flip, above){
+    const x = c.getContext('2d'), bh = Math.round(c.height * .09), H = above ? c.height - bh : c.height;
     if (v) {
       // Fit without stretching: a phone mounted upright sends a tall picture.
-      const k = Math.min(c.width / (v.videoWidth || c.width), c.height / (v.videoHeight || c.height)), w = (v.videoWidth || c.width) * k, h = (v.videoHeight || c.height) * k;
-      if (Math.abs(w - c.width) > 2 || Math.abs(h - c.height) > 2) { x.fillStyle = '#000'; x.fillRect(0, 0, c.width, c.height); }
+      const vw = v.videoWidth || v.width || c.width, vh = v.videoHeight || v.height || H;
+      const k = Math.min(c.width / vw, H / vh), w = vw * k, h = vh * k;
+      if (Math.abs(w - c.width) > 2 || Math.abs(h - H) > 2) { x.fillStyle = '#000'; x.fillRect(0, 0, c.width, c.height); }
       x.save(); if (flip) { x.translate(c.width, c.height); x.rotate(Math.PI); }
-      x.drawImage(v, (c.width - w) / 2, (c.height - h) / 2, w, h); x.restore();
+      x.drawImage(v, (c.width - w) / 2, (H - h) / 2, w, h); x.restore();
     }
-    const s = scores(), h = Math.round(c.height * .09);
+    const s = scores(), h = bh;
     x.fillStyle = 'rgba(8,14,12,.78)'; x.fillRect(0, c.height - h, c.width, h);
     x.fillStyle = '#fff'; x.font = `700 ${Math.round(h * .5)}px system-ui, sans-serif`; x.textBaseline = 'middle';
     const label = `${side(0)}  ${s[0]} – ${s[1]}  ${side(1)}`;
