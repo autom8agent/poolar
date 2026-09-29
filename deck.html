@@ -215,6 +215,44 @@
   #clipPlayer{width:100%;border-radius:12px;background:#000;max-height:45vh}
   .wclips{display:flex;flex-direction:column;gap:8px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px}
   .wclips p{color:var(--text)!important;font-size:14px}
+  /* Bottom panel: quick game controls, highlights, small join QR codes. */
+  .dock{display:grid;grid-template-columns:1.25fr 1fr;gap:10px;margin-top:8px;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px))}
+  @media (max-width:799px){ .dock{grid-template-columns:1fr} }
+  .dcard{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:10px;min-width:0}
+  .dcard h3{margin:0;font-family:var(--num);font-weight:900;font-size:20px;letter-spacing:.05em;text-transform:uppercase;display:flex;align-items:center;gap:8px}
+  .dcard h3 small{font-family:var(--ui);font-size:12px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--muted);margin-left:auto}
+  .dopts{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px}
+  .dopt{display:flex;flex-direction:column;gap:5px;min-width:0}
+  .dopt > span{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .dopt .seg button{padding:9px 4px;font-size:13px}
+  .dopt .seg button[aria-checked="true"]{background:var(--chalk);color:#04162b}
+  .rstep{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .rstep button{border:0;border-radius:0;font-size:20px;padding:6px 0;background:var(--bg)}
+  .rstep b{text-align:center;font-family:var(--num);font-weight:900;font-size:22px}
+  .dock .addrow input{font-size:15px;padding:9px 10px}
+  .hlrow{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:4px}
+  .hlc{flex:none;width:150px;scroll-snap-align:start;background:var(--bg);border:1px solid var(--line);border-radius:12px;overflow:hidden;padding:0;text-align:left;display:flex;flex-direction:column}
+  .hlc .th{position:relative;aspect-ratio:2/1;background:#0a1210 center/cover no-repeat;display:grid;place-items:center;font-size:22px;color:#fff}
+  .hlc .th i{position:absolute;right:6px;bottom:5px;font-style:normal;font-size:11px;font-weight:700;background:rgba(0,0,0,.65);padding:1px 6px;border-radius:6px}
+  .hlc span{padding:6px 8px;font-size:12px;font-weight:700;line-height:1.25}
+  .hlc small{display:block;color:var(--muted);font-weight:600}
+  .hlempty{color:var(--muted);font-size:13px;margin:0}
+  .djoin{grid-column:1 / -1;display:grid;grid-template-columns:repeat(2,auto) 1fr;gap:14px;align-items:center}
+  .jq{display:flex;align-items:center;gap:10px}
+  .jq .qr{padding:6px;border-radius:10px;width:auto;margin:0}
+  .jq .qr svg{width:64px;height:64px}
+  .jq b{display:block;font-size:14px} .jq small{display:block;color:var(--muted);font-size:12px;max-width:150px}
+  .djoin .jbtns{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+  @media (max-width:799px){ .djoin{grid-template-columns:1fr 1fr} .djoin .jbtns{grid-column:1 / -1;justify-content:stretch} .djoin .jbtns button{flex:1} }
+  body.viewer .hostonly{display:none!important}
+  /* Watching phones are read-only: no scoring taps. */
+  body.viewer .ctrl, body.viewer .bar, body.viewer .won, body.viewer .pen, body.viewer #lockIc{display:none!important}
+  body.viewer .nameb{pointer-events:none}
+  /* Phone with the camera: camera on top, then two full-size player cards. */
+  @media (max-width:799px), (orientation:portrait){
+    body.scroll.hastv .players{height:auto;grid-template-rows:minmax(190px,32vh) 150px 150px}
+  }
+  .viewtag{font-size:11px;font-weight:800;letter-spacing:.08em;color:#1d1606;background:var(--gold);border-radius:6px;padding:2px 7px}
   .reclist{display:flex;flex-direction:column;gap:6px}
   .reclist div{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:6px 6px 6px 10px}
   .reclist span{flex:1;min-width:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -336,15 +374,15 @@
       <div class="tvover" id="tvClip" hidden>
         <b id="tvClipT">Clip ready</b>
         <p>Saves to this iPad: tap Save, then <b>Save Video</b> to put it in Photos.</p>
-        <div class="row"><button class="primary" id="clipSave">Save clip to iPad</button><button id="clipNo">Discard</button></div>
+        <div class="row"><button class="primary" id="clipSave">Save clip to iPad</button><button id="clipPost">📤 Post to highlights</button><button id="clipNo">Discard</button></div>
       </div>
       <canvas id="clipCan" hidden></canvas><canvas id="progCan" width="1280" height="720" hidden></canvas>
       <div class="tvbar" id="tvBar" hidden>
-        <button id="tvRecBtn">● Record</button>
+        <button class="hostonly" id="tvRecBtn">● Record</button>
         <button id="rp30">⟲ 30s</button><button id="rp60">⟲ 1 min</button>
         <button id="tvLiveBtn" hidden>● Back to live</button>
-        <button id="tvRef" class="refon">🤖 Ref on</button>
-        <button id="tvTableBtn">⊞ Table</button>
+        <button class="hostonly refon" id="tvRef">🤖 Ref on</button>
+        <button class="hostonly" id="tvTableBtn">⊞ Table</button>
         <button id="tvRot" aria-label="Rotate 180 degrees">↻ Rotate</button>
         <button id="tvFull">⛶ Full screen</button>
         <button id="tvX" aria-label="Remove camera">✕</button>
@@ -405,6 +443,30 @@
     <form class="addrow" id="addForm2"><input id="addName2" placeholder="Add a name to the line" autocomplete="off" enterkeyhint="done"><button type="submit">Add</button></form>
     <div class="two3"><button class="primary" id="waitShare">Share waitlist</button><button id="qrOpen">Show QR code</button></div>
     <div id="board"></div>
+  </section>
+
+  <section class="dock" id="dock" aria-label="Game controls">
+    <div class="dcard hostonly">
+      <h3>Game <small>Changes apply right away</small></h3>
+      <div class="dopts">
+        <div class="dopt"><span>Players</span><div class="seg" role="radiogroup"><button type="button" role="radio" data-q="dbl:0">1 v 1</button><button type="button" role="radio" data-q="dbl:1">Doubles</button></div></div>
+        <div class="dopt"><span>Game</span><div class="seg seg3" role="radiogroup"><button type="button" role="radio" data-q="gt:8">8-ball</button><button type="button" role="radio" data-q="gt:9">9-ball</button><button type="button" role="radio" data-q="gt:10">10-ball</button></div></div>
+        <div class="dopt"><span>Format</span><div class="seg seg3" role="radiogroup"><button type="button" role="radio" data-q="fo:race">Race</button><button type="button" role="radio" data-q="fo:wso">Winner stays</button><button type="button" role="radio" data-q="fo:rot">Rotate</button></div></div>
+        <div class="dopt" id="dRaceRow"><span>Race to</span><div class="rstep"><button type="button" data-q="race:-1" aria-label="Shorter race">−</button><b id="dRace">5</b><button type="button" data-q="race:1" aria-label="Longer race">+</button></div></div>
+      </div>
+      <form class="addrow" id="dAdd"><input id="dAddName" placeholder="Add a player to the line" autocomplete="off" enterkeyhint="done"><button type="submit" class="primary">Add player</button></form>
+      <div class="two"><button type="button" id="dMore">All settings</button><button type="button" id="dNew">New match 0–0</button></div>
+    </div>
+    <div class="dcard">
+      <h3>Highlights <small id="hlSub"></small></h3>
+      <div class="hlrow" id="hlRow"><p class="hlempty">Clips of each turn and rack show up here while the camera records.</p></div>
+      <button type="button" id="hlAll" class="hostonly">🎬 All clips</button>
+    </div>
+    <div class="dcard djoin">
+      <div class="jq"><div class="qr" id="qrWatch"></div><div><b>Watch on your phone</b><small>Live camera, score and highlights</small></div></div>
+      <div class="jq"><div class="qr" id="qrLine"></div><div><b>Join the line</b><small>Put your name on the waitlist</small></div></div>
+      <div class="jbtns"><button type="button" id="jShare" class="primary">Share watch link</button><button type="button" id="jCopy">Copy</button></div>
+    </div>
   </section>
 </div>
 
@@ -703,6 +765,10 @@
   // and every open copy of the page listens on that topic. Newest change wins.
   const qs = new URLSearchParams(location.search);
   const RELAY = qs.get('relay') || 'https://ntfy.sh';
+  // Viewer mode (the "Watch on your phone" link): score, camera and highlights only. No ref, no
+  // recording, so a second device can never double up automatic calls.
+  const VIEW = qs.get('view') === '1';
+  if (VIEW) document.body.classList.add('viewer');
   const rid = () => Math.random().toString(36).slice(2, 12);
   const game = (qs.get('game') || '').replace(/[^a-z0-9]/gi, '').slice(0, 24) || (st.game || rid());
   const me = qs.has('me') ? +qs.get('me') : -1;
@@ -1281,7 +1347,7 @@
     setTimeout(() => $('waitShare').textContent = 'Share waitlist', 1600); };
   function paintLineCard(){
     const on = rotating();
-    document.body.classList.toggle('scroll', on); $('lineCard').hidden = !on;
+    document.body.classList.add('scroll'); $('lineCard').hidden = !on;
     if (!on) return;
     $('lcTitle').textContent = st.fmtMode === 'wso' ? 'Winner stays on' : "Rotate · winner doesn't stay";
     const champ = st.lastW && [side(0), side(1)].includes(st.lastW) ? `${short(st.lastW)} ×${st.streak}` : '–';
@@ -1309,7 +1375,7 @@
   const fdoc = () => { try { return $('feedFrame').contentDocument; } catch { return null; } };
   const feedVideo = () => { const d = fdoc(), v = d && d.getElementById('remote'); return v && v.videoWidth ? v : null; };
   const feedFlipped = () => { const d = fdoc(), w = d && d.getElementById('wstage'); return !!(w && w.classList.contains('flip')); };
-  let feedLive = false, asked = false, liveT = 0;
+  let feedLive = false, asked = VIEW, liveT = 0;
   const camLink = () => { const u = new URL('phonecam.html', location.href); u.search = ''; u.searchParams.set('cam', '1'); if (RELAY !== 'https://ntfy.sh') u.searchParams.set('relay', RELAY); return String(u); };
   // No code: Pool Cam's shared channel is "1". An old ?cam=K7QX2P link still picks that camera.
   function showFeed(code){
@@ -1338,8 +1404,12 @@
     if (v && !feedLive) {
       feedLive = true; $('tvWait').hidden = true; $('tvBar').hidden = false; $('camRec').disabled = false; wakeBar();
       if (!corners) loadCorners();
-      // First connection: ask whether to record the match. Replays work either way.
-      if (!asked && !(rec && rec.state === 'recording')) { asked = true; $('tvAsk').hidden = false; }
+      // First connection: ask whether to record the match, once per game. After that the answer is
+      // remembered, so coming back to the page (or a reload) resumes recording without asking.
+      const pref = recPref();
+      if (!VIEW && pref === '1' && !splitOn) { asked = true; setTimeout(() => { if (!splitOn) startSplit(); }, 400); }
+      else if (!asked && pref !== '0' && !(rec && rec.state === 'recording')) { asked = true; $('tvAsk').hidden = false; }
+      else asked = true;
     }
     if (v) { progOn(); keepBuffer(progStream); }
   }
@@ -1347,7 +1417,7 @@
   $('feedGo').onclick = () => { showFeed(qs.get('cam')); $('camSheet').hidden = true; };
   $('tvCancel').onclick = $('tvX').onclick = hideFeed;
   $('askRec').onclick = () => { $('tvAsk').hidden = true; startRec(); };
-  $('askNo').onclick = () => { $('tvAsk').hidden = true; };
+  $('askNo').onclick = () => { $('tvAsk').hidden = true; setRecPref('0'); };
   $('tvRot').onclick = () => { const d = fdoc(), b = d && d.getElementById('rot'); if (b) b.click(); setTimeout(watchLive, 50); };
   // Full screen inside the page (reliable on iPad Safari); the same button puts it back in its spot.
   function setFull(on){ $('tv').classList.toggle('full', on); $('tvFull').textContent = on ? '⤡ Exit full screen' : '⛶ Full screen'; wakeBar(); }
@@ -1430,6 +1500,7 @@
   const REFKEY = 'poolar-ref-params', FBTOPIC = 'poolar-ref-fb';
   let refOn = true, refP = { gates: { scratch: .4, foul: .5, made: .4, turn: .3, eight: .5 }, autoSec: 12 };
   try { const p = JSON.parse(localStorage.getItem(REFKEY)); if (p && p.gates) refP = { ...refP, ...p, gates: { ...refP.gates, ...p.gates } }; if (p && p.off) refOn = false; } catch {}
+  if (VIEW) refOn = false;
   const saveRefP = () => { try { localStorage.setItem(REFKEY, JSON.stringify({ ...refP, off: !refOn })); } catch {} };
   const tracker = window.TableCV ? new TableCV.Tracker() : null;
   if (tracker) tracker.onShot = ev => { try { judge(ev); } catch (e) { console.warn(e); } };
@@ -1754,6 +1825,7 @@
       if (ms < 1500) { await dropRec(meta.id); return; }   // a double tap or an Undo, not a real turn
       meta.secs = Math.round(ms / 1000); meta.done = true; await putRec(meta);
       if (r.after) r.after(meta);
+      paintHL();
     }, 400);
     try { r.start(4000); } catch { return null; }
     return { r, meta };
@@ -1765,16 +1837,17 @@
     files.delete(id);
   }
   function startSplit(){
+    if (VIEW) return;
     progOn(); if (!progStream || !feedVideo()) { $('camMsg').textContent = "The top-down feed isn't live yet."; return; }
     if (winner(scores()) >= 0) return;
     try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch {}
-    splitOn = true; autoRec = true; wasOver = false; lastKey = stateKey(); splitT0 = Date.now();
+    splitOn = true; autoRec = true; wasOver = false; lastKey = stateKey(); splitT0 = Date.now(); setRecPref('1');
     rackSeg = segRec(segMeta('rack')); turnSeg = segRec(segMeta('turn'));
     recUI(true); clearInterval(recTimer);
     recTimer = setInterval(() => { $('recTime').textContent = $('tvRecT').textContent = `${mmss(Date.now() - splitT0)} · R${st.racks.length + 1} T${st.turns + 1}`; }, 500);
   }
   function stopSplit(){
-    splitOn = false; autoRec = false; clearInterval(recTimer); recUI(false);
+    splitOn = false; autoRec = false; setRecPref('0'); clearInterval(recTimer); recUI(false);
     segStop(turnSeg); segStop(rackSeg, m => rackDone(m)); turnSeg = rackSeg = null;
   }
   function onScoreChange(){
@@ -1792,6 +1865,12 @@
     }
     if (over) { splitOn = false; wasOver = true; clearInterval(recTimer); recUI(false); setTimeout(paintWinClips, 1500); }
   }
+  // Back from another app: iOS pauses the page, so restart any recorder that stopped.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || !splitOn) return;
+    if (!turnSeg || turnSeg.r.state !== 'recording') { segStop(turnSeg); turnSeg = segRec(segMeta('turn')); }
+    if (!rackSeg || rackSeg.r.state !== 'recording') { segStop(rackSeg); rackSeg = segRec(segMeta('rack')); }
+  });
   // After each rack: a note on the video with Watch / Share for that rack.
   let noteT = 0;
   async function rackDone(m){
@@ -1864,7 +1943,9 @@
         bs.onclick = () => shareFiles([f]);
         bd.onclick = () => downloadFile(f);
         bx.onclick = async () => { if (!confirm(`Delete ${m.name} from this iPad?`)) return; await dropRec(m.id); openClips(); };
-        row.append(name, bw, bs, bd, bx); rows.appendChild(row);
+        const bp = document.createElement('button'); bp.textContent = '📤'; bp.setAttribute('aria-label', 'Post to highlights'); bp.disabled = !ok;
+        bp.onclick = async () => { bp.disabled = true; if (await postHL(f, m.kind === 'turn' ? m.who : m.kind === 'rack' ? `Rack ${m.rack}` : 'Replay', g.lbl(m), m.secs)) bp.textContent = '✓'; bp.disabled = false; };
+        row.append(name, bw, bs, bp, bd, bx); rows.appendChild(row);
       }
       el.appendChild(rows); box.appendChild(el);
     }
@@ -1887,8 +1968,112 @@
     if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; $('camStart').textContent = 'Start camera'; $('camRec').disabled = !feedLive; }
     $('camSheet').hidden = true;
   };
+  // ---------- Bottom panel: quick controls ----------
+  function recPref(){ try { return localStorage.getItem('poolar-rec-' + game); } catch { return null; } }
+  function setRecPref(v){ try { localStorage.setItem('poolar-rec-' + game, v); } catch {} }
+  function paintDock(){
+    const set = (q, on) => { const b = document.querySelector(`[data-q="${q}"]`); if (b) b.setAttribute('aria-checked', String(on)); };
+    set('dbl:0', !st.dbl); set('dbl:1', !!st.dbl);
+    [8, 9, 10].forEach(g => set('gt:' + g, st.gtype === g));
+    ['race', 'wso', 'rot'].forEach(f => set('fo:' + f, st.fmtMode === f));
+    $('dRace').textContent = st.race[0] === st.race[1] ? st.race[0] : `${st.race[0]}–${st.race[1]}`;
+    $('dRaceRow').style.visibility = rotating() ? 'hidden' : '';
+  }
+  $('dock').addEventListener('click', e => {
+    const b = e.target.closest('[data-q]'); if (!b) return;
+    const [k, v] = b.dataset.q.split(':');
+    if (k === 'dbl') { const d = v === '1'; if (d === !!st.dbl) return; act(() => { st.dbl = d; st.rot = [0, 0]; }); if (d && !st.partners[0]) $('nb0').click(); }
+    if (k === 'gt') { const g = +v; if (g === st.gtype) return; act(() => { st.down = []; st.groups = [null, null]; st.gtype = g; }); }
+    if (k === 'fo') { if (v === st.fmtMode) return; act(() => { st.fmtMode = v; if (st.turns === 0) st.shooter = breaker(); }); }
+    if (k === 'race') act(() => { st.race = st.race.map(r => Math.max(1, Math.min(99, r + +v))); });
+  });
+  $('dAdd').addEventListener('submit', e => { e.preventDefault(); const n = $('dAddName').value.trim(); if (!n) return;
+    act(() => st.queue.push({ id: qid(), name: n.slice(0, 24) })); $('dAddName').value = ''; try { paintLine(); } catch {} });
+  $('dMore').onclick = openSetup;
+  $('dNew').onclick = () => { if (!confirm('Start a new match at 0–0?')) return; openSetup(); $('setNew').click(); };
+  // Small QR codes: watch this game on a phone (viewer mode), and join the waitlist.
+  const watchLink = () => { const u = new URL('deck.html', location.href); u.search = ''; u.searchParams.set('game', game); u.searchParams.set('view', '1'); u.searchParams.set('cam', camKey || '1'); if (RELAY !== 'https://ntfy.sh') u.searchParams.set('relay', RELAY); return String(u); };
+  const qrInto = (el, url, alt) => { try { const q = qrcode(0, 'M'); q.addData(url); q.make(); el.innerHTML = q.createSvgTag({ cellSize: 3, margin: 0, scalable: true, alt }); } catch { el.hidden = true; } };
+  qrInto($('qrWatch'), watchLink(), 'Watch this game'); qrInto($('qrLine'), waitUrl(), 'Join the line');
+  $('jShare').onclick = () => navigator.share ? navigator.share({ title: 'Watch our pool game', url: watchLink() }).catch(() => {}) : $('jCopy').click();
+  $('jCopy').onclick = async () => { try { await navigator.clipboard.writeText(watchLink()); $('jCopy').textContent = 'Copied'; } catch { $('jCopy').textContent = 'Copy failed'; } setTimeout(() => $('jCopy').textContent = 'Copy', 1500); };
+  if (VIEW) { const t = document.createElement('span'); t.className = 'viewtag'; t.textContent = 'WATCHING'; $('rackNo').before(t); }
+
+  // ---------- Highlights ----------
+  // On the scoring iPad: the latest turn / rack / replay clips saved on it. On a viewer's phone:
+  // clips the iPad posted (ntfy attachments, kept a few hours by the free relay).
+  const HLTOPIC = 'poolar-hl-' + game, thumbs = new Map();
+  function hlCard(label, sub, dur, onPlay, thumbSrc){
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'hlc';
+    b.innerHTML = `<div class="th">▶<i></i></div><span></span>`;
+    b.querySelector('i').textContent = dur; b.querySelector('span').textContent = label;
+    b.querySelector('span').insertAdjacentHTML('beforeend', '<small></small>'); b.querySelector('small').textContent = sub;
+    if (thumbSrc) b.querySelector('.th').style.backgroundImage = `url(${thumbSrc})`;
+    b.onclick = onPlay; return b;
+  }
+  // First frame of a clip as a small picture.
+  function thumbOf(id, f){
+    if (thumbs.has(id)) return Promise.resolve(thumbs.get(id));
+    return new Promise(res => {
+      const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = URL.createObjectURL(f);
+      const done = u => { URL.revokeObjectURL(v.src); thumbs.set(id, u); res(u); };
+      v.onloadeddata = () => { try { v.currentTime = Math.min(.5, (v.duration || 1) / 2); } catch { done(''); } };
+      v.onseeked = () => { const c = document.createElement('canvas'); c.width = 240; c.height = 120; try { c.getContext('2d').drawImage(v, 0, 0, 240, 120); done(c.toDataURL('image/jpeg', .6)); } catch { done(''); } };
+      v.onerror = () => done(''); setTimeout(() => done(''), 4000);
+    });
+  }
+  let hlBusy = false;
+  async function paintHL(){
+    if (hlBusy) return; hlBusy = true;
+    try {
+      const row = $('hlRow');
+      if (VIEW) return await paintPosted();
+      const mine = (await allRecs()).filter(m => m.game === game && m.done && !recording(m.id)).sort((a, b) => b.id - a.id).slice(0, 12);
+      $('hlSub').textContent = mine.length ? `${mine.length} newest · saved on this iPad` : '';
+      if (!mine.length) { row.innerHTML = '<p class="hlempty">Clips of each turn and rack show up here while the camera records.</p>'; return; }
+      row.innerHTML = '';
+      for (const m of mine) {
+        const f = await fileOf(m).catch(() => null); if (!f || !f.size) continue;
+        const label = m.kind === 'turn' ? m.who : m.kind === 'rack' ? `Rack ${m.rack}` : 'Replay clip';
+        const sub = m.kind === 'turn' ? `Rack ${m.rack} · turn ${m.turn}` : m.kind === 'rack' ? (m.winnerName ? `${m.winnerName} won` : 'full rack') : 'saved replay';
+        const card = hlCard(label, sub, mmss((m.secs || 0) * 1000), () => { openClips().then(() => watch([{ f, t: `${label} · ${sub}` }], 'Highlight')); }, thumbs.get(m.id));
+        row.appendChild(card);
+        if (!thumbs.has(m.id)) thumbOf(m.id, f).then(u => { if (u) card.querySelector('.th').style.backgroundImage = `url(${u})`; });
+      }
+    } finally { hlBusy = false; }
+  }
+  async function paintPosted(){
+    let items = [];
+    try {
+      const txt = await (await fetch(`${RELAY}/${HLTOPIC}/json?poll=1&since=all`)).text();
+      items = txt.split('\n').filter(Boolean).map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(m => m && m.attachment && m.attachment.url).reverse();
+    } catch {}
+    const row = $('hlRow'); $('hlSub').textContent = items.length ? `${items.length} posted` : '';
+    if (!items.length) { row.innerHTML = '<p class="hlempty">Highlights the scorer posts show up here.</p>'; return; }
+    row.innerHTML = '';
+    for (const m of items.slice(0, 20)) {
+      let meta = {}; try { meta = JSON.parse(m.message); } catch {}
+      row.appendChild(hlCard(meta.label || 'Highlight', meta.sub || '', meta.dur || '', () => {
+        $('clipsSheet').hidden = false; $('clipGroups').innerHTML = '';
+        const v = $('clipPlayer'); v.hidden = false; v.src = m.attachment.url; v.play().catch(() => {});
+        $('clipNow').hidden = false; $('clipNow').textContent = `▶ ${meta.label || 'Highlight'}${meta.sub ? ' · ' + meta.sub : ''}`;
+      }));
+    }
+  }
+  // Post a clip for everyone watching (free relay: files up to 15 MB, kept a few hours).
+  async function postHL(f, label, sub, secs){
+    if (!f) return;
+    if (f.size > 14.5 * 1048576) { alert('That clip is too big to post (over 15 MB). Save it to Photos and share it from there.'); return; }
+    const msg = JSON.stringify({ label, sub, dur: mmss((secs || 0) * 1000) }).replace(/[\u007f-￿]/g, c => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'));
+    try { const r = await fetch(`${RELAY}/${HLTOPIC}`, { method: 'PUT', body: f, headers: { 'X-Filename': f.name, 'X-Message': msg } }); if (!r.ok) throw 0; return true; }
+    catch { alert("Couldn't post it right now. Try again in a minute."); return false; }
+  }
+  $('clipPost').onclick = async () => { if (!clipFile) return; $('clipPost').disabled = true; if (await postHL(clipFile, 'Replay', `${side(0)} vs ${side(1)}`, 30)) $('clipPost').textContent = '✓ Posted'; $('clipPost').disabled = false; };
+  $('hlAll').onclick = openClips;
+  paintHL(); if (VIEW) setInterval(paintHL, 60000);
+
   const renderBase = render;
-  render = function(){ renderBase(); try { lineTick(); paintLineCard(); if (!$('shareSheet').hidden) paintLine(); } catch {} try { onScoreChange(); } catch {} };
+  render = function(){ renderBase(); try { lineTick(); paintLineCard(); if (!$('shareSheet').hidden) paintLine(); } catch {} try { onScoreChange(); } catch {} try { paintDock(); } catch {} };
 
   render(); drawClock(); save(); connect(); statusTick(); listenWait();
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} openSetup(); }
