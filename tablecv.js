@@ -385,7 +385,18 @@
           }
         }
         if (this.shot) for (const tr of this.tracks) { tr.restSince = 0; tr.lastRest = 0; tr.restDur = 0; tr.restX = null; }
-        else restBook();
+        else {
+          restBook();
+          // Safety net: the cue ball settled in a new spot (1.2 s still) and no shot was called since it last settled.
+          if (cue && cue.restDur > 1200 && !(this.handUntil > t)) {
+            const nowN = nNow;
+            if (this.settled && Math.hypot(cue.x - this.settled.x, (cue.y - this.settled.y) * .5) > R * 3 && this.settled.t > (this.lastShotT || 0)) {
+              const ev = { type: 'shot', missed: true, first: null, pocketed: [], scratch: false, cuePocket: -1, rail: false, kick: false, noHit: false, before: this.settled.n, after: nowN, ms: 0, t };
+              this.lastShotT = t; this.settled = { x: cue.x, y: cue.y, t, n: nowN };
+              if (this.onShot) this.onShot(ev);
+            } else if (!this.settled || Math.hypot(cue.x - this.settled.x, (cue.y - this.settled.y) * .5) <= R * 3) this.settled = { x: cue.x, y: cue.y, t: this.settled && Math.hypot(cue.x - this.settled.x, (cue.y - this.settled.y) * .5) <= R * 3 ? this.settled.t : t, n: nowN };
+          }
+        }
         for (const tr of this.tracks) if (tr.seen === t) tr.prevStill = tr.stillFrom || (tr.v < this.o.still ? t : 0);
         if (cue) cue.prevStill = cue.stillFrom || (cue.v < this.o.still ? t : 0);
         return;
@@ -469,6 +480,7 @@
         this.tracks = this.tracks.filter(tr => !tr.pocketed);
         this.shot = null;
         const ev = { type: 'shot', first: s.first, pocketed, scratch, cuePocket, rail: !!s.rail, kick: !!s.kick, noHit: !s.first && !pocketed.length, ms: t - s.t0, t };
+        this.lastShotT = t; { const c2 = this.tracks.find(x => x.id === s.cueId); this.settled = c2 && !scratch ? { x: c2.x, y: c2.y, t, n: nNow } : null; }
         if (this.onShot) this.onShot(ev);
       }
     }

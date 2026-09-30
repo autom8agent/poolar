@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930210508"><script src="stream.js?v=20260930210508"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930210937"><script src="stream.js?v=20260930210937"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -797,10 +797,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930210508"></script>
-<script src="halls.js?v=20260930210508"></script>
-<script src="qrcode.js?v=20260930210508"></script>
-<script src="tablecv.js?v=20260930210508"></script>
+<script src="hallday.js?v=20260930210937"></script>
+<script src="halls.js?v=20260930210937"></script>
+<script src="qrcode.js?v=20260930210937"></script>
+<script src="tablecv.js?v=20260930210937"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -1984,6 +1984,11 @@
   //  own ball down (or any ball on an open table) -> keep shooting; else -> turn over
   function judge(ev){
     if (!refOn || winner(scores()) >= 0) return;
+    if (ev.missed) {   // the safety net: the cue ball moved but the ref didn't catch the shot
+      const d = (ev.before || 0) - (ev.after || 0);
+      return showPop({ type: 'turn', conf: .3, balls: [], title: "I didn't catch that shot", text: `The cue ball moved but I missed the shot. Balls on the table: ${ev.before} → ${ev.after}${d > 0 ? ` (${d} went down?)` : ''}. Tap No and tell me what happened, or mark the balls.`,
+        apply: () => {}, auto: '', noAuto: true, key: stateKey(), shooter: st.shooter, group: null, ev });
+    }
     if (st.gtype === 9 || st.gtype === 10) return judgeRot(ev);   // rotation games: lowest ball first, the 9/10 wins the rack
     const i = st.shooter, opp = 1 - i, g = st.groups[i], me = whoShoots(i), them = st.dbl ? side(opp) : st.names[opp];
     const made = ev.pocketed.filter(b => !(b.num && st.down.includes(b.num)));
@@ -2737,5 +2742,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930210508"></script>
+<script src="build.js?v=20260930210937"></script>
 </body></html>
