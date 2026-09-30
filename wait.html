@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="build" content="20260930063940"><script src="stream.js"></script>
+<meta charset="utf-8"><meta name="build" content="20260930075603"><script src="stream.js?v=20260930075603"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0a0f14">
 <title>Table Waitlist</title>
@@ -55,8 +55,9 @@
 
   <div class="card" id="joinCard">
     <p class="h">Get in line</p>
-    <form id="joinForm"><input id="name" placeholder="Your name" autocomplete="name" enterkeyhint="go" maxlength="24" required><select id="sl" aria-label="Skill level" style="width:auto"><option value="">Skill level</option><option value="1">SL 1</option><option value="2">SL 2</option><option value="3">SL 3</option><option value="4">SL 4</option><option value="5">SL 5</option><option value="6">SL 6</option><option value="7">SL 7</option><option value="8">SL 8</option><option value="9">SL 9</option></select><button class="primary" type="submit">Join</button></form>
-    <p class="sub" style="margin:4px 0 0;font-size:13px">Skill level only matters at APA-rules tables. Don't know yours? Pick 3.</p>
+    <div id="meRow" hidden style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"><button class="primary" type="button" id="joinMe"></button><button type="button" id="notMe" style="background:none;border:0;color:#8c9bab;text-decoration:underline;font-size:13px">Not you? Use a different name</button></div>
+    <form id="joinForm"><input id="name" placeholder="Your name" autocomplete="name" enterkeyhint="go" maxlength="24" required><input id="contact" placeholder="Phone or email (saves your account)" autocomplete="email" inputmode="email" style="flex-basis:100%"><select id="sl" aria-label="Skill level" style="width:auto"><option value="">Skill level</option><option value="1">SL 1</option><option value="2">SL 2</option><option value="3">SL 3</option><option value="4">SL 4</option><option value="5">SL 5</option><option value="6">SL 6</option><option value="7">SL 7</option><option value="8">SL 8</option><option value="9">SL 9</option></select><button class="primary" type="submit">Join</button></form>
+    <p class="sub" style="margin:4px 0 0;font-size:13px">Add your phone or email once and next time it's one tap: we sign you in, or sign you up if you're new. Skill level (APA/BCA) sets your race at skill-level tables. Don't know yours? Leave it blank.</p>
     <p>The players at the table see the line and call the next person up.</p>
   </div>
 
@@ -64,7 +65,14 @@
     <p class="h">You're in line</p>
     <div class="me" id="pos">…</div>
     <p id="posNote">Keep this page open. It updates when the line moves.</p>
+    <button id="notify" type="button">🔔 Alert me when I'm next and when I'm up</button>
+    <p class="sub" style="margin:0;font-size:12px">Alerts show on this phone while this page is open. Text messages are coming later.</p>
     <button id="leave">Leave the line</button>
+  </div>
+  <div class="card" id="otherCard" hidden>
+    <p class="h">Your other lines</p>
+    <div id="others"></div>
+    <p class="sub" style="margin:0;font-size:12px">Join as many tables as you like. If your turn comes while you're playing somewhere else, you keep your spot and the next person goes ahead.</p>
   </div>
 
   <div class="card">
@@ -74,7 +82,9 @@
   <a id="back" href="hall.html">← All tables</a>
 </div>
 
-<script src="halls.js"></script>
+<script src="hallday.js?v=20260930075603"></script>
+<script src="halls.js?v=20260930075603"></script>
+<script src="auth.js?v=20260930075603"></script>
 <script>
 (() => {
   const qs = new URLSearchParams(location.search);
@@ -89,6 +99,14 @@
   const MEKEY = 'poolar-wait-me-' + TOPIC;
   let me = null; try { me = JSON.parse(localStorage.getItem(MEKEY) || 'null'); } catch {}
   let line = null;   // latest line message from the table
+  // At 2 AM Chicago time (hallday.js) every game ends and so does its line: anything from before then is dropped.
+  const dayB = () => window.PoolarDay ? PoolarDay.boundary() : 0;
+  const joinedAt = m => m.at || parseInt(String(m.id).slice(1, -4), 36) || 0;   // ids are 'w' + time + 4 random characters
+  function dayCheck(){
+    if (line && (line.ts || 0) < dayB()) line = null;
+    if (me && joinedAt(me) < dayB()) { me = null; try { localStorage.removeItem(MEKEY); } catch {} }
+  }
+  dayCheck();
 
   if (T) { $('tb').hidden = false; $('tbN').textContent = T; $('title').textContent = `Table ${T}`; document.title = `Table ${T} Waitlist`; }
   $('where').textContent = H ? `${H.name} · ${H.area} · waitlist` : 'Waitlist';
@@ -105,18 +123,37 @@
       : q.length ? q.map((x, k) => `<li class="${me && x.id === me.id ? 'you' : ''}"><b>${k+1}</b>${esc(x.n)}${me && x.id === me.id ? ' (you)' : ''}</li>`).join('')
       : '<li>Nobody in line. You\'re next if you join.</li>';
     if (line && line.now) { $('nowCard').hidden = false;
-      $('now').innerHTML = `${esc(line.now[0])} vs ${esc(line.now[1])}<small>${line.fmt === 'wso' ? 'Winner stays on' : line.fmt === 'rot' ? 'Rotating games' : `Score ${line.score[0]}–${line.score[1]}`}</small>`; }
+      $('now').innerHTML = `${esc(line.now[0])} vs ${esc(line.now[1])}<small>${({ wso: '👑 Winner stays on', rot: '🎲 Rotating games', pick: '🏆 Winner picks the game', rand: '🎲 Random game' }[line.fmt] || `Race · ${line.score[0]}–${line.score[1]}`) + (line.gtype ? ` · ${line.gtype}-ball` : '')}</small>`; }
     const inLine = !!me;
     $('joinCard').hidden = inLine; $('youCard').hidden = !inLine;
+
+    // The table closed its line (or is locked): no new joins.
+    const closed = !!(line && line.closed) && !inLine;
+    const acct = who(), quick = !!acct && !useOther && !closed;
+    $('joinForm').hidden = closed || quick; $('meRow').hidden = !quick; $('meRow').style.display = quick ? 'flex' : 'none';
+    if (quick) $('joinMe').textContent = `Join as ${acct.name}${slFor(acct) ? ` · SL ${slFor(acct)}` : ''}`;
+    let cn = document.getElementById('closedNote');
+    if (!cn) { cn = document.createElement('p'); cn.id = 'closedNote'; cn.style.cssText = 'color:#ff8a80;font-weight:700;margin:6px 0'; $('joinForm').after(cn); }
+    cn.hidden = !closed; cn.textContent = '🔒 This table isn\'t taking a waitlist right now.';
     if (inLine) {
       const playing = line && line.now && line.now.some(n => n === me.name) && mineAt < 0;
       $('pos').textContent = playing ? "You're up" : mineAt >= 0 ? `#${mineAt + 1}` : line ? 'Adding…' : '…';
-      $('posNote').textContent = playing ? 'Head to the table.' : mineAt === 0 ? "You're next. Get your cue ready." : 'Keep this page open. It updates when the line moves.';
+      const at = mineAt >= 0 && q[mineAt].at;
+      $('posNote').textContent = playing ? 'Head to the table.' : at ? `You're playing on table ${at}. You keep your spot; the next person goes ahead until you're free.` : mineAt === 0 ? "You're next. Get your cue ready." : 'Keep this page open. It updates when the line moves.';
+      const stage = playing ? 'up' : mineAt === 0 ? 'next' : '';
+      if (stage && stage !== lastStage) alertMe(stage === 'up' ? `You're up on table ${T || ''}! Head to the table.` : `You're next on table ${T || ''}. Get your cue ready.`);
+      lastStage = stage;
     }
+    $('notify').textContent = notifyOn ? '🔔 Alerts on' : "🔔 Alert me when I'm next and when I'm up";
+    // Lines this phone is in at other tables of this hall.
+    const others = []; try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i);
+      if (k.startsWith('poolar-wait-me-') && k !== MEKEY && k.includes(HALL)) { const t = (k.match(/-t(\d+)$/) || k.match(/(\d+)$/) || [])[1]; others.push({ k, t }); } } } catch {}
+    $('otherCard').hidden = !others.length;
+    $('others').innerHTML = others.map(o => `<a href="wait.html?hall=${HALL}&t=${o.t}" style="display:block;color:#57d98a;font-weight:700;padding:4px 0">Table ${o.t} →</a>`).join('');
   }
   function take(raw){
     let m; try { m = JSON.parse(raw); } catch { return; }
-    if (m && m.kind === 'line' && (!line || m.ts >= line.ts)) line = m;
+    if (m && m.kind === 'line' && (m.ts || 0) >= dayB() && (!line || m.ts >= line.ts)) line = m;
   }
   async function load(){
     try {
@@ -125,15 +162,37 @@
     } catch {}
     paint();
   }
+  let notifyOn = false, lastStage = '';
+  try { notifyOn = localStorage.getItem('poolar-wait-notify') === '1'; } catch {}
+  function alertMe(t){ if (!notifyOn) return; try { navigator.vibrate && navigator.vibrate([300, 150, 300]); } catch {}
+    try { if (window.Notification && Notification.permission === 'granted') new Notification('Pool table', { body: t }); } catch {}
+    let d = document.getElementById('alertBar'); if (!d) { d = document.createElement('div'); d.id = 'alertBar'; d.style.cssText = 'position:fixed;left:12px;right:12px;top:12px;z-index:9;background:#57d98a;color:#08140c;font-weight:800;padding:14px;border-radius:12px;text-align:center'; document.body.appendChild(d); d.onclick = () => d.remove(); }
+    d.textContent = t; }
+  $('notify').onclick = async () => { notifyOn = !notifyOn; try { localStorage.setItem('poolar-wait-notify', notifyOn ? '1' : '0'); } catch {}
+    if (notifyOn && window.Notification && Notification.permission === 'default') { try { await Notification.requestPermission(); } catch {} } paint(); };
+  // Signed-in member (or a saved profile): one tap to join. Otherwise name + phone/email signs you in or up.
+  let useOther = false;
+  const A = window.PoolarAuth;
+  const who = () => { const m = window.POOLAR && POOLAR.me && POOLAR.me(); return m && m.name ? m : null; };
+  const slFor = m => +(line && line.gtype === 9 ? m.sl9 : m.sl8) || +m.sl || 0;
+  $('notMe').onclick = () => { useOther = true; paint(); };
+  $('joinMe').onclick = () => { const m = who(); if (!m) return; $('name').value = m.name; if (slFor(m)) $('sl').value = String(slFor(m)); join(m.name, slFor(m)); };
   $('joinForm').addEventListener('submit', async e => {
     e.preventDefault();
     const name = $('name').value.trim().slice(0, 24); if (!name) return;
-    const sl = +$('sl').value || 0;   // only used at APA-rules tables (it sets the race)
-    me = { id: 'w' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name, sl };
+    const sl = +$('sl').value || 0;   // sets the race at skill-level tables
+    const contact = $('contact').value.trim();
+    if (contact && A) { const k = line && line.gtype === 9 ? 'sl9' : 'sl8';
+      try { await A.signIn({ contact }); if (sl) await A.update({ [k]: sl }); }
+      catch { try { await A.signUp({ name, contact, ...(sl ? { [k]: sl } : {}) }); } catch {} } }
+    join(name, sl);
+  });
+  async function join(name, sl){
+    me = { id: 'w' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6).padEnd(4, '0'), name, sl, at: Date.now() };
     try { localStorage.setItem(MEKEY, JSON.stringify(me)); localStorage.setItem('poolar-my-name', name); } catch {}
     paint();
     try { await post({ kind: 'join', id: me.id, name, sl }); } catch { $('posNote').textContent = "Couldn't reach the table. Check your connection and try again."; }
-  });
+  }
   $('leave').onclick = async () => {
     if (!me) return; const id = me.id; me = null;
     try { localStorage.removeItem(MEKEY); } catch {}
@@ -142,9 +201,10 @@
   load();
   try { const es = new PoolarStream(`${RELAY}/${TOPIC}/sse`);
     es.onmessage = e => { try { const d = JSON.parse(e.data); if (d.event === 'message') { take(d.message); paint(); } } catch {} }; } catch {}
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') load(); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { dayCheck(); load(); } });
+  setInterval(() => { const had = !!(line || me); dayCheck(); if (had && !(line || me)) paint(); }, 30000);
 })();
 </script>
-<script src="build.js"></script>
+<script src="build.js?v=20260930075603"></script>
 </body>
 </html>

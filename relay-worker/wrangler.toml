@@ -1,0 +1,18 @@
+name = "poolar-relay"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+[[durable_objects.bindings]]
+name = "TOPIC"
+class_name = "Topic"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Topic"]
+
+# 2 AM in Chicago is 07:00 UTC in summer (CDT) and 08:00 UTC in winter (CST); the worker posts only from the one that matches.
+[triggers]
+crons = ["0 7 * * *", "0 8 * * *"]
+
+[vars]
+HALLS = "surge-chicago"

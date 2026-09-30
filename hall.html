@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="build" content="20260930063940"><script src="stream.js"></script>
+<meta charset="utf-8"><meta name="build" content="20260930075603"><script src="stream.js?v=20260930075603"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0a0f14">
 <title>Surge Billiards Tables</title>
@@ -35,7 +35,8 @@
   .tbl:focus-visible .rail,.tbl:hover .rail{stroke:var(--gold);stroke-width:.8}
   .tbl .felt{fill:var(--felt)}
   .tbl.busy .felt{fill:var(--felt-busy)}
-  .tbl.mine .rail{stroke:var(--gold);stroke-width:.8}
+  .tbl.busy .rail{stroke:#57d98a;stroke-width:1}
+  .tbl.shut .rail{stroke:#ff5a4e;stroke-width:1}
   .tnum{font-family:var(--num);font-weight:900;fill:#fff;paint-order:stroke;stroke:rgba(0,0,0,.35);stroke-width:.5}
   .tag{font-family:var(--ui);font-weight:700;fill:#fff}
   .list{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -45,7 +46,8 @@
   .list .ic{display:flex;align-items:center;gap:6px;color:var(--muted);min-width:0}
   .list .st{font-size:12px;font-weight:700;letter-spacing:.04em;color:var(--free);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .list a.busy .st{color:var(--text)}
-  .list a.mine{border-color:var(--gold)} .list a.mine .st{color:var(--gold)}
+  .list a.busy{border-color:#57d98a}
+  .list a.shut{border-color:#ff5a4e}
   .list a.closed{opacity:.55}
   .q{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:20px;padding:0 6px;border-radius:10px;font-size:12px;font-weight:800;color:#10161c}
   .nav{display:flex;gap:8px;flex-wrap:wrap}
@@ -59,7 +61,22 @@
   a.evlink.night{background:linear-gradient(90deg,#0f3a52,#0b2433);border-color:var(--felt);color:#bfe8ff}
   a.evlink.night b{background:var(--felt);color:#04162b}
   .note{font-size:13px;color:var(--muted);margin:0;line-height:1.45}
+  .demo{background:#3a1d4a;border:1px solid #b77be0;color:#f1ddff;border-radius:12px;padding:8px 12px;font-weight:700;font-size:14px}
+  .demo a{color:#fff}
+  .tag2{font-family:var(--ui);font-weight:800;fill:#dfe9f1;letter-spacing:.15px}
+  .list .md{font-size:12px;color:var(--muted);grid-column:2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   h2{margin:4px 0 0;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .day{display:flex;align-items:center;gap:8px;margin:0}
+  .day b{font-size:15px;font-weight:700}
+  .day button{margin-left:auto;font:700 13px var(--ui);color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer}
+  .day button[aria-expanded="true"]{border-color:var(--felt);color:#bfe8ff}
+  .up{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:0 16px}
+  .up::-webkit-scrollbar{display:none}
+  .up a{flex:0 0 auto;display:flex;flex-direction:column;gap:1px;max-width:220px;padding:8px 12px;border-radius:12px;background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--felt);color:var(--text);text-decoration:none}
+  .up a.tour{border-left-color:var(--gold)}
+  .up a small{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.03em}
+  .up a span{font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .up a:focus-visible,.day button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 </style>
 </head>
 <body>
@@ -71,6 +88,9 @@
     </div>
     <span class="live" id="live">Offline</span>
   </header>
+  <p class="day"><b id="today"></b><button type="button" id="calBtn" aria-expanded="false" aria-controls="cal">📅 Calendar</button></p>
+  <div class="up" id="up" hidden></div>
+  <div id="cal" hidden></div>
   <nav class="nav"><a class="me" id="meLink" href="profile.html">My profile</a><a id="tourLink" href="tournament.html">Tournament</a><a id="nightLink" href="night.html">Nights</a><a id="adminLink" href="admin.html">Admin</a></nav>
   <div class="event" id="event" hidden></div>
   <a class="event evlink" id="tsum" hidden></a>
@@ -82,20 +102,23 @@
     <span id="ftLegend">9-ft front · 7-ft back room</span>
     <span>Line: <i class="q" style="background:#57d98a">0</i><i class="q" style="background:#c8e04a">1–2</i><i class="q" style="background:#f59a3a">3–4</i><i class="q" style="background:#e4574a">5+</i></span>
   </div>
+  <div class="legend" id="modeLegend"><span>👤 Singles</span><span>👥 Doubles</span><span>👥S Scotch doubles</span><span>🏁 Race</span><span>👑 Winner stays</span><span>🎲 Rotate</span><span>🏆 Winner picks</span><span>🎲+ball Random game</span><span>🔒 Locked / no waitlist</span></div>
+  <div class="demo" id="demoBar" hidden>DEMO · made-up tables to show every option. <a id="demoOff" href="#">Show the real tables</a></div>
   <div class="map"><svg id="plan" role="group" aria-label="Floor plan"></svg></div>
   <h2>All tables</h2>
   <div class="list" id="grid"></div>
   <p class="note">A table locks to the first group that opens it. Friends join through the Share button inside the game. When you finish, tap <b>Free table</b> in the game so the next group can use it. A table that sits idle for 30 minutes frees up by itself.</p>
 </div>
 
-<script src="halls.js"></script>
+<script src="hallday.js?v=20260930075603"></script>
+<script src="halls.js?v=20260930075603"></script>
 <script>
 (() => {
   const qs = new URLSearchParams(location.search);
   const HALL = (qs.get('hall') || 'surge-chicago').replace(/[^a-z0-9-]/gi, '');
   const H = window.POOLAR_HALLS[HALL] || window.POOLAR_HALLS['surge-chicago'];
   const RELAY = qs.get('relay') || 'https://ntfy.sh';
-  const TOPIC = 'poolar-hall-' + HALL;
+  const TOPIC = 'poolar-hall-' + HALL, SCHED = 'poolar-sched-' + HALL;
   const STALE = 30 * 60 * 1000;
   const $ = id => document.getElementById(id);
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
@@ -108,9 +131,10 @@
   const config = {};   // table number -> what the admin has set the table up for
   const cams = {};     // table number -> { top: ts, behind: ts } of live camera heartbeats (every 4 min)
   const camLive = t => { const c = cams[t]; return !!c && Object.values(c).some(ts => ts && Date.now() - ts < 6 * 60 * 1000); };
-  let event = null, tsum = null, night = null;
-  const P = window.POOLAR;
-  const busy = t => { const s = status[t]; return s && s.state === 'busy' && Date.now() - s.ts < STALE; };
+  let event = null, tsum = null;
+  const P = window.POOLAR, D = window.PoolarDay, S = D.Sched(HALL);
+  // Busy: a fresh 'busy' status from today. At 2 AM Chicago time (hallday.js) every game ends, so older ones don't count.
+  const busy = t => { const s = status[t]; return s && s.state === 'busy' && Date.now() - s.ts < STALE && s.ts >= D.boundary(); };
   const tableUrl = n => { const u = new URL('deck.html', location.href); u.searchParams.set('hall', HALL); u.searchParams.set('t', n);
     if (RELAY !== 'https://ntfy.sh') u.searchParams.set('relay', RELAY); return u.toString(); };
 
@@ -123,9 +147,10 @@
     for (const f of H.features) {
       if (f.kind === 'wall') out += `<rect x="${f.x}" y="${f.y}" width="${f.w}" height="${f.h}" rx=".6" fill="#6b4f36"/>` +
         Array.from({ length: Math.floor(f.w / 5) }, (_, i) => `<circle cx="${f.x + 2.5 + i*5}" cy="${f.y + f.h + 2}" r="1.1" fill="#3a2c20"/>`).join('') +
-        `<text x="${f.x + f.w/2}" y="${f.y - 1.2}" text-anchor="middle" class="tag" font-size="2.6" fill="var(--muted)" style="fill:var(--muted)">${esc(f.label)}</text>`;
+        (f.label ? `<text x="${f.x + f.w/2}" y="${f.y - 1.2}" text-anchor="middle" class="tag" font-size="2.6" fill="var(--muted)" style="fill:var(--muted)">${esc(f.label)}</text>` : '');
+      if (f.kind === 'divider') out += `<line x1="2" y1="${f.y}" x2="${w-2}" y2="${f.y}" stroke="#3b4a5a" stroke-width=".35" stroke-dasharray="1.6 1"/><rect x="${w/2-13}" y="${f.y-1.9}" width="26" height="3.8" rx="1.9" fill="var(--floor)" stroke="#3b4a5a" stroke-width=".3"/><text x="${w/2}" y="${f.y+.95}" text-anchor="middle" class="tag" font-size="2.5" style="fill:#c9d6e2;letter-spacing:.3px">${esc(f.label)}</text>`;
       if (f.kind === 'seats') for (let i = 0; i < f.n; i++) out += `<circle cx="${f.x}" cy="${f.y + i*f.gap}" r="2.4" fill="#2b2118" stroke="#4a3828" stroke-width=".4"/><circle cx="${f.x+12}" cy="${f.y + i*f.gap}" r="2.4" fill="#2b2118" stroke="#4a3828" stroke-width=".4"/>`;
-      if (f.kind === 'bar') out += `<rect x="${f.x}" y="${f.y}" width="${f.w}" height="${f.h}" rx="1.5" fill="#6b4f36"/><text x="${f.x + f.w/2}" y="${f.y + f.h/2 + 1.3}" text-anchor="middle" class="tag" font-size="3.6">${esc(f.label)}</text>`;
+      if (f.kind === 'bar') out += `<rect x="${f.x}" y="${f.y}" width="${f.w}" height="${f.h}" rx="1.5" fill="#6b4f36"/><text x="${f.x + f.w/2}" y="${f.y + f.h/2 + 1.2}" text-anchor="middle" class="tag" font-size="3.2">${esc(f.label)}</text>`;
       if (f.kind === 'door') out += `<rect x="${f.x}" y="${f.y - 1.2}" width="${f.w}" height="2.4" fill="var(--bg)"/><text x="${f.x + f.w/2}" y="${f.y - 3.5}" text-anchor="middle" class="tag" font-size="3.2" style="fill:var(--gold)">▲ ${esc(f.label)}</text>`;
       if (f.kind === 'label') out += `<text x="${f.x}" y="${f.y}" text-anchor="middle" class="tag" font-size="2.6" style="fill:var(--muted);letter-spacing:.3px">${esc(f.text)}</text>`;
     }
@@ -139,7 +164,7 @@
       const dots = [1,2,3].flatMap(k => [k*long/8, long - k*long/8]).flatMap(d => across
         ? [[x+d, y+.6], [x+d, y+th-.6]] : [[x+.6, y+d], [x+tw-.6, y+d]]);
       const diamonds = dots.map(([cx, cy]) => `<circle cx="${cx}" cy="${cy}" r=".22" fill="#cfd6dc"/>`).join('');
-      const fs = t.ft === 9 ? 7.5 : 6.2;
+      const fs = t.ft === 9 ? 9 : 8;
       const numX = across ? x + tw*.3 : x + tw/2, numY = y + th/2 + fs*.35;
       const tagX = across ? x + tw*.68 : x + tw/2, tagY = across ? y + th/2 + .8 : y + th - 3.2;
       out += `<g class="tbl" id="tb${n}" role="link" tabindex="0" aria-label="Table ${n}, ${t.ft}-foot">
@@ -147,7 +172,8 @@
         <rect class="felt" x="${x+i}" y="${y+i}" width="${tw-2*i}" height="${th-2*i}" rx=".4"/>
         ${pockets}${diamonds}
         <text class="tnum" x="${numX}" y="${numY}" text-anchor="middle" font-size="${fs}">${n}</text>
-        <text class="tag" id="tt${n}" x="${tagX}" y="${tagY}" text-anchor="middle" font-size="2.1"></text>
+        <text class="tag" id="tt${n}" x="${tagX}" y="${across ? tagY - 1 : tagY - 2.4}" text-anchor="middle" font-size="3"></text>
+        <text class="tag2" id="tm${n}" x="${tagX}" y="${across ? tagY + 2.4 : tagY + .6}" text-anchor="middle" font-size="1.7"></text>
         <g id="ti${n}" data-x="${x}" data-y="${y}" data-w="${tw}" data-h="${th}"></g>
       </g>`;
     }
@@ -158,7 +184,7 @@
       g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
     }
     $('grid').innerHTML = [...H.tables].sort((a, b) => a.n - b.n)
-      .map(t => `<a id="gl${t.n}" href="${esc(tableUrl(t.n))}"><span class="n">${t.n}</span><span class="ic" id="gi${t.n}"></span><span class="st" id="gs${t.n}">Open</span></a>`).join('');
+      .map(t => `<a id="gl${t.n}" href="${esc(tableUrl(t.n))}"><span class="n">${t.n}</span><span class="ic" id="gi${t.n}"></span><span class="st" id="gs${t.n}">Open</span><span class="md" id="gm${t.n}"></span></a>`).join('');
   }
 
   function paint(){
@@ -174,13 +200,13 @@
       $('tsum').innerHTML = ts.phase === 'reg' ? `🏆 ${esc(ts.title)}${ts.open ? '<b>Join</b>' : ''}<small>${ts.open ? 'Sign-ups open' : 'Sign-ups closed'} · ${ts.gtype}-ball ${fmt} · ${ts.n} signed up${ts.when ? ` · ${esc(new Date(ts.when).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' }))}` : ''}</small>`
         : ts.phase === 'live' ? `🏆 ${esc(ts.title)} is on<b>Bracket</b><small>${ts.n} players · ${ts.gtype}-ball ${fmt}${ts.tables && ts.tables.length ? ` · table${ts.tables.length > 1 ? 's' : ''} ${ts.tables.join(', ')}` : ''}</small>`
         : `🏆 ${esc(ts.title)}: ${esc(ts.champion)} wins!<b>Results</b>${top ? `<small>${top}</small>` : ''}`; }
-    // Open table night: show it from a week before until it ends.
-    const ng = night && night.on && !night.ended ? night : null; let nWin = null;
-    if (ng) { const s = new Date(`${ng.date}T${ng.start || '19:00'}`), e = new Date(`${ng.date}T${ng.end || '23:00'}`); if (e <= s) e.setDate(e.getDate() + 1); nWin = [s, e]; }
-    const showN = nWin && Date.now() < nWin[1] && nWin[0] - Date.now() < 7 * 86400000;
+    // Open table night: the next one that hasn't finished, from a week before until it ends.
+    const nWinOf = p => { const s = new Date(`${p.date}T${p.start || '19:00'}`), e = new Date(`${p.date}T${p.end || '23:00'}`); if (e <= s) e.setDate(e.getDate() + 1); return [s, e]; };
+    const ng = S.nights().find(p => !p.ended && Date.now() < nWinOf(p)[1]) || null, nWin = ng && nWinOf(ng);
+    const showN = nWin && nWin[0] - Date.now() < 7 * 86400000;
     $('night').hidden = !showN;
     if (showN) { const on = Date.now() >= nWin[0], t = d => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-      $('night').href = keep('night.html');
+      $('night').href = keep('night.html') + `&date=${ng.date}`;
       $('night').innerHTML = `${esc(ng.title || 'Open table night')}${on ? ' is on now' : ''}<b>See the tables</b><small>${on ? `Until ${t(nWin[1])}` : `${nWin[0].toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })} · ${t(nWin[0])}–${t(nWin[1])}`} · ${ng.tables.length} tables${ng.note ? ` · ${esc(ng.note)}` : ''}</small>`; }
     for (const t of H.tables) {
       const b0 = busy(t.n), s0 = status[t.n] || {}, c = config[t.n] || {};
@@ -188,30 +214,57 @@
       const closed = !b0 && c.closed;
       // Map: game ball in the top-left corner, waitlist count in the top-right.
       const g = $('ti' + t.n), x = +g.dataset.x, y = +g.dataset.y, w = +g.dataset.w;
-      g.innerHTML = (b0 || c.gtype ? `<circle cx="${x+1.2}" cy="${y+1.2}" r="2.3" fill="${P.BALL[(gt-1)%8]}" stroke="#000" stroke-width=".3"/><circle cx="${x+1.2}" cy="${y+1.2}" r="1.2" fill="#f4efe2"/><text x="${x+1.2}" y="${y+1.75}" text-anchor="middle" font-size="1.5" font-weight="700" fill="#111">${gt}</text>` : '')
+      const rnd = b0 && s0.fmt === 'rand';
+      g.innerHTML = (rnd ? `<g aria-label="Random game"><rect x="${x-1}" y="${y-1}" width="4.4" height="4.4" rx=".9" fill="#fff" stroke="#000" stroke-width=".3"/>${[[.9,.9],[2.2,2.2],[3.5,3.5],[.9,3.5],[3.5,.9]].map(([a,b2]) => `<circle cx="${x-1+a}" cy="${y-1+b2}" r=".42" fill="#111"/>`).join('')}</g>` : '')
+        + (b0 || c.gtype ? `<g transform="translate(${rnd ? 4.6 : 0} 0)"><circle cx="${x+1.2}" cy="${y+1.2}" r="2.3" fill="${P.BALL[(gt-1)%8]}" stroke="#000" stroke-width=".3"/><circle cx="${x+1.2}" cy="${y+1.2}" r="1.2" fill="#f4efe2"/><text x="${x+1.2}" y="${y+1.75}" text-anchor="middle" font-size="1.5" font-weight="700" fill="#111">${gt}</text></g>` : '')
         + (b0 ? `<circle cx="${x+w-1.2}" cy="${y+1.2}" r="2.3" fill="${P.lineColor(q)}" stroke="#000" stroke-width=".3"/><text x="${x+w-1.2}" y="${y+2}" text-anchor="middle" font-size="2.3" font-weight="800" fill="#10161c">${q}</text>` : '')
-        + (camLive(t.n) ? `<g aria-label="Camera live"><rect x="${x+1.8}" y="${y + +g.dataset.h - 5.2}" width="6.4" height="3.8" rx=".8" fill="#e5484d" stroke="#000" stroke-width=".25"/><path d="M${x+8.2} ${y + +g.dataset.h - 4.6}l2 -1v3.4l-2 -1z" fill="#e5484d" stroke="#000" stroke-width=".2"/><circle cx="${x+3.2}" cy="${y + +g.dataset.h - 3.3}" r=".6" fill="#fff"/></g>` : '');
-      $('gi' + t.n).innerHTML = `${P.ballSvg(gt, 18)}${P.peopleSvg(dbl, 16)}<span class="q" style="background:${P.lineColor(q)}">${q}</span>${camLive(t.n) ? '<span class="cam" title="Camera live">📹</span>' : ''}`;
+        + (camLive(t.n) ? `<g aria-label="Camera live" transform="translate(${x + w/2 - 4.2} ${y - 1.6})"><rect x="0" y="0" width="6.4" height="3.8" rx=".8" fill="#e5484d" stroke="#000" stroke-width=".25"/><path d="M6.4 .6l2 -1v3.4l-2 -1z" fill="#e5484d" stroke="#000" stroke-width=".2"/><circle cx="1.4" cy="1.9" r=".6" fill="#fff"/></g>` : '');
+      $('gi' + t.n).innerHTML = `${rnd ? '🎲' : ''}${P.ballSvg(gt, 18)}${P.peopleSvg(dbl, 16)}${b0 && s0.scotch ? '<b style="font-size:11px">S</b>' : ''}<span class="q" style="background:${P.lineColor(q)}">${q}</span>${camLive(t.n) ? '<span class="cam" title="Camera live">📹</span>' : ''}`;
       $('gl' + t.n).classList.toggle('closed', !!closed);
       $('gl' + t.n).title = c.note || '';
     }
     for (const t of H.tables) {
       const b = busy(t.n), s = status[t.n], isMine = !!mine[`${HALL}-${t.n}`] && b;
-      $('tb' + t.n).classList.toggle('busy', b); $('tb' + t.n).classList.toggle('mine', isMine);
+      const shut = b && (s.open === false || s.line === false);   // locked, or the waitlist is closed
+      $('tb' + t.n).classList.toggle('busy', b); $('tb' + t.n).classList.toggle('shut', shut); $('tb' + t.n).classList.toggle('mine', false);
       const score = b && s.score ? `${s.score[0]}–${s.score[1]}` : '';
-      $('tt' + t.n).textContent = isMine ? 'YOURS' : b ? (s.open ? 'JOIN' : score || 'IN USE') : '';
+      const who = b ? (s.dbl ? (s.scotch ? '👥S' : '👥') : '👤') : '';
+      const FM = { race: ['🏁', 'RACE'], wso: ['👑', 'WINNER STAYS'], rot: ['🎲', 'ROTATE'], pick: ['🏆', 'WINNER PICKS'], rand: ['🎲', 'RANDOM GAME'] }[b && s.fmt || 'race'];
+      const raceTxt = s && s.race ? (s.race[0] === s.race[1] ? `RACE ${s.race[0]}` : `RACE ${s.race[0]}/${s.race[1]}`) : 'RACE';
+      $('tt' + t.n).textContent = b ? `${shut ? '🔒' : ''}${who} ${FM[0]}` : '';
+      $('tm' + t.n).textContent = b ? ((s.fmt || 'race') === 'race' ? raceTxt : ({ wso: 'WINNER STAYS', rot: 'ROTATE', pick: 'WINNER PICKS', rand: 'RANDOM GAME' }[s.fmt])) : '';
+      $('gm' + t.n).textContent = b ? `${FM[0]} ${(s.fmt || 'race') === 'race' ? raceTxt.toLowerCase().replace('race', 'Race') + (s.rules === 'apa' && s.sl ? ` (SL ${s.sl[0]} v ${s.sl[1]})` : '') : FM[1][0] + FM[1].slice(1).toLowerCase()}${s.dbl ? (s.scotch ? ' · Scotch doubles' : ' · Doubles') : ''}${s.qn && s.qn.length ? ` · Next: ${s.qn.join(', ')}` : ''}${s.line === false && !(s.open === false) ? ' · Waitlist closed' : ''}` : '';
       $('tb' + t.n).setAttribute('aria-label', `Table ${t.n}, ${t.ft}-foot, ${b ? `in use${s.names ? `: ${s.names[0]} vs ${s.names[1]} ${score}` : ''}` : 'open'}`);
-      $('gl' + t.n).classList.toggle('busy', b); $('gl' + t.n).classList.toggle('mine', isMine);
+      $('gl' + t.n).classList.toggle('busy', b); $('gl' + t.n).classList.toggle('shut', shut); $('gl' + t.n).classList.toggle('mine', false);
       const c = config[t.n] || {};
-      $('gs' + t.n).textContent = isMine ? 'Yours' : b ? (s.names ? `${s.names[0]} v ${s.names[1]}${score ? ' · ' + score : ''}` : 'In use') : c.closed ? (c.note || 'Reserved') : c.note ? `Open · ${c.note}` : 'Open';
+      $('gs' + t.n).textContent = b ? (shut ? '🔒 ' : '') + (s.names ? `${s.names[0]} v ${s.names[1]}` : 'In use') : c.closed ? (c.note || 'Reserved') : c.note ? `Open · ${c.note}` : 'Open';
     }
+    paintDay();
+  }
+  // Today's date (Chicago) and what's planned: a strip of the next nights and tournaments, and a month calendar.
+  // Tapping a date opens the night planner on that date.
+  const planUrl = d => keep('night.html') + `&date=${d}`;
+  const cal = D.calendar($('cal'), { marks: () => S.marks(), onPick: d => { location.href = planUrl(d); } });
+  let calOpen = false; try { calOpen = localStorage.getItem('poolar-hall-cal') === '1'; } catch {}
+  const showCal = on => { calOpen = on; $('cal').hidden = !on; $('calBtn').setAttribute('aria-expanded', String(on)); try { localStorage.setItem('poolar-hall-cal', on ? '1' : '0'); } catch {} };
+  $('calBtn').onclick = () => showCal(!calOpen);
+  let dayKey = '';
+  function paintDay(){
+    const t = D.today(), up = S.upcoming(t).slice(0, 6);
+    const key = JSON.stringify([t, up, S.marks()]); if (key === dayKey) return; dayKey = key;
+    $('today').textContent = D.label();
+    const tm = hm => { if (!hm) return ''; const [h, m] = hm.split(':').map(Number); return new Date(2000, 0, 1, h, m).toLocaleTimeString([], { hour: 'numeric', minute: m ? '2-digit' : undefined }); };
+    $('up').hidden = !up.length;
+    $('up').innerHTML = up.map(x => `<a class="${x.kind}" href="${esc(x.kind === 'tour' ? keep('tournament.html') : planUrl(x.date))}"><small>${x.date === t ? 'TODAY' : esc(D.dayLabel(x.date).toUpperCase())}${x.time ? ' · ' + esc(tm(x.time)) : ''}</small><span>${x.kind === 'tour' ? '🏆 ' : ''}${esc(x.title)}</span></a>`).join('');
+    cal.paint();
   }
   function take(raw){
     let m; try { m = JSON.parse(raw); } catch { return; }
     if (!m) return;
     if (m.kind === 'event' && (!event || m.ts >= event.ts)) event = m;
     if (m.kind === 'tsum' && (!tsum || m.ts >= tsum.ts)) tsum = m;
-    if (m.kind === 'night' && (!night || m.ts >= night.ts)) night = m;
+    if (m.kind === 'night' || m.kind === 'tsum') S.take(m);
+    if (m.kind === 'reset') D.hear(m);
     if (m.kind === 'config' && m.t && (!config[m.t] || m.ts >= config[m.t].ts)) config[m.t] = m;
     if (m.kind === 'table' && m.t && (!status[m.t] || m.ts >= status[m.t].ts)) status[m.t] = m;
     if (m.kind === 'cam' && m.t) { const c = cams[m.t] = cams[m.t] || {}; const k = m.loc === 'behind' ? 'behind' : 'top'; if (!c[k] || m.ts >= Math.abs(c[k])) c[k] = m.on ? m.ts : 0; }
@@ -224,21 +277,48 @@
       for (const line of txt.split('\n')) { try { const e = JSON.parse(line); if (e.event === 'message') take(e.message); } catch {} }
       setLive(true);
     } catch { setLive(false); }
+    // Planned nights and tournaments also live on the schedule topic, which the relay keeps for months.
+    try { const txt = await (await fetch(`${RELAY}/${SCHED}/json?poll=1&since=all`)).text();
+      for (const line of txt.split('\n')) { try { const e = JSON.parse(line); if (e.event === 'message') S.take(JSON.parse(e.message)); } catch {} } } catch {}
     paint();
   }
   const keep = p => `${p}?hall=${HALL}` + (RELAY !== 'https://ntfy.sh' ? `&relay=${encodeURIComponent(RELAY)}` : '');
   $('tourLink').href = keep('tournament.html'); $('nightLink').href = keep('night.html'); $('adminLink').href = keep('admin.html'); $('meLink').href = keep('profile.html');
   const prof = P.profile(); if (prof && prof.name) $('meLink').textContent = prof.name;
-  drawPlan(); paint(); load();
-  try {
+  drawPlan(); showCal(calOpen);
+  // ?demo=1: made-up tables showing every option. Nothing is sent to the relay.
+  const DEMO = qs.get('demo') === '1';
+  if (DEMO) {
+    $('demoBar').hidden = false; $('demoOff').href = keep('hall.html');
+    const now = Date.now(), T = (t, o) => { status[t] = { kind: 'table', t, ts: now, state: 'busy', open: true, line: true, q: (o.qn || []).length, ...o }; };
+    T(1, { names: ['Terry', 'Kali'], gtype: 8, fmt: 'wso', qn: ['Marcus', 'Jen', 'Luis'] });
+    T(2, { names: ['Dre', 'Sam'], gtype: 9, fmt: 'wso', qn: ['Priya'] });
+    T(3, { names: ['Mike & Tasha', 'Ron & Bev'], gtype: 8, fmt: 'wso', dbl: true, qn: ['Kev & Ann', 'Jo & Pat'] });
+    T(4, { names: ['Cody & Mia', 'Al & Rita'], gtype: 9, fmt: 'wso', dbl: true, scotch: true, qn: ['Nate & Zoe'] });
+    T(5, { names: ['Chris', 'Omar'], gtype: 10, fmt: 'rand', qn: ['Lena', 'Big Tony', 'Shay', 'Vic'] });
+    T(6, { names: ['Hector', 'Dana'], gtype: 9, fmt: 'pick', qn: ['Ike', 'Rosa'] });
+    T(7, { names: ['Beth', 'Kurt'], gtype: 8, fmt: 'rot', qn: ['Mo', 'Gabe', 'Tia', 'Wes', 'Uma'] });
+    T(8, { names: ['Terry', 'Shag'], gtype: 8, fmt: 'race', rules: 'apa', race: [5, 2], sl: [6, 2], qn: ['Kali (SL 4)', 'Jay (SL 5)'] });
+    T(9, { names: ['Vince', 'Lou'], gtype: 9, fmt: 'race', race: [7, 7], open: false, line: false });
+    T(10, { names: ['Rae', 'Bo'], gtype: 10, fmt: 'race', race: [5, 5], line: false });
+    T(12, { names: ['Dom & Ty', 'Eve & Max'], gtype: 8, fmt: 'rot', dbl: true, open: false, line: false });
+    T(13, { names: ['Paulie', 'Nico'], gtype: 8, fmt: 'race', race: [3, 3], qn: ['Stevie'] });
+    T(14, { names: ['Jules', 'Rico'], gtype: 8, fmt: 'wso', qn: ['Bree', 'Cal'] });
+    config[11] = { closed: true, note: 'Reserved 9 PM · league' };
+    cams[1] = { top: now }; cams[14] = { top: now };
+    for (const t of H.tables) { const go = e => { e.preventDefault(); e.stopPropagation(); alert(`Demo table ${t.n}. Nothing here is real.`); };
+      $('tb' + t.n).addEventListener('click', go, true); $('gl' + t.n).addEventListener('click', go); }
+    paint();
+  } else { paint(); load(); }
+  if (!DEMO) try {
     const es = new PoolarStream(`${RELAY}/${TOPIC}/sse`);
     es.onopen = () => setLive(true); es.onerror = () => setLive(false);
     es.onmessage = e => { try { const d = JSON.parse(e.data); if (d.event === 'message') { take(d.message); paint(); } } catch {} };
   } catch {}
-  setInterval(paint, 60000);
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') load(); });
+  if (!DEMO) setInterval(paint, 30000);   // also clears the map by itself at 2 AM
+  document.addEventListener('visibilitychange', () => { if (!DEMO && document.visibilityState === 'visible') load(); });
 })();
 </script>
-<script src="build.js"></script>
+<script src="build.js?v=20260930075603"></script>
 </body>
 </html>
