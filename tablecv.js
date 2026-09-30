@@ -345,7 +345,7 @@
         const handOnCue = cue && this.handNear(cue, occ);
         if (handOnCue) { this.handUntil = t + 900; if (this.onHand) this.onHand({ t, x: cue.x, y: cue.y }); }
         if (cue && cue.v > this.o.move && cue.prevStill && t - cue.prevStill > 500 && !(this.handUntil > t)) {
-          this.shot = { t0: t, cueFrom: { x: cue.x, y: cue.y }, first: null, n0: (this.last && this.last.balls ? this.last.balls.length : 0), moved: new Set(), stillAtStart: new Set(this.tracks.filter(tr => tr !== cue && tr.v < this.o.move).map(tr => tr.id))   /* compressed video jitters: 'not moving' is enough */, cueId: cue.id };
+          this.shot = { t0: t, cueFrom: { x: cue.x, y: cue.y }, first: null, n0: (this.last && this.last.balls ? this.last.balls.length : 0), before: this.tracks.filter(tr => t - tr.seen < 1500 && tr.cls !== 'cluster' && tr.num).map(tr => tr.num), moved: new Set(), stillAtStart: new Set(this.tracks.filter(tr => tr !== cue && tr.v < this.o.move).map(tr => tr.id))   /* compressed video jitters: 'not moving' is enough */, cueId: cue.id };
           this.quietFrom = 0;
         }
         // Fallback when the cue ball isn't recognised as the cue ball (ivory under this light, a cap-up stripe…):
@@ -354,7 +354,7 @@
           const movers = this.tracks.filter(tr => tr.seen === t && tr.v > this.o.move && tr.prevStill && t - tr.prevStill > 500);
           if (movers.length === 1 && !this.handNear(movers[0], occ)) {
             const m = movers[0];
-            this.shot = { t0: t, cueFrom: { x: m.x, y: m.y }, first: null, n0: (this.last && this.last.balls ? this.last.balls.length : 0), moved: new Set(), stillAtStart: new Set(this.tracks.filter(tr => tr !== m && tr.v < this.o.move).map(tr => tr.id)), cueId: m.id, guessedCue: m.cls !== 'cue' };
+            this.shot = { t0: t, cueFrom: { x: m.x, y: m.y }, first: null, n0: (this.last && this.last.balls ? this.last.balls.length : 0), before: this.tracks.filter(tr => t - tr.seen < 1500 && tr.cls !== 'cluster' && tr.num).map(tr => tr.num), moved: new Set(), stillAtStart: new Set(this.tracks.filter(tr => tr !== m && tr.v < this.o.move).map(tr => tr.id)), cueId: m.id, guessedCue: m.cls !== 'cue' };
             this.quietFrom = 0;
           }
         }
@@ -428,6 +428,16 @@
           if (tr.id === s.cueId) { scratch = true; cuePocket = c.pk; } else pocketed.push({ cls: tr.cls, num: tr.num, pocket: c.pk, bank: !!(s.cush && s.cush.has(tr.id)), sure: c.strict });
           tr.pocketed = true;
         }
+        // Count before vs after: a numbered ball that was on the table at the start and isn't now, when the table
+        // really has fewer balls, went down even if it was never tracked moving (blue 10 on blue cloth, under an arm).
+        const nowNums = new Set(this.tracks.filter(tr => !tr.pocketed && t - tr.seen < 1200).map(tr => tr.num).concat(((this.last && this.last.balls) || []).map(b => b.num)));
+        const gone = [...new Set(s.before || [])].filter(n => n && !nowNums.has(n) && !pocketed.some(p => p.num === n));
+        let room = Math.max(0, (s.n0 || 0) - (((this.last && this.last.balls) || []).length) - pocketed.length - (scratch ? 1 : 0));
+        for (const n of gone) { if (room <= 0) break; room--;
+          const tr = this.tracks.find(x => x.num === n), pos = tr || { x: .5, y: .5 };
+          let pk = 0, d = 9; POCKETS.forEach(([px2, py], k) => { const dd = Math.hypot(pos.x - px2, (pos.y - py) * .5); if (dd < d) { d = dd; pk = k; } });
+          pocketed.push({ cls: n === 8 ? 'eight' : n > 8 ? 'stripe' : 'solid', num: n, pocket: pk, counted: true });
+          if (tr) tr.pocketed = true; }
         this.tracks = this.tracks.filter(tr => !tr.pocketed);
         this.shot = null;
         const ev = { type: 'shot', first: s.first, pocketed, scratch, cuePocket, rail: !!s.rail, kick: !!s.kick, noHit: !s.first && !pocketed.length, ms: t - s.t0, t };
@@ -440,5 +450,6 @@
   // table, mv across it, in cloth widths). The tracker keeps using the exact cloth corners.
   const withRails = (q, mu = .05, mv = .1) => { if (!q) return q; const H = toCam(q);
     return { tl: apply(H, -mu, -mv), tr: apply(H, 1 + mu, -mv), br: apply(H, 1 + mu, 1 + mv), bl: apply(H, -mu, 1 + mv) }; };
+  Tracker.prototype.onTable = function(){ const t = this.last ? this.last.t : 0; return [...new Set(this.tracks.filter(tr => t - tr.seen < 2000 && tr.num && tr.cls !== 'cluster').map(tr => tr.num))].sort((a, b) => a - b); };
   G.TableCV = { findCorners, cornerDiff, Warper, Tracker, toCam, apply, withRails, POCKETS };
 })(window);
