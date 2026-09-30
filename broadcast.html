@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="build" content="20260930055942"><script src="stream.js"></script>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#05080a">
+<title>Pool Broadcast</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Barlow:wght@500;600;700;800&display=swap">
+<style>
+  /* TV-style broadcast view (for a TV, laptop or OBS). No controls on screen; tap to show a small menu.
+     Modeled on the APA championship broadcasts: overhead table view, blue score bar with names, race and
+     games, red header tab, player at the table highlighted. */
+  :root{--bug:#0c1f4e;--bug2:#132c6b;--red:#c81e28;--gold:#f2c14e;--text:#fff;--muted:#a9b8d8;
+    --num:"Big Shoulders Display",Impact,sans-serif;--ui:"Barlow",system-ui,sans-serif}
+  [hidden]{display:none!important}
+  *{box-sizing:border-box} html,body{margin:0;height:100%;background:#05080a;color:var(--text);font-family:var(--ui);overflow:hidden}
+  #stage{position:fixed;inset:0;display:grid;place-items:center}
+  #prog{width:100%;height:100%;object-fit:contain;background:#05080a}
+  #replay{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000}
+  #camFrame,#camBFrame{position:absolute;width:320px;height:180px;left:-9999px;border:0}
+  .pip{position:absolute;right:2vw;bottom:15vh;width:22vw;aspect-ratio:16/9;border:3px solid rgba(255,255,255,.85);border-radius:10px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.6);background:#000}
+  .pip canvas{width:100%;height:100%;object-fit:cover}
+  .pip span{position:absolute;left:8px;top:6px;font:800 1.1vw var(--ui);background:rgba(0,0,0,.6);padding:2px 8px;border-radius:6px}
+  /* score bar */
+  .bug{position:fixed;left:50%;bottom:3.2vh;transform:translateX(-50%);width:min(78vw,1500px);display:grid;grid-template-columns:1fr auto auto auto 1fr;align-items:stretch;
+    background:linear-gradient(180deg,var(--bug2),var(--bug));border:2px solid rgba(255,255,255,.18);border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.55);font-size:1.6vw}
+  .tab{position:absolute;left:50%;top:-2.1vw;transform:translateX(-50%);background:var(--red);font:800 1vw var(--ui);letter-spacing:.14em;text-transform:uppercase;padding:.35vw 1.4vw;border-radius:.6vw .6vw 0 0;white-space:nowrap}
+  .side{display:flex;flex-direction:column;justify-content:center;gap:.35vw;padding:.7vw 1.2vw;min-width:0;position:relative;border-radius:12px}
+  .side.r{align-items:flex-end;text-align:right}
+  .side.on{background:linear-gradient(90deg,rgba(242,193,78,.28),rgba(242,193,78,.06))}
+  .side.r.on{background:linear-gradient(270deg,rgba(242,193,78,.28),rgba(242,193,78,.06))}
+  .side.on::after{content:"";position:absolute;top:50%;transform:translateY(-50%);border:.7vw solid transparent}
+  .side.l.on::after{right:-.2vw;border-right-color:var(--gold)}
+  .side.r.on::after{left:-.2vw;border-left-color:var(--gold)}
+  .nm{font:800 1.9vw var(--ui);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .sl{font:700 .95vw var(--ui);color:var(--muted);letter-spacing:.06em}
+  .balls{display:flex;gap:.25vw;min-height:1.7vw} .balls img{width:1.7vw;height:1.7vw}
+  .sc{font:900 3.6vw/1 var(--num);display:grid;place-items:center;padding:0 1.2vw;min-width:5vw}
+  .mid{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 .8vw;border-left:1px solid rgba(255,255,255,.15);border-right:1px solid rgba(255,255,255,.15)}
+  .mid b{font:900 1.2vw var(--num);letter-spacing:.08em;color:#bcd4ff}
+  .mid small{font:700 .8vw var(--ui);color:var(--muted);letter-spacing:.1em;text-transform:uppercase}
+  .hill{display:inline-block;font:800 .8vw var(--ui);letter-spacing:.1em;background:var(--gold);color:#1d1606;border-radius:.4vw;padding:.1vw .5vw;margin-left:.4vw;vertical-align:middle}
+  /* toast + commentary */
+  .toast{position:fixed;left:50%;top:5vh;transform:translate(-50%,-10px);display:flex;align-items:center;gap:1.2vw;padding:1vw 2vw 1vw 1vw;background:rgba(8,14,20,.92);border:.25vw solid var(--gold);border-radius:1.4vw;
+    font:900 2.6vw var(--num);letter-spacing:.04em;color:var(--gold);text-transform:uppercase;opacity:0;transition:opacity .2s,transform .2s;white-space:nowrap}
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+  .toast img{width:6vw;height:6vw}
+  .toast.red{border-color:var(--red);color:#fff;background:rgba(200,30,40,.92)}
+  .line{position:fixed;left:50%;bottom:calc(3.2vh + 10.4vw);transform:translateX(-50%);max-width:70vw;font:700 1.45vw var(--ui);background:rgba(0,0,0,.62);padding:.45vw 1.2vw;border-radius:.6vw;transition:opacity .4s;text-align:center}
+  .bih{position:fixed;left:50%;top:44%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:1vw;padding:.8vw 1.8vw;border-radius:1.2vw;background:rgba(8,40,20,.85);border:.25vw solid #57d98a;
+    font:900 2.8vw var(--num);letter-spacing:.06em;color:#9ff0bf;text-transform:uppercase;animation:bihp 1.4s ease-in-out infinite}
+  .bih .h{font-size:4vw;animation:wave 1.4s ease-in-out infinite;transform-origin:70% 80%}
+  .bih small{display:block;font:700 1vw var(--ui);letter-spacing:.08em;color:#d6ffe4}
+  @keyframes bihp{50%{box-shadow:0 0 3vw rgba(87,217,138,.55)}}
+  @keyframes wave{0%,100%{transform:rotate(0)}30%{transform:rotate(14deg)}60%{transform:rotate(-8deg)}}
+  .rpl{position:fixed;left:2vw;top:3vh;font:900 2vw var(--num);letter-spacing:.14em;background:var(--red);padding:.3vw 1vw;border-radius:.5vw}
+  .wait{position:fixed;inset:0;display:grid;place-items:center;text-align:center;color:var(--muted);font:600 1.4vw var(--ui)}
+  .wait b{display:block;font:900 4vw var(--num);color:#fff;letter-spacing:.04em}
+  .menu{position:fixed;right:1vw;top:1vw;display:flex;gap:.5vw;opacity:0;transition:opacity .3s}
+  .menu.show{opacity:1}
+  .menu a,.menu button{font:700 14px var(--ui);color:#fff;background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.25);border-radius:10px;padding:8px 12px;text-decoration:none;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="prog" width="1920" height="1080"></canvas>
+  <video id="replay" playsinline muted hidden></video>
+  <iframe id="camFrame" title="Top-down camera" allow="autoplay"></iframe>
+  <iframe id="camBFrame" title="Behind the table camera" allow="autoplay"></iframe>
+  <canvas id="warp" hidden></canvas>
+  <div class="pip" id="pip" hidden><canvas id="pipCan" width="640" height="360"></canvas><span>BEHIND THE TABLE</span></div>
+</div>
+<div class="wait" id="wait"><div><b id="waitT">Pool Broadcast</b><span id="waitS">Connecting to the table…</span></div></div>
+<div class="rpl" id="rpl" hidden>REPLAY</div>
+<div class="bih" id="bih" hidden><span class="h">✋</span><span><span id="bihT">Ball in hand</span><small id="bihS"></small></span></div>
+<div class="toast" id="toast"><img id="toastI" alt=""><span id="toastT"></span></div>
+<div class="line" id="line" hidden></div>
+<div class="bug" id="bug" hidden>
+  <div class="tab" id="tab">Race to 5</div>
+  <div class="side l" id="s0"><div class="nm" id="n0"></div><div class="sl" id="l0"></div><div class="balls" id="b0"></div></div>
+  <div class="sc" id="c0">0</div>
+  <div class="mid"><b id="midT">8-BALL</b><small id="midS">Rack 1</small></div>
+  <div class="sc" id="c1">0</div>
+  <div class="side r" id="s1"><div class="nm" id="n1"></div><div class="sl" id="l1"></div><div class="balls" id="b1"></div></div>
+</div>
+<div class="menu" id="menu"><button id="mFull">⛶ Full screen</button><a id="mScore" href="deck.html">Scoreboard</a><a href="hall.html">⌂ Tables</a></div>
+<script src="tablecv.js"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const qs = new URLSearchParams(location.search);
+  const RELAY = qs.get('relay') || 'https://ntfy.sh';
+  const game = (qs.get('game') || '').replace(/[^a-z0-9]/gi, '').slice(0, 24);
+  const clean = v => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+  const camTop = clean(qs.get('cam')) || '1', camBehind = clean(qs.get('camb')) || (camTop + 'B').slice(0, 12);
+  const img = n => `balls/${n}.png`;
+  if (game) { $('mScore').href = `deck.html?game=${game}&view=1&cam=${camTop}` + (RELAY !== 'https://ntfy.sh' ? `&relay=${encodeURIComponent(RELAY)}` : ''); }
+
+  // ---------- cameras ----------
+  const watchSrc = code => { const u = new URL('phonecam.html', location.href); u.search = ''; u.searchParams.set('watch', code); u.searchParams.set('embed', '1'); if (RELAY !== 'https://ntfy.sh') u.searchParams.set('relay', RELAY); return String(u); };
+  $('camFrame').src = watchSrc(camTop); $('camBFrame').src = watchSrc(camBehind);
+  const vid = id => { try { const v = $(id).contentDocument.getElementById('remote'); return v && v.videoWidth ? v : null; } catch { return null; } };
+  const flipped = () => { try { return $('camFrame').contentDocument.getElementById('wstage').classList.contains('flip'); } catch { return false; } };
+  const warp = window.TableCV ? new TableCV.Warper($('warp')) : null;
+  let corners = null, tries = [], lastTry = 0;
+  try { const q = JSON.parse(localStorage.getItem('poolar-corners-' + camTop)); if (q && q.tl) { corners = q; warp && warp.setQuad(q); } } catch {}
+  const grab = document.createElement('canvas'); grab.width = 320; grab.height = 180;
+  function findTable(v){
+    const x = grab.getContext('2d', { willReadFrequently: true }); x.drawImage(v, 0, 0, 320, 180);
+    let q = null; try { q = TableCV.findCorners(x.getImageData(0, 0, 320, 180)); } catch {}
+    if (!q) { tries = []; return; }
+    tries.push(q); if (tries.length > 3) tries.shift();
+    if (tries.length === 3 && TableCV.cornerDiff(tries[0], tries[2]) < .02) {
+      corners = {}; ['tl', 'tr', 'br', 'bl'].forEach(k => corners[k] = { x: tries.reduce((a, c) => a + c[k].x, 0) / 3, y: tries.reduce((a, c) => a + c[k].y, 0) / 3 });
+      warp.setQuad(corners); try { localStorage.setItem('poolar-corners-' + camTop, JSON.stringify(corners)); } catch {}
+    }
+  }
+  // Program picture: the straightened overhead table, centred on a dark backdrop, 1920x1080.
+  const P = $('prog'), px = P.getContext('2d');
+  let live = false, lastLive = 0;
+  function drawProg(now){
+    const v = vid('camFrame');
+    if (v) { lastLive = now; if (!corners && now - lastTry > 1500) { lastTry = now; findTable(v); } }
+    live = !!v && now - lastLive < 3000;
+    px.fillStyle = '#05080a'; px.fillRect(0, 0, 1920, 1080);
+    let tr = null;
+    if (v && warp && warp.ok && warp.draw(v, flipped())) {
+      const c = $('warp'), k = Math.min(1840 / c.width, 900 / c.height), w = c.width * k, h = c.height * k;
+      tr = { x: (1920 - w) / 2, y: 40 + (900 - h) / 2, w, h, full: !!corners };
+      px.drawImage(c, tr.x, tr.y, w, h);
+    }
+    if (st) zones(tr || { x: 160, y: 130, w: 1600, h: 800, full: false }, now);
+    const b = vid('camBFrame'); $('pip').hidden = !b;
+    if (b) $('pipCan').getContext('2d').drawImage(b, 0, 0, 640, 360);
+    $('wait').hidden = live || !!st; if (!live && st) $('wait').hidden = true;
+    requestAnimationFrame(drawProg);
+  }
+  requestAnimationFrame(drawProg);
+  // Ball in hand: anywhere -> the whole table pulses green; behind the head string (scratch on the break)
+  // or at the break -> a green box over the kitchen. The head end is the left side of the straightened
+  // table unless ?head=right.
+  const HEAD = qs.get('head') === 'right' ? 'right' : 'left';
+  let bihKey = '', bihAt = 0;
+  function zones(tr, now){
+    // Ball in hand shows for 20 s from the foul (it stays set on the scoreboard until the next turn).
+    const key = `${(st.racks || []).length}|${st.turns}|${st.shooter}|${st.bih}`;
+    if (key !== bihKey) { bihKey = key; bihAt = now; }
+    const bih = now - bihAt < 20000 ? st.bih : false, breaking = (st.turns || 0) === 0 && !(st.down || []).length;
+    const k = tr.w * .25, kx = HEAD === 'left' ? tr.x : tr.x + tr.w - k;
+    const pulse = .16 + .1 * Math.sin(now / 260);
+    if (bih === true) {
+      px.fillStyle = `rgba(87,217,138,${pulse})`; px.fillRect(tr.x, tr.y, tr.w, tr.h);
+      px.strokeStyle = 'rgba(87,217,138,.9)'; px.lineWidth = 6; px.strokeRect(tr.x + 3, tr.y + 3, tr.w - 6, tr.h - 6);
+    } else if (bih === 'kitchen' || breaking) {
+      px.fillStyle = `rgba(87,217,138,${bih ? pulse + .06 : .14})`; px.fillRect(kx, tr.y, k, tr.h);
+      px.setLineDash([18, 12]); px.strokeStyle = 'rgba(87,217,138,.95)'; px.lineWidth = 5;
+      px.beginPath(); const lx = HEAD === 'left' ? kx + k : kx; px.moveTo(lx, tr.y); px.lineTo(lx, tr.y + tr.h); px.stroke(); px.setLineDash([]);
+      px.font = '800 30px Barlow, sans-serif'; px.fillStyle = 'rgba(210,255,225,.95)'; px.textAlign = 'center';
+      px.fillText(bih ? 'BALL IN HAND · KITCHEN' : 'BREAK FROM THE KITCHEN', kx + k / 2, tr.y + 44); px.textAlign = 'left';
+    }
+    const show = bih === true || bih === 'kitchen';
+    $('bih').hidden = !show;
+    if (show) { $('bihT').textContent = bih === 'kitchen' ? 'Ball in hand · kitchen' : 'Ball in hand'; $('bihS').textContent = `${shooterName(st)} places the cue ball ${bih === 'kitchen' ? 'behind the head string' : 'anywhere on the table'}`; }
+  }
+
+  // ---------- rolling buffer for replays (last ~16 s of the program picture) ----------
+  let buf = [], rec = null, progStream = null, replaying = false;
+  const vtype = () => ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'].find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || '';
+  function seg(){
+    if (!progStream) progStream = P.captureStream ? P.captureStream(30) : null;
+    if (!progStream || !window.MediaRecorder) return null;
+    let r; try { const t = vtype(); r = new MediaRecorder(progStream, t ? { mimeType: t, videoBitsPerSecond: 4e6 } : undefined); } catch { return null; }
+    const ch = [], t0 = Date.now();
+    r.ondataavailable = e => { if (e.data && e.data.size) ch.push(e.data); };
+    r.onstop = () => { if (ch.length && Date.now() - t0 > 400) { buf.push({ blob: new Blob(ch, { type: (r.mimeType || 'video/mp4').split(';')[0] }), ms: Date.now() - t0 }); while (buf.length > 3) buf.shift(); } if (r.done) r.done(); };
+    try { r.start(); } catch { return null; } return r;
+  }
+  function rotate(done){ const old = rec; rec = seg(); if (old && old.state !== 'inactive') { old.done = done; old.stop(); } else if (done) done(); }
+  setInterval(() => { if (live && !replaying) rotate(); }, 8000);
+  // Slow-motion replay of the last few seconds (the source broadcast has none; this is the upgrade).
+  function replay(secs, label){
+    if (!live || replaying || !window.MediaRecorder) return;
+    setTimeout(() => rotate(() => {
+      const segs = []; let tot = 0;
+      for (let i = buf.length - 1; i >= 0 && tot < secs * 1000; i--) { segs.unshift(buf[i]); tot += buf[i].ms; }
+      if (!segs.length) return;
+      const v = $('replay'); let i = 0, url = ''; replaying = true; v.hidden = false; $('rpl').hidden = false; $('rpl').textContent = label || 'REPLAY';
+      const skip = Math.max(0, (tot - secs * 1000) / 1000);
+      const next = () => { if (url) URL.revokeObjectURL(url); if (i >= segs.length) { v.hidden = true; $('rpl').hidden = true; replaying = false; return; }
+        url = URL.createObjectURL(segs[i].blob); const first = i === 0; i++;
+        v.onloadedmetadata = () => { if (first && skip > .3) try { v.currentTime = skip; } catch {} v.playbackRate = .5; v.play().catch(() => {}); };
+        v.onended = next; v.onerror = next; v.src = url; };
+      next();
+    }), 1500);   // let the balls finish rolling first
+  }
+
+  // ---------- game state (read-only, from the scoreboard's sync topic) ----------
+  let st = null;
+  const GROUP = { solids: [1, 2, 3, 4, 5, 6, 7], stripes: [9, 10, 11, 12, 13, 14, 15] };
+  const short = x => String(x || '').trim().split(/\s+/).reduce((b, w) => w.length >= b.length ? w : b, '') || '?';
+  const side = i => st.dbl ? `${short(st.names[i])} & ${short(st.partners[i] || 'Partner')}` : st.names[i];
+  const shooterName = s => s.dbl ? (s.rot && s.rot[s.shooter] ? s.partners[s.shooter] : s.names[s.shooter]) : s.names[s.shooter];
+  const scoreOf = s => { const r = [0, 0]; (s.racks || []).forEach((x, k) => { if (k >= (s.pairStart || 0)) r[x.w]++; }); return r; };
+  function paint(){
+    if (!st) return;
+    $('bug').hidden = false;
+    const sc = scoreOf(st), race = st.race || [5, 5], rot = st.fmtMode && st.fmtMode !== 'race';
+    for (const i of [0, 1]) {
+      $('n' + i).textContent = side(i);
+      const hill = !rot && sc[i] === race[i] - 1;
+      $('l' + i).innerHTML = (rot ? '' : `NEEDS ${Math.max(0, race[i] - sc[i])}`) + (st.rules === 'apa' && st.sl ? ` · SL ${st.sl[i]}` : '') + (hill ? '<span class="hill">ON THE HILL</span>' : '');
+      $('c' + i).textContent = sc[i];
+      $('s' + i).classList.toggle('on', st.shooter === i);
+      const g = st.groups && st.groups[i], left = g ? GROUP[g].filter(n => !(st.down || []).includes(n)) : [];
+      $('b' + i).innerHTML = g ? (left.length ? left : [8]).map(n => `<img src="${img(n)}" alt="${n}">`).join('') : '';
+    }
+    const hillHill = !rot && sc[0] === race[0] - 1 && sc[1] === race[1] - 1;
+    $('tab').textContent = rot ? (st.fmtMode === 'wso' ? 'Winner stays on' : 'Rotation') : hillHill ? 'Hill · Hill' : `Race ${race[0]}–${race[1]}`;
+    $('midT').textContent = `${st.gtype || 8}-BALL`; $('midS').textContent = `Rack ${(st.racks || []).length + 1}`;
+  }
+  // Commentary lines, patterned on the APA broadcast commentary.
+  const pick = a => a[Math.floor(Math.random() * a.length)];
+  function say(t){ $('line').textContent = t; $('line').hidden = false; clearTimeout(say.t); say.t = setTimeout(() => $('line').hidden = true, 6000); }
+  let toastT = 0;
+  function toast(text, ball, red){ $('toastT').textContent = text; $('toastI').hidden = ball == null; if (ball != null) $('toastI').src = img(ball); $('toast').classList.toggle('red', !!red); $('toast').classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => $('toast').classList.remove('show'), red ? 2200 : 1300); }
+  function diff(prev, cur){
+    if (!prev) return;
+    const who = i => cur.dbl ? shooterName({ ...prev, shooter: i }) : cur.names[i];
+    const sp = scoreOf(prev), sc = scoreOf(cur), race = cur.race || [5, 5];
+    if ((cur.racks || []).length > (prev.racks || []).length) {
+      const w = cur.racks[cur.racks.length - 1].w, o = 1 - w;
+      toast(`${side(w)} wins rack ${cur.racks.length}`, 8, true);
+      const onHill = sc[w] === race[w] - 1, done = sc[w] >= race[w];
+      say(done ? `${side(w)} wins the match, ${sc[w]}–${sc[o]}!` : `${side(w)} ${sc[w] === sc[o] ? `ties it at ${sc[w]}–${sc[o]}` : sc[w] > sc[o] ? `takes a ${sc[w]}–${sc[o]} lead` : `closes to ${sc[w]}–${sc[o]}`}${onHill ? ' and is on the hill' : ''}. ${pick(['Winner breaks next.', 'Rack them up.'])}`);
+      replay(8, 'REPLAY · RACK WINNER'); return;
+    }
+    const made = (cur.down || []).filter(n => !(prev.down || []).includes(n));
+    const i = prev.shooter;
+    for (const n of made) {
+      toast(`${who(i)} made the ${n} ball`, n);
+      const own = prev.groups && prev.groups[i] && GROUP[prev.groups[i]].includes(n);
+      say(pick(own === false ? [`${who(i)} pockets the ${n}, but that's the opponent's ball.`] : [`${who(i)} drops the ${n}.`, `${who(i)} fires in the ${n} ball.`, `And the ${n} goes for ${who(i)}.`]));
+    }
+    const fp = prev.fouls || [0, 0], fc = cur.fouls || [0, 0];
+    for (const k of [0, 1]) if ((fc[k] || 0) > (fp[k] || 0)) {
+      toast('Foul · ball in hand', null, true);
+      say(`That's a foul on ${who(k)}. Ball in hand for ${side(1 - k)}.`); replay(6, 'REPLAY · FOUL');
+    }
+    if (!(prev.groups && prev.groups[0]) && cur.groups && cur.groups[0]) { const s = cur.groups[0] === 'solids' ? 0 : 1; say(`${side(s)} takes the solids, ${side(1 - s)} the stripes.`); }
+    else if (prev.shooter !== cur.shooter && !made.length && !((fc[0] || 0) > (fp[0] || 0) || (fc[1] || 0) > (fp[1] || 0)))
+      say(pick([`${who(cur.shooter)} back to the table.`, `Opportunity now for ${who(cur.shooter)}.`, `That brings ${who(cur.shooter)} to the table.`]));
+  }
+  function listen(){
+    if (!game) { $('waitT').textContent = 'Pool Broadcast'; $('waitS').textContent = 'Open this from a scoreboard: bottom panel → 📺 Broadcast.'; return; }
+    const es = new PoolarStream(`${RELAY}/poolar-${game}/sse?since=all`);
+    es.onmessage = e => { let d; try { d = JSON.parse(e.data); } catch { return; } if (d.event !== 'message') return;
+      let m; try { m = JSON.parse(d.message); } catch { return; } if (!m || !m.st) return;
+      if (st && (m.ts || 0) < (st.ts || 0)) return;
+      const prev = st; st = { ...m.st, ts: m.ts }; paint();
+      if (prev && Date.now() - (m.ts || 0) < 60000) diff(prev, st);   // only announce fresh changes, not history
+    };
+  }
+  listen();
+  // tap: small menu
+  addEventListener('pointerdown', () => { $('menu').classList.add('show'); clearTimeout(window.__mt); window.__mt = setTimeout(() => $('menu').classList.remove('show'), 4000); });
+  $('mFull').onclick = () => { const d = document.documentElement; (d.requestFullscreen || d.webkitRequestFullscreen || (() => {})).call(d); };
+  let wake; const keepAwake = async () => { try { wake = await navigator.wakeLock.request('screen'); } catch {} };
+  keepAwake(); document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') keepAwake(); });
+})();
+</script>
+<script src="build.js"></script>
+</body>
+</html>
