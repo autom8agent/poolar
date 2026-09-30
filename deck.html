@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930223227"><script src="stream.js?v=20260930223227"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930223355"><script src="stream.js?v=20260930223355"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -216,6 +216,7 @@
   .reflog .it small{color:#8ea69a;display:block} .reflog .it .a{font-weight:800;font-size:12px}
   .reflog .it .a.yes{color:#57d98a} .reflog .it .a.no{color:#ff6b5e} .reflog .it .a.wait{color:var(--gold)}
   .refpop{position:absolute;right:8px;bottom:60px;z-index:6;width:min(460px,calc(100% - 16px));font-size:16px;background:rgba(12,20,17,.96);border:2px solid var(--gold);border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:8px;box-shadow:0 8px 30px rgba(0,0,0,.5);overflow:hidden}
+  .replayb{width:100%;font:800 16px Barlow,system-ui,sans-serif!important;padding:11px!important;border-radius:10px;border:1px solid #5aa9ff;background:#0f2233;color:#cfe6ff;cursor:pointer}
   .rfix{display:flex;flex-direction:column;gap:6px;border-top:1px solid #26372f;padding-top:6px}
   .rfix small{color:#8ea69a;font-size:13px}
   .rfixb{display:flex;flex-wrap:wrap;gap:6px}
@@ -429,11 +430,12 @@
       </div>
       <div class="refpop" id="refPop" hidden>
         <div class="rtop"><b id="refT"></b><span class="rballs" id="refBalls"></span></div>
+        <button type="button" class="replayb" id="refReplay">▶ Watch the shot again</button>
         <p id="refS"></p>
         <div class="rbtn"><button data-c="yes">Yes</button><button data-c="no">No</button><button data-c="other">Other</button></div>
         <div class="rfix" id="refFix" hidden><small>Fix the game (applies now):</small><div class="rfixb" id="refFixB"></div></div>
         <textarea id="refC" rows="2" placeholder="Comment (optional) — tell it what really happened"></textarea>
-        <div class="rfoot"><span id="refAuto"></span><button id="refReplay">▶ Replay shot</button><button id="refStop">⏸ Stop timer</button><button class="primary" id="refSubmit">Submit</button></div>
+        <div class="rfoot"><span id="refAuto"></span><button id="refStop">⏸ Stop timer</button><button class="primary" id="refSubmit">Submit</button></div>
         <i class="rbar" id="refBar"></i>
       </div>
       <video id="replayVid" playsinline muted hidden></video>
@@ -803,10 +805,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930223227"></script>
-<script src="halls.js?v=20260930223227"></script>
-<script src="qrcode.js?v=20260930223227"></script>
-<script src="tablecv.js?v=20260930223227"></script>
+<script src="hallday.js?v=20260930223355"></script>
+<script src="halls.js?v=20260930223355"></script>
+<script src="qrcode.js?v=20260930223355"></script>
+<script src="tablecv.js?v=20260930223355"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -2870,5 +2872,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930223227"></script>
+<script src="build.js?v=20260930223355"></script>
 </body></html>
