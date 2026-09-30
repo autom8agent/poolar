@@ -281,6 +281,19 @@
           // Something that isn't a ball: a cue shaft is long and thin (about a ball wide); a hand, glove
           // or arm is much thicker. Measure thickness as area / length of the shape.
           const len = Math.hypot(bw, bh), thick = b.n / Math.max(1, len);
+          // People and cues reach in from the side: a shape that doesn't touch the table edge isn't an arm. (On table 4
+          // the 6 ball plus a patch of lamp glare in the middle read as an 'arm' and blocked the ref on every shot.)
+          const touchesEdge = b.x0 < w * .06 || b.x1 > w * .94 || b.y0 < h * .08 || b.y1 > h * .92;
+          if (!touchesEdge) {
+            if (b.cn / b.n > .08 || b.dk / b.n > .15 || b.wh / b.n > .15) {   // a ball inside the glare: read it by its colour
+              const clothy = i => hueDist(i * 10 + 5, fhsv[0]) < 32; let hb = -1, best = 0; b.hue.forEach((v2, i) => { if (!clothy(i) && v2 > best) { best = v2; hb = i; } });
+              const wf = b.wh / b.n, df = b.dk / b.n;
+              if (wf > .35 && best < b.n * .03) balls.push({ x, y, cls: 'cue', num: 0, wf, df, cf: b.cn / b.n });
+              else if (df > .3 && best < b.n * .05) balls.push({ x, y, cls: 'eight', num: 8, wf, df });
+              else if (hb >= 0) balls.push({ x, y, cls: wf > .13 ? 'stripe' : 'solid', num: ballNumber(hb * 10 + 5, b.vs / Math.max(1, b.cn)) + (wf > .13 ? 8 : 0), wf, df, glare: true });
+            }
+            continue;
+          }
           occ.push({ x0: b.x0 / w, x1: b.x1 / w, y0: b.y0 / h, y1: b.y1 / h, dark: b.dk / b.n > .45 && b.n > A * 6, thick, id: blobs.indexOf(b) + 1 });
         }
       }

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930224245"><script src="stream.js?v=20260930224245"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930224547"><script src="stream.js?v=20260930224547"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -806,10 +806,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930224245"></script>
-<script src="halls.js?v=20260930224245"></script>
-<script src="qrcode.js?v=20260930224245"></script>
-<script src="tablecv.js?v=20260930224245"></script>
+<script src="hallday.js?v=20260930224547"></script>
+<script src="halls.js?v=20260930224547"></script>
+<script src="qrcode.js?v=20260930224547"></script>
+<script src="tablecv.js?v=20260930224547"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -1992,6 +1992,7 @@
       raw: rawView, video: v ? `${v.videoWidth}x${v.videoHeight}` : null, balls: L ? L.balls.length : null, cue: !!(L && L.balls.some(b => b.cls === 'cue')),
       shots: shotsSeen, lastShot: lastShotAt ? Math.round((Date.now() - lastShotAt) / 1000) : null,
       screen: typeof SCREEN !== 'undefined' ? SCREEN : null, frame: ($('feedFrame').getAttribute('src') || '').slice(0, 90), tvAdd: !$('tvAdd').hidden,
+      rec: { buf: typeof buf !== 'undefined' ? buf.length : -1, on: typeof bufRec !== 'undefined' && !!bufRec && bufRec.state, mr: !!window.MediaRecorder, type: typeof vtype === 'function' ? vtype() : '?', prog: typeof progStream !== 'undefined' && !!progStream },
       wstate: (() => { try { const d = $('feedFrame').contentDocument; return d && d.getElementById('wStateT') ? d.getElementById('wStateT').textContent : null; } catch (e) { return 'x-origin'; } })(), vw: innerWidth + 'x' + innerHeight, stat: ($('refStat') || {}).textContent || '', ua: navigator.userAgent.slice(0, 60) }) }).catch(() => {});
   } catch {} }, 15000);
   function refUI(){ $('tvRef').textContent = refOn ? '🤖 Ref on' : '🤖 Ref off'; $('tvRef').classList.toggle('refon', refOn); }
@@ -2905,5 +2906,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930224245"></script>
+<script src="build.js?v=20260930224547"></script>
 </body></html>
