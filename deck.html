@@ -91,7 +91,10 @@
   .stepper input{text-align:center;padding:8px 4px;font-family:var(--num);font-weight:900;font-size:22px}
   .card:not(.dbl) .dblOnly{display:none}
   .card.dbl .sglOnly{display:none}
-  .gate{position:fixed;inset:0;z-index:20;background:radial-gradient(120% 80% at 50% 0%,#12303f,var(--bg));display:grid;place-items:center;padding:16px}
+  .gate{position:fixed;inset:0;z-index:20;background:radial-gradient(120% 80% at 50% 0%,#12303f,var(--bg));display:flex;overflow-y:auto;padding:16px}
+  .gate .gcard{margin:auto}
+  .gcam{display:flex;flex-direction:column;gap:6px;width:100%;align-items:center}
+  .gcam .two{width:100%}   /* centred, but scrolls when taller than the screen (phone held sideways) */
   .gcard{width:100%;max-width:380px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
   .gtable{width:90px;height:auto}
   .gcard h2{margin:0;font-family:var(--num);font-weight:900;font-size:40px;text-transform:uppercase;letter-spacing:.03em}
@@ -132,7 +135,7 @@
   .fmtnote{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
   body.scroll{overflow:auto}
   body.scroll .app{height:auto;min-height:100%}
-  body.scroll .players{flex:none;height:min(56vh,440px)}
+  body.scroll .players{flex:1}
   .linecard{display:flex;flex-direction:column;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;margin-top:6px}
   .linecard h3{margin:0;font-family:var(--num);font-weight:900;font-size:22px;letter-spacing:.04em;text-transform:uppercase}
   .facts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
@@ -159,6 +162,22 @@
   .tv iframe,.tv video{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000}
   .tv video{object-fit:contain}
   .tv iframe{pointer-events:none}
+  body:not(.hastv) .tv{display:none!important}
+  .tvadd{display:none!important}
+  .camb{position:relative;width:auto;padding:0 6px;gap:2px;display:inline-flex;align-items:center}
+  .camb b{font-size:15px;line-height:1;color:var(--chalk)}
+  body.hastv .camb{border-color:#57d98a;color:#57d98a} body.hastv .camb b{color:#57d98a}
+  #clipBtn svg{fill:none;stroke:currentColor;stroke-width:2}
+  .camstat{display:flex;flex-direction:column;gap:6px}
+  .camstat div{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:14px}
+  .camstat i{width:9px;height:9px;border-radius:50%;background:var(--muted)} .camstat i.on{background:#57d98a}
+  .camstat span{flex:1} .camstat small{color:var(--muted)}
+  .campip{position:absolute;left:8px;top:8px;width:30%;aspect-ratio:16/9;z-index:4;border:2px solid var(--line);border-radius:10px;overflow:hidden;background:#000;cursor:pointer;transition:all .2s}
+  .campip iframe{position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none}
+  .campip span{position:absolute;left:6px;bottom:4px;font-size:11px;font-weight:700;background:rgba(0,0,0,.6);padding:1px 6px;border-radius:6px}
+  .campip.big{left:0;top:0;width:100%;height:100%;border-radius:0;border:0}
+  /* The scoreboard fills the first screen; the bottom panel is below it. */
+  .board{display:flex;flex-direction:column;gap:6px;height:calc(100dvh - 16px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));min-height:540px}
   #viewCan{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;z-index:1}
   .tv .tvover,.tv #replayVid{z-index:3}
   .handle{position:absolute;z-index:6;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;border:3px solid var(--gold);background:rgba(242,193,78,.25);touch-action:none}
@@ -250,7 +269,7 @@
   body.viewer .nameb{pointer-events:none}
   /* Phone with the camera: camera on top, then two full-size player cards. */
   @media (max-width:799px), (orientation:portrait){
-    body.scroll.hastv .players{height:auto;grid-template-rows:minmax(190px,32vh) 150px 150px}
+    body.scroll.hastv .players{grid-template-rows:minmax(170px,30vh) 1fr 1fr}
   }
   .viewtag{font-size:11px;font-weight:800;letter-spacing:.08em;color:#1d1606;background:var(--gold);border-radius:6px;padding:2px 7px}
   .reclist{display:flex;flex-direction:column;gap:6px}
@@ -330,8 +349,9 @@
 </style>
 
 <div class="app">
+ <div class="board">
   <header>
-    <div class="hdr-l"><a class="tchip home" id="tchip" hidden aria-label="All tables"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 12h3v8h5v-5h4v5h5v-8h3z"/></svg><span id="tchipN"></span></a><button class="lockic" id="lockIc" hidden aria-label="Lock or unlock the table"></button><button class="lockic" id="camBtn" aria-label="Camera and recording"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h3l2-2h6l2 2h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></svg></button><button class="modeb" id="modeBtn" aria-label="Change players: singles or doubles">1v1</button><div class="race" id="raceLbl" role="button" tabindex="0">Race 5–5</div></div>
+    <div class="hdr-l"><a class="tchip home" id="tchip" hidden aria-label="All tables"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 12h3v8h5v-5h4v5h5v-8h3z"/></svg><span id="tchipN"></span></a><button class="lockic" id="lockIc" hidden aria-label="Lock or unlock the table"></button><button class="lockic camb" id="camBtn" aria-label="Add camera"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h3l2-2h6l2 2h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></svg><b>+</b></button><button class="lockic hostonly" id="clipBtn" aria-label="Clips"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18M3 15h18M8 5v4M16 5v4M8 15v4M16 15v4"/></svg></button><button class="modeb" id="modeBtn" aria-label="Change players: singles or doubles">1v1</button><div class="race" id="raceLbl" role="button" tabindex="0">Race 5–5</div></div>
     <div class="hdr-r"><span class="live" id="live">Offline</span><div class="rackno" id="rackNo">Rack 1</div></div>
   </header>
 
@@ -340,6 +360,7 @@
       <div class="tvadd" id="tvAdd"><button class="primary" id="tvAddBtn">+ Add camera</button><small>Top-down table view · replays · recording</small></div>
       <iframe id="feedFrame" title="Top-down table camera" allow="autoplay; fullscreen" hidden></iframe>
       <canvas id="viewCan" hidden></canvas>
+      <div class="campip" id="pip" hidden><iframe id="behindFrame" title="Behind the table camera" allow="autoplay"></iframe><span>Behind the table</span></div>
       <div id="handles" hidden><i class="handle" data-k="tl"></i><i class="handle" data-k="tr"></i><i class="handle" data-k="br"></i><i class="handle" data-k="bl"></i>
         <div class="adjbar"><span>Drag the 4 dots onto the table corners</span><button class="primary" id="adjDone">Done</button><button id="adjCancel">Cancel</button></div></div>
       <div class="tvover" id="tvTable" hidden>
@@ -385,7 +406,7 @@
         <button class="hostonly" id="tvTableBtn">⊞ Table</button>
         <button id="tvRot" aria-label="Rotate 180 degrees">↻ Rotate</button>
         <button id="tvFull">⛶ Full screen</button>
-        <button id="tvX" aria-label="Remove camera">✕</button>
+        <button id="tvX" aria-label="Remove camera" hidden>✕</button>
       </div>
     </div>
     <section class="p" id="p0">
@@ -430,6 +451,8 @@
     <button id="shareBtn" class="primary">Share</button>
   </div>
 
+ </div>
+
   <section class="linecard" id="lineCard" hidden aria-label="Waitlist">
     <h3 id="lcTitle">Winner stays on</h3>
     <div class="facts">
@@ -470,20 +493,17 @@
   </section>
 </div>
 
-<div class="sheet" id="camSheet" hidden>
+<div class="sheet" id="camSheet" hidden style="z-index:25">
   <div class="card">
-    <h2>Top-down camera</h2>
-    <p>Open <a href="phonecam.html" target="_blank" rel="noopener" style="color:var(--chalk)">Pool Cam</a> on the phone over the table and tap <b>Use this phone as the camera</b>. No code needed.</p>
-    <button class="primary" id="feedGo">Show top-down feed</button>
-    <h2>Clips &amp; recordings</h2>
-    <p>Saved on this iPad as they record: one file per rack and one per turn, plus replay clips.</p>
-    <button id="clipsOpen">🎬 Open clips</button>
-    <h2>Table camera</h2>
-    <p id="camMsg">Point this phone at the table. Recordings include the score and stay on this phone until you save them.</p>
-    <div class="camwrap"><video id="camVid" playsinline muted></video><canvas id="camCan" hidden></canvas><span class="recdot" id="recDot" hidden>● REC <b id="recTime">0:00</b></span></div>
-    <div class="two"><button class="primary" id="camStart">Start camera</button><button id="camRec" disabled>Record</button></div>
-    <div class="two" id="camSaveRow" hidden><a class="btnlink primary" id="camSave" download>Save video</a><button id="camShare">Share video</button></div>
+    <h2>Add a camera</h2>
+    <p id="camFor">Use this phone as a camera for this table. Everyone who opens the table sees it.</p>
+    <div class="camstat" id="camStat"></div>
+    <label>Where will this camera be?<select id="camLoc"><option value="top">Top-down (above the table)</option><option value="behind">Behind the table (ball return) · optional</option></select></label>
+    <button class="primary" id="camGo">Start camera on this phone</button>
     <button id="camClose">Close</button>
+    <div hidden><button id="feedGo"></button><button id="clipsOpen"></button><p id="camMsg"></p>
+      <div class="camwrap"><video id="camVid" playsinline muted></video><canvas id="camCan"></canvas><span class="recdot" id="recDot" hidden>● REC <b id="recTime">0:00</b></span></div>
+      <button id="camStart"></button><button id="camRec" disabled></button><div id="camSaveRow"><a id="camSave" download></a><button id="camShare"></button></div></div>
   </div>
 </div>
 
@@ -641,6 +661,11 @@
       <p class="gnote" id="gNote" hidden></p>
     </div>
     <button class="primary big" id="gClaim" hidden>Start a game on this table</button>
+    <div class="gcam">
+      <button type="button" class="gback" id="gCam">📷 Use this phone as the table camera</button>
+      <div class="two" id="gCamPick" hidden><button type="button" class="primary" data-loc="top">Top-down</button><button type="button" data-loc="behind">Behind the table</button></div>
+      <a class="gback" id="gWatchCam" href="phonecam.html">📺 Watch this table's camera</a>
+    </div>
     <div id="gLocked" hidden class="glocked">
       <p>This table is locked to the group playing on it. To join their game, ask them to tap <b>Share</b> and send you their link.</p>
       <a class="gwait" id="gWait" href="wait.html">Join the waitlist</a>
@@ -674,6 +699,9 @@
   const HALL = (q0.get('hall') || '').replace(/[^a-z0-9-]/gi, '').slice(0, 40);
   const TNUM = parseInt(q0.get('t'), 10) || 0;
   const tableMode = !!(HALL && TNUM);
+  // Camera channel for this table (the camera phone and every viewer compute the same name).
+  const camHash = x => { let h = 0; for (const c of String(x)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h.toString(36).toUpperCase().slice(0, 4); };
+  const camChan = loc => (tableMode ? 'H' + camHash(HALL) + 'T' + TNUM : '1') + (loc === 'behind' ? 'B' : '');
   const HINFO = (window.POOLAR_HALLS || {})[HALL];
   const TINFO = HINFO && HINFO.tables.find(x => x.n === TNUM);
   const RELAY0 = q0.get('relay') || 'https://ntfy.sh';
@@ -700,6 +728,14 @@
   async function gate(){
     const el = id => document.getElementById(id);
     el('gate').hidden = false;
+    // Being the table's camera, or watching it, doesn't need a seat in the game.
+    const camUrl = (loc, watch) => { const u = new URL('phonecam.html', location.href); u.search = '';
+      if (watch) u.searchParams.set('watch', camChan('top'));
+      else { u.searchParams.set('cam', camChan(loc)); u.searchParams.set('loc', loc); u.searchParams.set('hall', HALL); u.searchParams.set('t', TNUM); }
+      if (q0.get('relay')) u.searchParams.set('relay', q0.get('relay')); return String(u); };
+    el('gCam').onclick = () => { el('gCamPick').hidden = !el('gCamPick').hidden; };
+    el('gCamPick').onclick = e => { const b = e.target.closest('[data-loc]'); if (b) location.href = camUrl(b.dataset.loc); };
+    el('gWatchCam').href = camUrl('top', true);
     el('gNum').textContent = TNUM; el('gTitle').textContent = `Table ${TNUM}`;
     el('gSub').textContent = [HINFO ? `${HINFO.name} · ${HINFO.area}` : HALL, TINFO ? `${TINFO.ft}-ft table` : ''].filter(Boolean).join(' · ');
     el('gBack').href = hallUrl();
@@ -1364,7 +1400,6 @@
   $('waitCopy').onclick = async () => { try { await navigator.clipboard.writeText($('waitUrl').value); $('waitCopy').textContent = 'Copied'; } catch { $('waitUrl').select(); $('waitCopy').textContent = 'Selected'; } setTimeout(() => $('waitCopy').textContent = 'Copy', 1500); };
   // Table camera: preview the rear camera, record it with the score drawn on top, then save or share the clip.
   let camStream = null, rec = null, recT0 = 0, recTimer = 0, drawing = 0;
-  $('camBtn').onclick = () => { $('camSheet').hidden = false; };
   const vtype = () => ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'].find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || '';
   const mmss = ms => { const t = Math.floor(ms / 1000); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
 
@@ -1378,18 +1413,19 @@
   let feedLive = false, asked = VIEW, liveT = 0;
   const camLink = () => { const u = new URL('phonecam.html', location.href); u.search = ''; u.searchParams.set('cam', '1'); if (RELAY !== 'https://ntfy.sh') u.searchParams.set('relay', RELAY); return String(u); };
   // No code: Pool Cam's shared channel is "1". An old ?cam=K7QX2P link still picks that camera.
+  // Every table has its own camera channels (top-down, and behind the table), so opening a table
+  // shows its camera by itself. The page listens quietly; the feed box appears once a camera is live.
+  const watchSrc = code => { const u = new URL('phonecam.html', location.href); u.search = ''; u.searchParams.set('watch', code); u.searchParams.set('embed', '1'); if (RELAY !== 'https://ntfy.sh') u.searchParams.set('relay', RELAY); return String(u); };
+  let lastLive = 0, behindLive = false;
   function showFeed(code){
-    code = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12) || '1';
-    const u = new URL('phonecam.html', location.href); u.search = '';
-    u.searchParams.set('watch', code); u.searchParams.set('embed', '1'); if (RELAY !== 'https://ntfy.sh') u.searchParams.set('relay', RELAY);
-    $('feedFrame').src = u; $('feedFrame').hidden = false; $('viewCan').hidden = false; $('tvAdd').hidden = true; document.body.classList.add('hastv');
-    camKey = code;
-    feedLive = false; $('tvBar').hidden = true; $('tvWait').hidden = false;
-    try { const q = qrcode(0, 'M'); q.addData(camLink()); q.make(); $('tvQr').innerHTML = q.createSvgTag({ cellSize: 4, margin: 0, scalable: true, alt: 'Open Pool Cam camera' }); } catch { $('tvQr').hidden = true; }
-    try { localStorage.setItem(FEEDKEY, code); } catch {}
-    if (code !== '1' && qs.get('cam') !== code) { qs.set('cam', code); try { history.replaceState(null, '', '?' + qs); } catch {} }
+    code = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12) || camChan('top');
+    $('feedFrame').src = watchSrc(code); $('feedFrame').hidden = false; $('viewCan').hidden = false;
+    camKey = code; feedLive = false; $('tvBar').hidden = true; $('tvWait').hidden = true;
     clearInterval(liveT); liveT = setInterval(watchLive, 700);
   }
+  const bdoc = () => { try { return $('behindFrame').contentDocument; } catch { return null; } };
+  const behindVideo = () => { const d = bdoc(), v = d && d.getElementById('remote'); return v && v.videoWidth ? v : null; };
+  $('pip').onclick = e => { e.stopPropagation(); $('pip').classList.toggle('big'); };
   function hideFeed(){
     if (rec && rec.state === 'recording' && !camStream) { if (!confirm('Stop recording and remove the camera?')) return; rec.stop(); }
     clearInterval(liveT); stopBuffer(); backToLive(); setFull(false);
@@ -1400,9 +1436,14 @@
     qs.delete('cam'); try { history.replaceState(null, '', '?' + qs); } catch {}
   }
   function watchLive(){
-    const v = feedVideo();
+    const v = feedVideo(), bv = behindVideo(), now = Date.now();
+    if (v) lastLive = now;
+    // The box shows while a camera is live, and hides again once it has been gone for 20 s.
+    if (feedLive && !v && now - lastLive > 20000) { feedLive = false; $('tvBar').hidden = true; }
+    behindLive = !!bv; $('pip').hidden = !bv; if (bv && !v) $('pip').classList.add('big');
+    document.body.classList.toggle('hastv', feedLive || !!v || behindLive);
     if (v && !feedLive) {
-      feedLive = true; $('tvWait').hidden = true; $('tvBar').hidden = false; $('camRec').disabled = false; wakeBar();
+      feedLive = true; $('tvWait').hidden = true; $('tvBar').hidden = false; $('camRec').disabled = false; wakeBar(); $('pip').classList.remove('big');
       if (!corners) loadCorners();
       // First connection: ask whether to record the match, once per game. After that the answer is
       // remembered, so coming back to the page (or a reload) resumes recording without asking.
@@ -1413,6 +1454,22 @@
     }
     if (v) { progOn(); keepBuffer(progStream); }
   }
+  // Add a camera: this device becomes the table's top-down (or behind-the-table) camera.
+  function paintCamStat(){
+    const row = (on, name, sub) => `<div><i class="${on ? 'on' : ''}"></i><span>${name}</span><small>${on ? 'Live' : sub}</small></div>`;
+    $('camStat').innerHTML = row(feedLive, 'Top-down', 'No camera yet') + row(behindLive, 'Behind the table', 'Optional');
+    $('camFor').textContent = tableMode ? `Use this phone as a camera for table ${TNUM}. Everyone who opens table ${TNUM} sees it.` : 'Use this phone as a camera for this game. Everyone who opens this scoreboard sees it.';
+    $('camLoc').value = feedLive && !behindLive ? 'behind' : 'top';
+  }
+  $('camBtn').onclick = () => { paintCamStat(); $('camSheet').hidden = false; };
+  $('camGo').onclick = () => {
+    const loc = $('camLoc').value, u = new URL('phonecam.html', location.href); u.search = '';
+    u.searchParams.set('cam', camChan(loc)); u.searchParams.set('loc', loc);
+    if (tableMode) { u.searchParams.set('hall', HALL); u.searchParams.set('t', TNUM); }
+    if (RELAY !== 'https://ntfy.sh') u.searchParams.set('relay', RELAY);
+    location.href = u;
+  };
+  $('clipBtn').onclick = () => openClips();
   $('tvAddBtn').onclick = () => showFeed(qs.get('cam'));
   $('feedGo').onclick = () => { showFeed(qs.get('cam')); $('camSheet').hidden = true; };
   $('tvCancel').onclick = $('tvX').onclick = hideFeed;
@@ -1427,7 +1484,9 @@
   let dimT = 0;
   function wakeBar(){ $('tvBar').classList.remove('dim'); clearTimeout(dimT); dimT = setTimeout(() => { if (!replaying) $('tvBar').classList.add('dim'); }, 5000); }
   $('tv').addEventListener('pointerdown', wakeBar);
-  { let c = qs.get('cam'); if (!c) try { c = localStorage.getItem(FEEDKEY); } catch {} if (c) showFeed(c); }
+  // Always listen for this table's cameras (an old ?cam=CODE link still picks that camera).
+  showFeed(qs.get('cam') || camChan('top'));
+  $('behindFrame').src = watchSrc(camChan('behind'));
 
   // ---------- Straightened table view + automatic referee ----------
   // The camera is never exactly square to the table. tablecv.js finds the felt, fits the four rails

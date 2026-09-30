@@ -100,6 +100,8 @@
   try { mine = JSON.parse(localStorage.getItem('poolar-mytables') || '{}'); } catch {}
   const status = {};   // table number -> latest status message
   const config = {};   // table number -> what the admin has set the table up for
+  const cams = {};     // table number -> { top: ts, behind: ts } of live camera heartbeats (every 4 min)
+  const camLive = t => { const c = cams[t]; return !!c && Object.values(c).some(ts => ts && Date.now() - ts < 6 * 60 * 1000); };
   let event = null;
   const P = window.POOLAR;
   const busy = t => { const s = status[t]; return s && s.state === 'busy' && Date.now() - s.ts < STALE; };
@@ -140,7 +142,7 @@
         ${pockets}${diamonds}
         <text class="tnum" x="${numX}" y="${numY}" text-anchor="middle" font-size="${fs}">${n}</text>
         <text class="tag" id="tt${n}" x="${tagX}" y="${tagY}" text-anchor="middle" font-size="2.1"></text>
-        <g id="ti${n}" data-x="${x}" data-y="${y}" data-w="${tw}"></g>
+        <g id="ti${n}" data-x="${x}" data-y="${y}" data-w="${tw}" data-h="${th}"></g>
       </g>`;
     }
     svg.innerHTML = out;
@@ -164,8 +166,9 @@
       // Map: game ball in the top-left corner, waitlist count in the top-right.
       const g = $('ti' + t.n), x = +g.dataset.x, y = +g.dataset.y, w = +g.dataset.w;
       g.innerHTML = (b0 || c.gtype ? `<circle cx="${x+1.2}" cy="${y+1.2}" r="2.3" fill="${P.BALL[(gt-1)%8]}" stroke="#000" stroke-width=".3"/><circle cx="${x+1.2}" cy="${y+1.2}" r="1.2" fill="#f4efe2"/><text x="${x+1.2}" y="${y+1.75}" text-anchor="middle" font-size="1.5" font-weight="700" fill="#111">${gt}</text>` : '')
-        + (b0 ? `<circle cx="${x+w-1.2}" cy="${y+1.2}" r="2.3" fill="${P.lineColor(q)}" stroke="#000" stroke-width=".3"/><text x="${x+w-1.2}" y="${y+2}" text-anchor="middle" font-size="2.3" font-weight="800" fill="#10161c">${q}</text>` : '');
-      $('gi' + t.n).innerHTML = `${P.ballSvg(gt, 18)}${P.peopleSvg(dbl, 16)}<span class="q" style="background:${P.lineColor(q)}">${q}</span>`;
+        + (b0 ? `<circle cx="${x+w-1.2}" cy="${y+1.2}" r="2.3" fill="${P.lineColor(q)}" stroke="#000" stroke-width=".3"/><text x="${x+w-1.2}" y="${y+2}" text-anchor="middle" font-size="2.3" font-weight="800" fill="#10161c">${q}</text>` : '')
+        + (camLive(t.n) ? `<g aria-label="Camera live"><rect x="${x+1.8}" y="${y + +g.dataset.h - 5.2}" width="6.4" height="3.8" rx=".8" fill="#e5484d" stroke="#000" stroke-width=".25"/><path d="M${x+8.2} ${y + +g.dataset.h - 4.6}l2 -1v3.4l-2 -1z" fill="#e5484d" stroke="#000" stroke-width=".2"/><circle cx="${x+3.2}" cy="${y + +g.dataset.h - 3.3}" r=".6" fill="#fff"/></g>` : '');
+      $('gi' + t.n).innerHTML = `${P.ballSvg(gt, 18)}${P.peopleSvg(dbl, 16)}<span class="q" style="background:${P.lineColor(q)}">${q}</span>${camLive(t.n) ? '<span class="cam" title="Camera live">📹</span>' : ''}`;
       $('gl' + t.n).classList.toggle('closed', !!closed);
       $('gl' + t.n).title = c.note || '';
     }
@@ -186,6 +189,7 @@
     if (m.kind === 'event' && (!event || m.ts >= event.ts)) event = m;
     if (m.kind === 'config' && m.t && (!config[m.t] || m.ts >= config[m.t].ts)) config[m.t] = m;
     if (m.kind === 'table' && m.t && (!status[m.t] || m.ts >= status[m.t].ts)) status[m.t] = m;
+    if (m.kind === 'cam' && m.t) { const c = cams[m.t] = cams[m.t] || {}; const k = m.loc === 'behind' ? 'behind' : 'top'; if (!c[k] || m.ts >= Math.abs(c[k])) c[k] = m.on ? m.ts : 0; }
   }
   function setLive(on){ $('live').textContent = on ? 'Live' : 'Offline'; $('live').classList.toggle('on', on); }
 
