@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
+<meta charset="utf-8"><meta name="build" content="20260930031552">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#000000">
 <!-- iPhone: Safari can't hide its toolbars for a page, but "Add to Home Screen" opens it full screen. -->
@@ -57,6 +57,7 @@
   <button id="bAim" aria-pressed="true">Shot lines</button>
   <button id="bFlip" aria-pressed="false">Flip</button>
   <button id="bFull">Full screen</button>
+  <button id="bHome" onclick="location.href='hall.html'">⌂ Tables</button>
 </div>
 <div class="start" id="start">
   <div>
@@ -229,5 +230,6 @@
   openFeed(); listenGame(); requestAnimationFrame(loop);
 })();
 </script>
+<script src="build.js"></script>
 </body>
 </html>
