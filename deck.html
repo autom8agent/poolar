@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930072207"><script src="stream.js?v=20260930072207"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930073210"><script src="stream.js?v=20260930073210"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -363,6 +363,11 @@
   .log div{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line);padding-block:6px}
   .win h2{color:var(--gold);font-size:40px}
   .card{max-height:calc(100% - 8px);overflow:auto}
+  .sheet .card{position:relative}
+  .xclose{position:absolute;top:8px;right:8px;width:40px;height:40px;padding:0;border-radius:50%;font-size:24px;line-height:1;display:grid;place-items:center;background:#0f1714;border:1px solid var(--line);color:var(--text);z-index:2}
+  .sheet .card>h2:first-of-type,.sheet .card>h2{padding-right:44px}
+  .refpop .xclose{top:4px;right:4px;width:32px;height:32px;font-size:20px}
+  .refpop .rtop{padding-right:34px}
   .stats{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:14px}
   .stats th,.stats td{padding:6px 4px;border-bottom:1px solid var(--line);text-align:right}
   .stats th:first-child,.stats td:first-child{text-align:left;color:var(--muted);font-weight:600}
@@ -761,10 +766,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930072207"></script>
-<script src="halls.js?v=20260930072207"></script>
-<script src="qrcode.js?v=20260930072207"></script>
-<script src="tablecv.js?v=20260930072207"></script>
+<script src="hallday.js?v=20260930073210"></script>
+<script src="halls.js?v=20260930073210"></script>
+<script src="qrcode.js?v=20260930073210"></script>
+<script src="tablecv.js?v=20260930073210"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -1942,6 +1947,13 @@
     };
     tick();
   }
+  // Every pop-up gets an × in the corner. It runs the pop-up's own Cancel/Close when there is one.
+  for (const sh of document.querySelectorAll('.sheet')) { const card = sh.querySelector('.card'); if (!card || card.querySelector('.xclose')) continue;
+    const x = document.createElement('button'); x.type = 'button'; x.className = 'xclose'; x.setAttribute('aria-label', 'Close'); x.textContent = '×';
+    x.onclick = e => { e.preventDefault(); const own = [...sh.querySelectorAll('button')].find(b => b !== x && /^(Cancel|Close|Done|Not now|Skip)\b/i.test(b.textContent.trim()) && !b.closest('[hidden]'));
+      if (own) own.click(); else sh.hidden = true; };
+    card.prepend(x); }
+  { const x = document.createElement('button'); x.type = 'button'; x.className = 'xclose'; x.setAttribute('aria-label', 'Close'); x.textContent = '×'; x.onclick = () => closePop(); $('refPop').prepend(x); }
   function closePop(){ clearTimeout(popT); pop = null; $('refPop').hidden = true; }
   const touch2 = () => { if (pop) pop.touched = true; };
   document.querySelectorAll('#refPop .rbtn button').forEach(b => b.onclick = () => { if (!pop) return; touch2(); pop.choice = b.dataset.c; document.querySelectorAll('#refPop .rbtn button').forEach(x => x.classList.toggle('sel', x === b)); if (b.dataset.c === 'other') $('refC').focus(); });
@@ -2510,5 +2522,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930072207"></script>
+<script src="build.js?v=20260930073210"></script>
 </body></html>

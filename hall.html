@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="build" content="20260930072207"><script src="stream.js?v=20260930072207"></script>
+<meta charset="utf-8"><meta name="build" content="20260930073210"><script src="stream.js?v=20260930073210"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0a0f14">
 <title>Surge Billiards Tables</title>
@@ -110,8 +110,8 @@
   <p class="note">A table locks to the first group that opens it. Friends join through the Share button inside the game. When you finish, tap <b>Free table</b> in the game so the next group can use it. A table that sits idle for 30 minutes frees up by itself.</p>
 </div>
 
-<script src="hallday.js?v=20260930072207"></script>
-<script src="halls.js?v=20260930072207"></script>
+<script src="hallday.js?v=20260930073210"></script>
+<script src="halls.js?v=20260930073210"></script>
 <script>
 (() => {
   const qs = new URLSearchParams(location.search);
@@ -147,9 +147,10 @@
     for (const f of H.features) {
       if (f.kind === 'wall') out += `<rect x="${f.x}" y="${f.y}" width="${f.w}" height="${f.h}" rx=".6" fill="#6b4f36"/>` +
         Array.from({ length: Math.floor(f.w / 5) }, (_, i) => `<circle cx="${f.x + 2.5 + i*5}" cy="${f.y + f.h + 2}" r="1.1" fill="#3a2c20"/>`).join('') +
-        `<text x="${f.x + f.w/2}" y="${f.y - 1.2}" text-anchor="middle" class="tag" font-size="2.6" fill="var(--muted)" style="fill:var(--muted)">${esc(f.label)}</text>`;
+        (f.label ? `<text x="${f.x + f.w/2}" y="${f.y - 1.2}" text-anchor="middle" class="tag" font-size="2.6" fill="var(--muted)" style="fill:var(--muted)">${esc(f.label)}</text>` : '');
+      if (f.kind === 'divider') out += `<line x1="2" y1="${f.y}" x2="${w-2}" y2="${f.y}" stroke="#3b4a5a" stroke-width=".35" stroke-dasharray="1.6 1"/><rect x="${w/2-13}" y="${f.y-1.9}" width="26" height="3.8" rx="1.9" fill="var(--floor)" stroke="#3b4a5a" stroke-width=".3"/><text x="${w/2}" y="${f.y+.95}" text-anchor="middle" class="tag" font-size="2.5" style="fill:#c9d6e2;letter-spacing:.3px">${esc(f.label)}</text>`;
       if (f.kind === 'seats') for (let i = 0; i < f.n; i++) out += `<circle cx="${f.x}" cy="${f.y + i*f.gap}" r="2.4" fill="#2b2118" stroke="#4a3828" stroke-width=".4"/><circle cx="${f.x+12}" cy="${f.y + i*f.gap}" r="2.4" fill="#2b2118" stroke="#4a3828" stroke-width=".4"/>`;
-      if (f.kind === 'bar') out += `<rect x="${f.x}" y="${f.y}" width="${f.w}" height="${f.h}" rx="1.5" fill="#6b4f36"/><text x="${f.x + f.w/2}" y="${f.y + f.h/2 + 1.3}" text-anchor="middle" class="tag" font-size="3.6">${esc(f.label)}</text>`;
+      if (f.kind === 'bar') out += `<rect x="${f.x}" y="${f.y}" width="${f.w}" height="${f.h}" rx="1.5" fill="#6b4f36"/><text x="${f.x + f.w/2}" y="${f.y + f.h/2 + 1.2}" text-anchor="middle" class="tag" font-size="3.2">${esc(f.label)}</text>`;
       if (f.kind === 'door') out += `<rect x="${f.x}" y="${f.y - 1.2}" width="${f.w}" height="2.4" fill="var(--bg)"/><text x="${f.x + f.w/2}" y="${f.y - 3.5}" text-anchor="middle" class="tag" font-size="3.2" style="fill:var(--gold)">▲ ${esc(f.label)}</text>`;
       if (f.kind === 'label') out += `<text x="${f.x}" y="${f.y}" text-anchor="middle" class="tag" font-size="2.6" style="fill:var(--muted);letter-spacing:.3px">${esc(f.text)}</text>`;
     }
@@ -163,7 +164,7 @@
       const dots = [1,2,3].flatMap(k => [k*long/8, long - k*long/8]).flatMap(d => across
         ? [[x+d, y+.6], [x+d, y+th-.6]] : [[x+.6, y+d], [x+tw-.6, y+d]]);
       const diamonds = dots.map(([cx, cy]) => `<circle cx="${cx}" cy="${cy}" r=".22" fill="#cfd6dc"/>`).join('');
-      const fs = t.ft === 9 ? 7.5 : 6.2;
+      const fs = t.ft === 9 ? 9 : 8;
       const numX = across ? x + tw*.3 : x + tw/2, numY = y + th/2 + fs*.35;
       const tagX = across ? x + tw*.68 : x + tw/2, tagY = across ? y + th/2 + .8 : y + th - 3.2;
       out += `<g class="tbl" id="tb${n}" role="link" tabindex="0" aria-label="Table ${n}, ${t.ft}-foot">
@@ -217,7 +218,7 @@
       g.innerHTML = (rnd ? `<g aria-label="Random game"><rect x="${x-1}" y="${y-1}" width="4.4" height="4.4" rx=".9" fill="#fff" stroke="#000" stroke-width=".3"/>${[[.9,.9],[2.2,2.2],[3.5,3.5],[.9,3.5],[3.5,.9]].map(([a,b2]) => `<circle cx="${x-1+a}" cy="${y-1+b2}" r=".42" fill="#111"/>`).join('')}</g>` : '')
         + (b0 || c.gtype ? `<g transform="translate(${rnd ? 4.6 : 0} 0)"><circle cx="${x+1.2}" cy="${y+1.2}" r="2.3" fill="${P.BALL[(gt-1)%8]}" stroke="#000" stroke-width=".3"/><circle cx="${x+1.2}" cy="${y+1.2}" r="1.2" fill="#f4efe2"/><text x="${x+1.2}" y="${y+1.75}" text-anchor="middle" font-size="1.5" font-weight="700" fill="#111">${gt}</text></g>` : '')
         + (b0 ? `<circle cx="${x+w-1.2}" cy="${y+1.2}" r="2.3" fill="${P.lineColor(q)}" stroke="#000" stroke-width=".3"/><text x="${x+w-1.2}" y="${y+2}" text-anchor="middle" font-size="2.3" font-weight="800" fill="#10161c">${q}</text>` : '')
-        + (camLive(t.n) ? `<g aria-label="Camera live"><rect x="${x+1.8}" y="${y + +g.dataset.h - 5.2}" width="6.4" height="3.8" rx=".8" fill="#e5484d" stroke="#000" stroke-width=".25"/><path d="M${x+8.2} ${y + +g.dataset.h - 4.6}l2 -1v3.4l-2 -1z" fill="#e5484d" stroke="#000" stroke-width=".2"/><circle cx="${x+3.2}" cy="${y + +g.dataset.h - 3.3}" r=".6" fill="#fff"/></g>` : '');
+        + (camLive(t.n) ? `<g aria-label="Camera live" transform="translate(${x + w/2 - 4.2} ${y - 1.6})"><rect x="0" y="0" width="6.4" height="3.8" rx=".8" fill="#e5484d" stroke="#000" stroke-width=".25"/><path d="M6.4 .6l2 -1v3.4l-2 -1z" fill="#e5484d" stroke="#000" stroke-width=".2"/><circle cx="1.4" cy="1.9" r=".6" fill="#fff"/></g>` : '');
       $('gi' + t.n).innerHTML = `${rnd ? '🎲' : ''}${P.ballSvg(gt, 18)}${P.peopleSvg(dbl, 16)}${b0 && s0.scotch ? '<b style="font-size:11px">S</b>' : ''}<span class="q" style="background:${P.lineColor(q)}">${q}</span>${camLive(t.n) ? '<span class="cam" title="Camera live">📹</span>' : ''}`;
       $('gl' + t.n).classList.toggle('closed', !!closed);
       $('gl' + t.n).title = c.note || '';
@@ -231,7 +232,7 @@
       const FM = { race: ['🏁', 'RACE'], wso: ['👑', 'WINNER STAYS'], rot: ['🎲', 'ROTATE'], pick: ['🏆', 'WINNER PICKS'], rand: ['🎲', 'RANDOM GAME'] }[b && s.fmt || 'race'];
       const raceTxt = s && s.race ? (s.race[0] === s.race[1] ? `RACE ${s.race[0]}` : `RACE ${s.race[0]}/${s.race[1]}`) : 'RACE';
       $('tt' + t.n).textContent = b ? `${shut ? '🔒' : ''}${who} ${FM[0]}` : '';
-      $('tm' + t.n).textContent = b ? ((s.fmt || 'race') === 'race' ? raceTxt : ({ wso: 'STAYS', rot: 'ROTATE', pick: 'PICKS', rand: 'RANDOM' }[s.fmt])) : '';
+      $('tm' + t.n).textContent = b ? ((s.fmt || 'race') === 'race' ? raceTxt : ({ wso: 'WINNER STAYS', rot: 'ROTATE', pick: 'WINNER PICKS', rand: 'RANDOM GAME' }[s.fmt])) : '';
       $('gm' + t.n).textContent = b ? `${FM[0]} ${(s.fmt || 'race') === 'race' ? raceTxt.toLowerCase().replace('race', 'Race') + (s.rules === 'apa' && s.sl ? ` (SL ${s.sl[0]} v ${s.sl[1]})` : '') : FM[1][0] + FM[1].slice(1).toLowerCase()}${s.dbl ? (s.scotch ? ' · Scotch doubles' : ' · Doubles') : ''}${s.qn && s.qn.length ? ` · Next: ${s.qn.join(', ')}` : ''}${s.line === false && !(s.open === false) ? ' · Waitlist closed' : ''}` : '';
       $('tb' + t.n).setAttribute('aria-label', `Table ${t.n}, ${t.ft}-foot, ${b ? `in use${s.names ? `: ${s.names[0]} vs ${s.names[1]} ${score}` : ''}` : 'open'}`);
       $('gl' + t.n).classList.toggle('busy', b); $('gl' + t.n).classList.toggle('shut', shut); $('gl' + t.n).classList.toggle('mine', false);
@@ -318,6 +319,6 @@
   document.addEventListener('visibilitychange', () => { if (!DEMO && document.visibilityState === 'visible') load(); });
 })();
 </script>
-<script src="build.js?v=20260930072207"></script>
+<script src="build.js?v=20260930073210"></script>
 </body>
 </html>
