@@ -192,8 +192,28 @@
       const R = [], Gc = [], Bc = [];
       for (let y = 3; y < h; y += 6) for (let x = 3; x < w; x += 6) { const i = (y * w + x) * 4; R.push(d[i]); Gc.push(d[i+1]); Bc.push(d[i+2]); }
       const fr = median(R), fg = median(Gc), fb = median(Bc), fhsv = hsv(fr, fg, fb);
+      // Local cloth colour: lighting is never even (brighter in the middle, darker at the rails), so each
+      // pixel is compared with the cloth colour of its own area (a 12 x 6 grid of cell medians, blended),
+      // not one colour for the whole table. Cells mostly covered by something else fall back to the table's.
+      const GX = 12, GY = 6, cw = w / GX, ch = h / GY, ref = new Float32Array(GX * GY * 3);
+      for (let gy = 0; gy < GY; gy++) for (let gx = 0; gx < GX; gx++) {
+        const rr = [], gg = [], bb = [];
+        for (let y = Math.floor(gy * ch) + 1; y < (gy + 1) * ch; y += 3) for (let x = Math.floor(gx * cw) + 1; x < (gx + 1) * cw; x += 3) { const i = (y * w + x) * 4; rr.push(d[i]); gg.push(d[i+1]); bb.push(d[i+2]); }
+        let mr = median(rr), mg = median(gg), mb = median(bb);
+        if (Math.abs(mr - fr) + Math.abs(mg - fg) + Math.abs(mb - fb) > 90) { mr = fr; mg = fg; mb = fb; }
+        const k = (gy * GX + gx) * 3; ref[k] = mr; ref[k+1] = mg; ref[k+2] = mb;
+      }
       const dist = new Float32Array(w * h), ds = [];
-      for (let p = 0, i = 0; p < w * h; p++, i += 4) { dist[p] = Math.abs(d[i] - fr) + Math.abs(d[i+1] - fg) + Math.abs(d[i+2] - fb); if ((p & 15) === 0) ds.push(dist[p]); }
+      for (let y = 0; y < h; y++) {
+        const fy = Math.min(GY - 1.001, Math.max(0, y / ch - .5)), y0 = Math.floor(fy), ty = fy - y0, y1 = Math.min(GY - 1, y0 + 1);
+        for (let x = 0; x < w; x++) {
+          const fx = Math.min(GX - 1.001, Math.max(0, x / cw - .5)), x0 = Math.floor(fx), tx = fx - x0, x1 = Math.min(GX - 1, x0 + 1);
+          const a = (y0 * GX + x0) * 3, b2 = (y0 * GX + x1) * 3, c = (y1 * GX + x0) * 3, e = (y1 * GX + x1) * 3, p = y * w + x, i = p * 4;
+          let dd = 0;
+          for (let ch2 = 0; ch2 < 3; ch2++) { const top = ref[a + ch2] * (1 - tx) + ref[b2 + ch2] * tx, bot = ref[c + ch2] * (1 - tx) + ref[e + ch2] * tx; dd += Math.abs(d[i + ch2] - (top * (1 - ty) + bot * ty)); }
+          dist[p] = dd; if ((p & 15) === 0) ds.push(dd);
+        }
+      }
       const md = median(ds), mad = median(ds.map(v => Math.abs(v - md)));
       const thr = Math.max(55, md + 6 * mad);
       const m = Math.round(this.ballPx * .25), mask = new Uint8Array(w * h);
@@ -229,6 +249,10 @@
         const bw = b.x1 - b.x0 + 1, bh = b.y1 - b.y0 + 1, fill = b.n / (bw * bh), x = b.sx / b.n / w, y = b.sy / b.n / h;
         // The pocket openings themselves are dark blobs on the table edge: not balls.
         if (POCKETS.some(([px, py]) => Math.hypot(x - px, (y - py) * .5) < .04)) continue;
+        // Our table edge is the cushion's outer line, so a real ball's centre can't be this close to it:
+        // anything there is a rail diamond, a pocket jaw or a hand on the rail. (Occluders still count.)
+        const nearEdge = x < this.ballPx * 1.5 / w || x > 1 - this.ballPx * 1.5 / w || y < this.ballPx * 1.5 / h || y > 1 - this.ballPx * 1.5 / h;
+        if (nearEdge && b.n <= A * 1.9) continue;
         if (b.n <= A * 1.9 && fill > .45 && Math.max(bw, bh) < this.ballPx * 2) {
           const wf = b.wh / b.n, df = b.dk / b.n, cf = b.cn / b.n;
           let cls, num = 0;
@@ -248,13 +272,31 @@
           }
           balls.push({ x, y, cls, num, wf, df });
         } else if (b.n <= A * 7 && fill > .4 && Math.max(bw, bh) < this.ballPx * 5) balls.push({ x, y, cls: 'cluster', num: 0, n: Math.round(b.n / A) });
-        else occ.push({ x0: b.x0 / w, x1: b.x1 / w, y0: b.y0 / h, y1: b.y1 / h, dark: b.dk / b.n > .45 && b.n > A * 6 });
+        else {
+          // Something that isn't a ball: a cue shaft is long and thin (about a ball wide); a hand, glove
+          // or arm is much thicker. Measure thickness as area / length of the shape.
+          const len = Math.hypot(bw, bh), thick = b.n / Math.max(1, len);
+          occ.push({ x0: b.x0 / w, x1: b.x1 / w, y0: b.y0 / h, y1: b.y1 / h, dark: b.dk / b.n > .45 && b.n > A * 6, thick, id: blobs.indexOf(b) + 1 });
+        }
       }
       // The rental ball tray (or a dark glove holding the cue ball): a big dark shape. Balls inside it
       // aren't in play.
       const trays = occ.filter(o => o.dark);
       const inPlay = trays.length ? balls.filter(bb => !trays.some(o => bb.x > o.x0 && bb.x < o.x1 && bb.y > o.y0 && bb.y < o.y1)) : balls;
+      this._lab = lab; this._w = w; this._h = h;
       return { balls: inPlay, occ };
+    }
+    // Is a hand (or glove) on the cue ball? Look only at a small window around the ball: a cue shaft
+    // crossing it is a thin line (little of the window), a hand or glove covers a lot of it.
+    handNear(cue, occ){
+      if (!occ.length || !this._lab) return false;
+      const ids = new Set(occ.map(o => o.id)), w = this._w, h = this._h, r = Math.round(this.ballPx * 1.6);
+      const cx = Math.round(cue.x * w), cy = Math.round(cue.y * h); let hit = 0, all = 0;
+      for (let y = Math.max(0, cy - r); y <= Math.min(h - 1, cy + r); y++) for (let x = Math.max(0, cx - r); x <= Math.min(w - 1, cx + r); x++) {
+        const dx = x - cx, dy = y - cy; if (dx * dx + dy * dy > r * r || dx * dx + dy * dy < (this.ballPx * .55) ** 2) continue;
+        all++; if (ids.has(this._lab[y * w + x])) hit++;
+      }
+      return all > 0 && hit / all > .38;
     }
     // Feed one straightened frame (ImageData) with its time in ms.
     feed(img, t){
@@ -282,7 +324,10 @@
       const cue = this.tracks.find(tr => tr.cls === 'cue' && tr.seen === t);
       // ---- shot state machine ----
       if (!this.shot) {
-        if (cue && cue.v > this.o.move && cue.prevStill && t - cue.prevStill > 500) {
+        // A hand (or glove) touching the cue ball while it moves = placing it (ball in hand), not a shot.
+        const handOnCue = cue && this.handNear(cue, occ);
+        if (handOnCue) { this.handUntil = t + 900; if (this.onHand) this.onHand({ t, x: cue.x, y: cue.y }); }
+        if (cue && cue.v > this.o.move && cue.prevStill && t - cue.prevStill > 500 && !(this.handUntil > t)) {
           this.shot = { t0: t, cueFrom: { x: cue.x, y: cue.y }, first: null, moved: new Set(), stillAtStart: new Set(this.tracks.filter(tr => tr !== cue && tr.v < this.o.move).map(tr => tr.id))   /* compressed video jitters: 'not moving' is enough */, cueId: cue.id };
           this.quietFrom = 0;
         }
