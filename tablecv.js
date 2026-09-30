@@ -246,7 +246,7 @@
       }
       const balls = [], occ = [];   // (relative cue / 8 pick happens after classification, below)
       for (const b of blobs) {
-        if (b.n < A * .3) continue;
+        if (b.n < A * .55) continue;   // coins, chalk, diamonds: smaller than half a ball
         const bw = b.x1 - b.x0 + 1, bh = b.y1 - b.y0 + 1, fill = b.n / (bw * bh), x = b.sx / b.n / w, y = b.sy / b.n / h;
         // The pocket openings themselves are dark blobs on the table edge: not balls.
         if (POCKETS.some(([px, py]) => Math.hypot(x - px, (y - py) * .5) < .04)) continue;

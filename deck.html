@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930205057"><script src="stream.js?v=20260930205057"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930205814"><script src="stream.js?v=20260930205814"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -796,10 +796,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930205057"></script>
-<script src="halls.js?v=20260930205057"></script>
-<script src="qrcode.js?v=20260930205057"></script>
-<script src="tablecv.js?v=20260930205057"></script>
+<script src="hallday.js?v=20260930205814"></script>
+<script src="halls.js?v=20260930205814"></script>
+<script src="qrcode.js?v=20260930205814"></script>
+<script src="tablecv.js?v=20260930205814"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -2112,17 +2112,19 @@
   $('refSubmit').onclick = () => { if (!pop) return; if (!pop.choice && !$('refC').value.trim()) { $('refAuto').textContent = 'Pick Yes, No or Other first'; return; } finish(pop.choice || 'other'); };
   $('refPop').addEventListener('pointerdown', e => e.stopPropagation());
   // Running list of the ref's calls down the left of the video (newest on top), updated as they're answered.
-  const refLog = [];
+  const LOGKEY = () => 'poolar-reflog-' + (game || 'x');
+  let refLog = []; try { refLog = JSON.parse(localStorage.getItem(LOGKEY()) || '[]'); } catch {}
+  const saveLog = () => { try { localStorage.setItem(LOGKEY(), JSON.stringify(refLog.slice(0, 40))); } catch {} };
   function paintRefLog(){
     const el = $('refLog'); if (!el) return; el.hidden = false; $('tv').classList.add('withlog');
-    $('refLogL').innerHTML = (refLog.length ? '' : '<div class="it"><b>Waiting for the first shot…</b><small>Every call the ref makes stays listed here.</small></div>') + refLog.slice(0, 8).map((e, k) => `<div class="it ${k === 0 ? 'new' : ''}"><small>${e.at}</small><b>${esc(e.title)}</b>${e.saw ? `<small>${esc(e.saw)}</small>` : ''}<span class="a ${e.ans === 'Yes' || e.ans === 'Applied' ? 'yes' : e.ans === 'No' ? 'no' : 'wait'}">${e.ans}</span></div>`).join('');
+    $('refLogL').innerHTML = (refLog.length ? '' : '<div class="it"><b>No calls yet in this game</b><small>Every call the ref makes stays listed here.</small></div>') + refLog.slice(0, 8).map((e, k) => `<div class="it ${k === 0 ? 'new' : ''}"><small>${e.at}</small><b>${esc(e.title)}</b>${e.saw ? `<small>${esc(e.saw)}</small>` : ''}<span class="a ${e.ans === 'Yes' || e.ans === 'Applied' ? 'yes' : e.ans === 'No' ? 'no' : 'wait'}">${e.ans}</span>${e.c ? `<small>💬 ${esc(e.c)}</small>` : ''}</div>`).join('');
   }
   setTimeout(paintRefLog, 500);
   function logCall(sug){ const saw = (($('refS').textContent || '').split('\nSaw: ')[1] || '').slice(0, 140);
-    sug.log = { at: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' }), title: sug.title, saw, ans: 'Waiting…' }; refLog.unshift(sug.log); paintRefLog(); }
+    sug.log = { at: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' }), title: sug.title, saw, ans: 'Waiting…' }; refLog.unshift(sug.log); saveLog(); paintRefLog(); }
   function finish(choice){
     const sug = pop; if (!sug) return; closePop();
-    if (sug.log) { sug.log.ans = choice === 'yes' ? 'Yes' : choice === 'no' ? 'No' : choice === 'other' ? 'Other' : sug.noAuto ? 'Skipped' : 'Applied'; paintRefLog(); }
+    if (sug.log) { sug.log.ans = choice === 'yes' ? 'Yes' : choice === 'no' ? 'No' : choice === 'other' ? 'Other' : sug.noAuto ? 'Skipped' : 'Applied'; sug.log.c = $('refC').value.trim(); saveLog(); paintRefLog(); }
     const comment = $('refC').value.trim();
     if ((choice === 'yes' || (choice === 'auto' && !sug.noAuto)) && stateKey() === sug.key) sug.apply();
     // Learn: a "No" makes the ref more cautious about that kind of call, a "Yes" slightly bolder.
@@ -2726,5 +2728,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930205057"></script>
+<script src="build.js?v=20260930205814"></script>
 </body></html>
