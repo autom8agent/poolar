@@ -370,6 +370,13 @@
         const rx = R * 2.6, ry = R * 2.6 * 2;
         s.rail = this.tracks.some(tr => tr.seen === t && tr.v > this.o.still && (tr.x < rx || tr.x > 1 - rx || tr.y < ry || tr.y > 1 - ry));
       }
+      // Shot type: the cue ball reaching a cushion before it hits anything = kick; an object ball reaching a
+      // cushion (away from the pockets) before it drops = bank.
+      { const rx = R * 2.6, ry = R * 2.6 * 2, edge = tr => tr.x < rx || tr.x > 1 - rx || tr.y < ry || tr.y > 1 - ry,
+          nearPk = tr => POCKETS.some(([px2, py]) => Math.hypot(tr.x - px2, (tr.y - py) * .5) < this.o.pocketR * 1.8);
+        s.cush = s.cush || new Set();
+        for (const tr of this.tracks) { if (tr.seen !== t || tr.v <= this.o.still || !edge(tr) || nearPk(tr)) continue;
+          if (tr.id === s.cueId) { if (!s.first) s.kick = true; } else if (s.moved.has(tr.id)) s.cush.add(tr.id); } }
       if (!moving) { if (!this.quietFrom) this.quietFrom = t; } else this.quietFrom = 0;
       if ((this.quietFrom && t - this.quietFrom > this.o.endQuiet) || t - s.t0 > this.o.maxShot) {
         // Balls that vanished during the shot next to a pocket were pocketed.
@@ -379,12 +386,12 @@
           if (t - tr.seen < this.o.gone || tr.seen < s.t0) continue;
           const pk = POCKETS.findIndex(([px2, py]) => Math.hypot(tr.x - px2, (tr.y - py) * .5) < this.o.pocketR);
           if (pk < 0 || nearOcc(tr)) continue;
-          if (tr.id === s.cueId) { scratch = true; cuePocket = pk; } else pocketed.push({ cls: tr.cls, num: tr.num, pocket: pk });
+          if (tr.id === s.cueId) { scratch = true; cuePocket = pk; } else pocketed.push({ cls: tr.cls, num: tr.num, pocket: pk, bank: !!(s.cush && s.cush.has(tr.id)) });
           tr.pocketed = true;
         }
         this.tracks = this.tracks.filter(tr => !tr.pocketed);
         this.shot = null;
-        const ev = { type: 'shot', first: s.first, pocketed, scratch, cuePocket, rail: !!s.rail, noHit: !s.first && !pocketed.length, ms: t - s.t0, t };
+        const ev = { type: 'shot', first: s.first, pocketed, scratch, cuePocket, rail: !!s.rail, kick: !!s.kick, noHit: !s.first && !pocketed.length, ms: t - s.t0, t };
         if (this.onShot) this.onShot(ev);
       }
     }

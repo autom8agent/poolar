@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930171443"><script src="stream.js?v=20260930171443"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930180755"><script src="stream.js?v=20260930180755"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -766,10 +766,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930171443"></script>
-<script src="halls.js?v=20260930171443"></script>
-<script src="qrcode.js?v=20260930171443"></script>
-<script src="tablecv.js?v=20260930171443"></script>
+<script src="hallday.js?v=20260930180755"></script>
+<script src="halls.js?v=20260930180755"></script>
+<script src="qrcode.js?v=20260930180755"></script>
+<script src="tablecv.js?v=20260930180755"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -1981,7 +1981,16 @@
     closePop(); pop = sug; sug.choice = null;
     $('refT').textContent = sug.title; $('refS').textContent = sug.text;
     $('refBalls').innerHTML = sug.balls.map(ballEl).join('');
-    $('refC').value = ''; document.querySelectorAll('#refPop .rbtn button').forEach(b => b.classList.remove('sel'));
+    $('refC').value = st.lastTag || ''; if (st.lastTag) { st.lastTag = ''; save(); } document.querySelectorAll('#refPop .rbtn button').forEach(b => b.classList.remove('sel'));
+    // What the camera understood, so a wrong call is easy to spot.
+    if (sug.ev) { const e = sug.ev, bits = [];
+      if (e.kick) bits.push('kick (cue ball hit a cushion first)');
+      bits.push(e.first ? `first hit: ${clsName(e.first)}` : 'first hit: not seen');
+      const pm = e.pocketed.filter(b => b.cls !== 'cue');
+      bits.push(pm.length ? pm.map(b => `${clsName(b)} → ${PNAME[b.pocket] || 'pocket'}${b.bank ? ' (bank)' : ''}`).join(', ') : 'nothing dropped');
+      if (e.scratch) bits.push(`cue ball in the ${PNAME[e.cuePocket] || 'pocket'}`);
+      bits.push(e.rail ? 'a ball reached a rail' : 'no rail seen');
+      $('refS').textContent = sug.text + '\nSaw: ' + bits.join(' · '); $('refS').style.whiteSpace = 'pre-line'; }
     $('refPop').hidden = false; wakeBar();
     const t0 = Date.now(), T = refP.autoSec * 1000;
     const tick = () => {
@@ -2557,6 +2566,41 @@
   render = function(){ renderBase(); try { lineTick(); paintLineCard(); if (!$('shareSheet').hidden) paintLine(); } catch {} try { onScoreChange(); } catch {} try { paintDock(); } catch {} };
 
   render(); drawClock(); save(); connect(); statusTick(); listenWait();
+  // ---- Stream Deck / remote buttons ----
+  // Bitfocus Companion posts small commands ({"c":"ball","n":5}) to a private topic on Terry's relay; this page
+  // (open on the computer the Stream Deck is plugged into, or the iPad) carries them out. The key comes from ?ctl=
+  // once and is remembered on this device.
+  (() => {
+    const CK = (q0.get('ctl') || (() => { try { return localStorage.getItem('poolar-ctl') || ''; } catch { return ''; } })()).replace(/[^a-z0-9]/gi, '').slice(0, 40);
+    if (!CK) return;
+    try { localStorage.setItem('poolar-ctl', CK); } catch {}
+    const OWN = window.POOLAR_OWN_RELAY || 'https://poolar-relay.poolar-relay.workers.dev';
+    const seen = new Set(), t0 = Date.now();
+    const refBtn = c => { if ($('refPop').hidden) return flash('🎛️ No ref call open'); const b = document.querySelector(`#refPop .rbtn button[data-c="${c}"]`); if (b) b.click(); return true; };
+    const LABEL = { turn: 'Turn over', foul: 'Scratch / foul', yes: '✓ Yes', no: '✗ No', other: 'Other', stop: '⏸ Timer stopped', undo: 'Undo', win0: `${side(0)} wins rack`, win1: `${side(1)} wins rack` };
+    const run = m => {
+      const c = m.c;
+      if (c === 'ball' && m.n >= 1 && m.n <= 15) { $('ball' + m.n).click(); return flash(`🎛️ ${st.down.includes(+m.n) ? 'Down' : 'Back up'}: the ${m.n}`); }
+      if (c === 'turn') $('endTurn').click();
+      else if (c === 'foul') $('foul').click();
+      else if (c === 'yes' || c === 'no') { if (!refBtn(c)) return; $('refSubmit').click(); }
+      else if (c === 'other') { if (!refBtn('other')) return; if (!$('refStop').hidden) $('refStop').click(); $('refC').focus(); }
+      else if (c === 'stop') { if ($('refPop').hidden || $('refStop').hidden) return flash('🎛️ No timer running'); $('refStop').click(); }
+      else if (c === 'undo') $('undo').click();
+      else if (c === 'win0' || c === 'win1') $(c === 'win0' ? 'w0' : 'w1').click();
+      else if (c === 'tag' && m.v) {   // bank / kick / combo / safety / jump: goes into the ref's feedback for training
+        const tag = '#' + String(m.v).replace(/[^a-z]/gi, '').toLowerCase();
+        if (!$('refPop').hidden) { if (!$('refStop').hidden) $('refStop').click(); $('refC').value = ($('refC').value + ' ' + tag).trim(); }
+        else { st.lastTag = tag; save(); }
+        return flash(`🎛️ Tagged ${tag}`);
+      } else return;
+      flash('🎛️ ' + (LABEL[c] || c));
+    };
+    const take = (id, time, raw) => { if (seen.has(id) || time * 1000 < t0 - 2000) return; seen.add(id); let m; try { m = JSON.parse(raw); } catch { return; } try { run(m); } catch (e) { console.warn(e); } };
+    try { const es = new PoolarStream(`${OWN}/poolar-ctl-${CK}/sse`);
+      es.onmessage = e => { try { const d = JSON.parse(e.data); if (d.event === 'message') take(d.id, d.time, d.message); } catch {} }; } catch {}
+    setTimeout(() => flash('🎛️ Stream Deck connected'), 1500);
+  })();
   pollElsewhere(); setInterval(() => { if (document.visibilityState === 'visible') pollElsewhere(); }, 60000);
   // New game: the invite QR comes first (so friends can join the line), then names and game settings.
   $('pickGo').onclick = () => $('pickSheet').hidden = true;
@@ -2572,5 +2616,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930171443"></script>
+<script src="build.js?v=20260930180755"></script>
 </body></html>
