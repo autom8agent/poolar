@@ -331,6 +331,17 @@
           this.shot = { t0: t, cueFrom: { x: cue.x, y: cue.y }, first: null, moved: new Set(), stillAtStart: new Set(this.tracks.filter(tr => tr !== cue && tr.v < this.o.move).map(tr => tr.id))   /* compressed video jitters: 'not moving' is enough */, cueId: cue.id };
           this.quietFrom = 0;
         }
+        // Fallback when the cue ball isn't recognised as the cue ball (ivory under this light, a cap-up stripe…):
+        // the first ball to move off a still table is the one that was struck, so treat it as the cue ball.
+        if (!this.shot && !(this.handUntil > t)) {
+          const movers = this.tracks.filter(tr => tr.seen === t && tr.v > this.o.move && tr.prevStill && t - tr.prevStill > 500);
+          if (movers.length === 1 && !this.handNear(movers[0], occ)) {
+            const m = movers[0];
+            this.shot = { t0: t, cueFrom: { x: m.x, y: m.y }, first: null, moved: new Set(), stillAtStart: new Set(this.tracks.filter(tr => tr !== m && tr.v < this.o.move).map(tr => tr.id)), cueId: m.id, guessedCue: m.cls !== 'cue' };
+            this.quietFrom = 0;
+          }
+        }
+        for (const tr of this.tracks) if (tr.seen === t) tr.prevStill = tr.stillFrom || (tr.v < this.o.still ? t : 0);
         if (cue) cue.prevStill = cue.stillFrom || (cue.v < this.o.still ? t : 0);
         return;
       }
