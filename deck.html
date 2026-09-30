@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930163807"><script src="stream.js?v=20260930163807"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930171443"><script src="stream.js?v=20260930171443"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -766,10 +766,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930163807"></script>
-<script src="halls.js?v=20260930163807"></script>
-<script src="qrcode.js?v=20260930163807"></script>
-<script src="tablecv.js?v=20260930163807"></script>
+<script src="hallday.js?v=20260930171443"></script>
+<script src="halls.js?v=20260930171443"></script>
+<script src="qrcode.js?v=20260930171443"></script>
+<script src="tablecv.js?v=20260930171443"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -1926,7 +1926,8 @@
     // No hit seen: still ask, but never apply it by itself (a shaky read must not end a turn).
     if (!sug && !ev.first) sug = { type: 'turn', conf: .45, balls: [], title: 'Turn over?', text: `Shot over, nothing of ${me}'s went in. ${them} to shoot?`, apply: () => passTable(false), auto: '', noAuto: true };
     if (!sug) sug = { type: 'turn', conf: .6, balls: [], title: 'Turn over?', text: `Legal hit, nothing of ${me}'s dropped. ${them} to shoot.`, apply: () => passTable(false), auto: 'Turn over' };
-    if (sug.conf < (refP.gates[sug.type] || .5)) return;       // not sure enough yet: stay quiet
+    // Every shot gets a pop-up. When the ref isn't sure it asks and waits instead of applying on its own.
+    if (sug.conf < (refP.gates[sug.type] || .5)) { sug.noAuto = true; sug.auto = ''; sug.title += ' (not sure)'; }
     sug.ev = ev; sug.key = stateKey(); sug.shooter = i; sug.group = g || null;
     shotSnap().then(b => { sug.snap = b; });
     showPop(sug);
@@ -1956,7 +1957,7 @@
     else if (made.length) sug = { type: 'made', conf: .7, balls: nums.length ? nums : [0], title: made.length > 1 ? `${made.length} balls made` : 'Ball made',
         text: `${made.map(clsName).join(', ')} in. ${me} keeps shooting?`, apply: () => markMade(nums), auto: 'Mark ball' };
     else sug = { type: 'turn', conf: f ? .6 : .45, balls: [], title: 'Turn over?', text: `Nothing dropped. ${them} to shoot.`, apply: () => passTable(false), auto: f ? 'Turn over' : '', noAuto: !f };
-    if (sug.conf < (refP.gates[sug.type] || .5)) return;
+    if (sug.conf < (refP.gates[sug.type] || .5)) { sug.noAuto = true; sug.auto = ''; sug.title += ' (not sure)'; }
     sug.ev = ev; sug.key = stateKey(); sug.shooter = i; sug.group = null;
     shotSnap().then(b => { sug.snap = b; });
     showPop(sug);
@@ -2571,5 +2572,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930163807"></script>
+<script src="build.js?v=20260930171443"></script>
 </body></html>
