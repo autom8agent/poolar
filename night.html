@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="build" content="20260930063155"><script src="stream.js"></script>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0f14">
+<title>Open Table Night</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="common.css">
+<style>
+  .status{display:inline-flex;align-items:center;gap:6px;font-weight:800;font-size:13px;padding:4px 10px;border-radius:999px;border:1px solid var(--line)}
+  .status.on{color:var(--free);border-color:#2d6b45} .status.soon{color:var(--gold);border-color:#6b5520}
+  .plan{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .pt{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px;display:grid;grid-template-columns:auto 1fr;gap:2px 10px;align-items:center}
+  .pt .n{grid-row:1 / span 3;font-family:var(--num);font-weight:900;font-size:34px;line-height:1;min-width:30px;text-align:center}
+  .pt b{font-size:15px} .pt span{font-size:13px;color:var(--muted)} .pt i{font-style:normal;font-size:12px;color:var(--gold)}
+  .tpl{display:flex;flex-wrap:wrap;gap:6px}
+  .tpl button{flex:1 1 140px;padding:12px}
+  .trow{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px;display:grid;grid-template-columns:auto 1fr;gap:8px 10px;align-items:center}
+  .trow.off{opacity:.5}
+  .trow .inc{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:52px}
+  .trow .inc button{font-family:var(--num);font-weight:900;font-size:24px;width:52px;padding:8px 0}
+  .trow .inc button[aria-pressed="true"]{background:var(--felt);border-color:var(--felt);color:#04162b}
+  .trow .inc small{font-size:10px;color:var(--muted);font-weight:700}
+  .ctl{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .ctl select,.ctl input{padding:9px 8px;font-size:14px}
+  .ctl .wide{grid-column:span 2}
+  .acts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .acts .primary{grid-column:1 / -1;padding:14px;font-size:17px}
+  @media (max-width:420px){ .plan{grid-template-columns:1fr} .ctl{grid-template-columns:1fr 1fr} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a id="back" href="hall.html">⌂ Tables</a><span class="pill" id="live">Offline</span></div>
+  <h1 id="title">Open table night</h1>
+  <p id="when">No open table night is planned right now.</p>
+  <p id="note"></p>
+  <div class="plan" id="plan"></div>
+
+  <form class="card" id="pinCard">
+    <h2>Plan a night</h2>
+    <p>Hall staff: enter the admin PIN to plan an open table night — pick the tables and how each one plays.</p>
+    <div class="row"><input id="pin" type="password" inputmode="numeric" autocomplete="off" placeholder="Admin PIN"><button class="primary" type="submit">Unlock</button></div>
+    <p id="pinMsg"></p>
+  </form>
+
+  <div id="editor" hidden style="display:flex;flex-direction:column;gap:14px">
+    <div class="card">
+      <h2>The night</h2>
+      <label>Name<input id="nTitle" maxlength="50" placeholder="Open table night"></label>
+      <div class="row3">
+        <label>Date<input id="nDate" type="date"></label>
+        <label>Starts<input id="nStart" type="time" value="19:00"></label>
+        <label>Ends<input id="nEnd" type="time" value="23:00"></label>
+      </div>
+      <label>Notes for players<input id="nNote" maxlength="120" placeholder="e.g. $5 table fee, winners buy a round"></label>
+    </div>
+
+    <div class="card">
+      <h2>Start from a template</h2>
+      <p>Sets every table in the night (tap a table number below to leave it out). Then change any table on its own.</p>
+      <div class="tpl" id="tpl">
+        <button type="button" data-tpl="all8">All 8-ball singles</button>
+        <button type="button" data-tpl="all9">All 9-ball singles</button>
+        <button type="button" data-tpl="mixed">Mixed night</button>
+        <button type="button" data-tpl="doubles">Doubles night</button>
+        <button type="button" data-tpl="race">Challenge races</button>
+      </div>
+      <p id="tplHelp"></p>
+    </div>
+
+    <h2>Tables</h2>
+    <div id="rows" style="display:flex;flex-direction:column;gap:8px"></div>
+
+    <div class="card">
+      <div class="acts">
+        <button class="primary" type="button" id="publish">Publish the plan</button>
+        <button type="button" id="apply">Set up the tables now</button>
+        <button type="button" id="end">End night · reset tables</button>
+      </div>
+      <p id="actHelp">Publishing shows the plan on the tables page. The tables themselves switch to the night's setup when it starts — automatically if this page is open on an admin phone then, or tap “Set up the tables now”.</p>
+    </div>
+  </div>
+</div>
+<script src="halls.js"></script>
+<script>
+(() => {
+  const qs = new URLSearchParams(location.search);
+  const HALL = (qs.get('hall') || 'surge-chicago').replace(/[^a-z0-9-]/gi, '');
+  const H = window.POOLAR_HALLS[HALL] || window.POOLAR_HALLS['surge-chicago'], P = window.POOLAR, RELAY = P.relay();
+  const TOPIC = 'poolar-hall-' + HALL, LS = 'poolar-night-' + HALL;
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const keep = p => `${p}?hall=${HALL}` + (RELAY !== 'https://ntfy.sh' ? `&relay=${encodeURIComponent(RELAY)}` : '');
+  const toast = t => { const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 2000); };
+  const post = body => fetch(`${RELAY}/${TOPIC}`, { method: 'POST', body: JSON.stringify(body) }).catch(() => {});
+  $('back').href = keep('hall.html');
+  const tables = [...H.tables].sort((a, b) => a.n - b.n);
+  const GAME = { 8: '8-ball', 9: '9-ball', 10: '10-ball', r: 'Random game' }, FMT = { wso: 'Winner stays', rot: 'Rotation', race: 'Race' };
+
+  let plan = null, snapTime = 0, admin = false;
+  try { admin = sessionStorage.getItem('poolar-admin-' + HALL) === '1'; } catch {}
+  try { const p = JSON.parse(localStorage.getItem(LS) || 'null'); if (p && p.kind === 'night') plan = p; } catch {}
+  let draft = null;   // what the organiser is editing
+  const blank = () => { const d = new Date(); const iso = new Date(d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+    return { kind: 'night', id: Date.now().toString(36), on: true, title: 'Open table night', date: iso, start: '19:00', end: '23:00', note: '',
+      tables: tables.map(t => ({ t: t.n, g: 8, dbl: false, fmt: 'wso', race: 0, note: '' })), applied: 0, ended: 0, ts: 0 }; };
+
+  // Start and end as dates; an end before the start means after midnight.
+  const window_ = p => { const s = new Date(`${p.date}T${p.start || '19:00'}`), e = new Date(`${p.date}T${p.end || '23:00'}`); if (e <= s) e.setDate(e.getDate() + 1); return [s, e]; };
+  const phase = p => { if (!p || !p.on) return 'none'; if (p.ended) return 'over'; const [s, e] = window_(p), now = Date.now(); return now < s ? 'soon' : now < e ? 'on' : 'over'; };
+  const fmtTime = d => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const describe = x => [x.g === 'r' ? 'Random game' : GAME[x.g], x.dbl ? 'Doubles' : 'Singles', x.fmt === 'race' ? `Race to ${x.race || 3}` : FMT[x.fmt]].join(' · ');
+
+  function paint(){
+    const ph = phase(plan);
+    $('pinCard').hidden = admin; $('editor').hidden = !admin; $('editor').style.display = admin ? 'flex' : 'none';
+    if (ph === 'none' || (ph === 'over' && !admin)) {
+      $('title').textContent = 'Open table night'; $('when').textContent = ph === 'over' ? 'The last open table night has finished.' : 'No open table night is planned right now.'; $('note').textContent = ''; $('plan').innerHTML = '';
+    } else {
+      const [s, e] = window_(plan);
+      $('title').textContent = plan.title || 'Open table night'; document.title = plan.title || 'Open Table Night';
+      $('when').innerHTML = `<span class="status ${ph === 'on' ? 'on' : ph === 'soon' ? 'soon' : ''}">${ph === 'on' ? 'On now' : ph === 'soon' ? 'Coming up' : 'Finished'}</span> ${esc(s.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' }))} · ${fmtTime(s)}–${fmtTime(e)}`;
+      $('note').textContent = plan.note || '';
+      $('plan').innerHTML = plan.tables.map(x => { const t = tables.find(y => y.n === x.t) || {};
+        return `<div class="pt"><span class="n">${x.t}</span><b>${esc(describe(x))}</b><span>${t.ft || ''}-ft table</span>${x.note ? `<i>${esc(x.note)}</i>` : ''}</div>`; }).join('')
+        + `<a class="btn" href="${esc(keep('hall.html'))}" style="grid-column:1 / -1">See the live table map</a>`;
+    }
+    if (admin) paintEditor();
+  }
+
+  function paintEditor(){
+    if (!draft) draft = plan && phase(plan) !== 'over' ? JSON.parse(JSON.stringify(plan)) : blank();
+    const d = draft;
+    for (const [id, k] of [['nTitle', 'title'], ['nDate', 'date'], ['nStart', 'start'], ['nEnd', 'end'], ['nNote', 'note']]) if (document.activeElement !== $(id)) $(id).value = d[k] || '';
+    if ($('rows').contains(document.activeElement)) return;
+    $('rows').innerHTML = tables.map(t => { const x = d.tables.find(y => y.t === t.n), on = !!x, c = x || { g: 8, dbl: false, fmt: 'wso', race: 0, note: '' };
+      return `<div class="trow${on ? '' : ' off'}" data-t="${t.n}">
+        <div class="inc"><button type="button" data-inc aria-pressed="${on}" aria-label="Table ${t.n} ${on ? 'in' : 'not in'} the night">${t.n}</button><small>${t.ft}-FT</small></div>
+        <div class="ctl">
+          <select data-k="g" ${on ? '' : 'disabled'}>${Object.entries(GAME).map(([v, l]) => `<option value="${v}"${String(c.g) === v ? ' selected' : ''}>${l}</option>`).join('')}</select>
+          <select data-k="dbl" ${on ? '' : 'disabled'}><option value="0"${c.dbl ? '' : ' selected'}>Singles</option><option value="1"${c.dbl ? ' selected' : ''}>Doubles</option></select>
+          <select data-k="fmt" ${on ? '' : 'disabled'}>${Object.entries(FMT).map(([v, l]) => `<option value="${v}"${c.fmt === v ? ' selected' : ''}>${l}</option>`).join('')}</select>
+          <input data-k="race" type="number" min="1" max="21" placeholder="Race to" value="${c.race || ''}" ${on && c.fmt === 'race' ? '' : 'disabled'} aria-label="Race to">
+          <input class="wide" data-k="note" maxlength="40" placeholder="Note, e.g. Ladies' table" value="${esc(c.note)}" ${on ? '' : 'disabled'} aria-label="Note">
+        </div></div>`; }).join('');
+    const ph = phase(plan);
+    $('apply').disabled = !plan; $('end').disabled = !plan || !plan.applied || !!plan.ended;
+    $('actHelp').textContent = !plan ? 'Publishing shows the plan on the tables page. The tables switch to the night\'s setup when it starts — automatically if this page is open on an admin phone then, or tap “Set up the tables now”.'
+      : plan.applied && !plan.ended ? `The tables are set up for the night (since ${fmtTime(new Date(plan.applied))}). “End night” puts them back to normal.` : ph === 'soon' ? 'Published. Keep this page open on an admin phone and the tables switch over at the start time, or tap “Set up the tables now”.' : 'Published.';
+  }
+
+  const TPL = {
+    all8: () => tables.map(t => ({ t: t.n, g: 8, dbl: false, fmt: 'wso', race: 0, note: '' })),
+    all9: () => tables.map(t => ({ t: t.n, g: 9, dbl: false, fmt: 'wso', race: 0, note: '' })),
+    doubles: () => tables.map(t => ({ t: t.n, g: 8, dbl: true, fmt: 'rot', race: 0, note: 'Doubles: bring a partner or find one here' })),
+    race: () => tables.map(t => ({ t: t.n, g: 8, dbl: false, fmt: 'race', race: 3, note: 'Challenge match' })),
+    // Mixed: the 9-ft tables cycle 8-ball, 9-ball and 10-ball singles; the 7-ft tables play 8-ball doubles, the last one a random game.
+    mixed: () => { const nine = tables.filter(t => t.ft !== 7), seven = tables.filter(t => t.ft === 7);
+      return [...nine.map((t, i) => ({ t: t.n, g: [8, 9, 10][i % 3], dbl: false, fmt: i % 3 === 2 ? 'race' : 'wso', race: i % 3 === 2 ? 3 : 0, note: '' })),
+        ...seven.map((t, i) => i === seven.length - 1 ? { t: t.n, g: 'r', dbl: false, fmt: 'wso', race: 0, note: 'Game drawn at random' } : { t: t.n, g: 8, dbl: true, fmt: 'rot', race: 0, note: '' })].sort((a, b) => a.t - b.t); },
+  };
+  const TPL_HELP = { all8: 'Every table: 8-ball singles, winner stays on.', all9: 'Every table: 9-ball singles, winner stays on.', doubles: 'Every table: 8-ball doubles, teams rotate.', race: 'Every table: 8-ball singles, race to 3.',
+    mixed: '9-ft tables cycle through 8-ball, 9-ball (winner stays) and 10-ball (race to 3); 7-ft tables play 8-ball doubles, and one plays a random game.' };
+  $('tpl').addEventListener('click', e => { const b = e.target.closest('[data-tpl]'); if (!b) return;
+    const inNight = new Set(draft.tables.map(x => x.t)), all = TPL[b.dataset.tpl]();
+    draft.tables = all.filter(x => inNight.size ? inNight.has(x.t) : true);
+    $('tplHelp').textContent = TPL_HELP[b.dataset.tpl]; paintEditor(); });
+  $('rows').addEventListener('click', e => { const b = e.target.closest('[data-inc]'); if (!b) return; const t = +b.closest('[data-t]').dataset.t;
+    if (draft.tables.some(x => x.t === t)) draft.tables = draft.tables.filter(x => x.t !== t);
+    else draft.tables = [...draft.tables, { t, g: 8, dbl: false, fmt: 'wso', race: 0, note: '' }].sort((a, b) => a.t - b.t);
+    b.blur(); paintEditor(); });
+  $('rows').addEventListener('change', e => { const el = e.target.closest('[data-k]'); if (!el) return; const t = +el.closest('[data-t]').dataset.t, x = draft.tables.find(y => y.t === t); if (!x) return;
+    const k = el.dataset.k; x[k] = k === 'g' ? (el.value === 'r' ? 'r' : +el.value) : k === 'dbl' ? el.value === '1' : k === 'race' ? (+el.value || 0) : el.value.trim();
+    if (k === 'fmt' && x.fmt === 'race' && !x.race) x.race = 3;
+    el.blur(); paintEditor(); });
+  for (const [id, k] of [['nTitle', 'title'], ['nDate', 'date'], ['nStart', 'start'], ['nEnd', 'end'], ['nNote', 'note']]) $(id).addEventListener('input', () => { draft[k] = $(id).value; });
+
+  const save = p => { plan = p; try { localStorage.setItem(LS, JSON.stringify(p)); } catch {} };
+  const send = () => { post(plan); snapTime = Date.now() / 1000; };
+  $('publish').onclick = () => {
+    if (!draft.tables.length) return toast('Add at least one table');
+    if (!draft.date) return toast('Pick a date');
+    const wasApplied = plan && plan.id === draft.id ? plan.applied : 0;
+    save({ ...draft, kind: 'night', on: true, ended: 0, applied: wasApplied, ts: Date.now() }); draft = JSON.parse(JSON.stringify(plan)); send();
+    toast('Plan published'); if (wasApplied) applyTables(); paint(); check();
+  };
+  // Turn the plan into the per-table setup the scoreboard already understands (kind:'config').
+  function applyTables(){
+    for (const x of plan.tables) {
+      const g = x.g === 'r' ? [8, 9, 10][Math.floor(Math.random() * 3)] : x.g;
+      const note = [plan.title || 'Open table night', x.g === 'r' ? `random game: ${g}-ball` : '', x.note].filter(Boolean).join(' · ').slice(0, 60);
+      post({ kind: 'config', t: x.t, gtype: g, dbl: !!x.dbl, fmt: x.fmt, rules: 'bca', race: x.fmt === 'race' ? (x.race || 3) : 0, note, closed: false, night: plan.id, ts: Date.now() });
+    }
+    save({ ...plan, applied: Date.now(), ts: Date.now() }); send();
+  }
+  $('apply').onclick = () => { if (!plan) return; applyTables(); toast(`${plan.tables.length} tables set up`); paint(); };
+  function endNight(){
+    for (const x of plan.tables) post({ kind: 'config', t: x.t, gtype: 8, dbl: false, fmt: 'race', rules: 'bca', race: 0, note: '', closed: false, ts: Date.now() });
+    save({ ...plan, ended: Date.now(), ts: Date.now() }); send(); draft = null;
+  }
+  $('end').onclick = () => { if (!plan || !confirm('End the night and put the tables back to normal?')) return; endNight(); toast('Night ended'); paint(); };
+
+  // While an admin phone has this page open, switch the tables over at the start time and back at the end.
+  function check(){
+    if (!admin || !plan || !plan.on || plan.ended) return;
+    const ph = phase(plan);
+    if (ph === 'on' && !plan.applied) { applyTables(); toast('The night has started: tables set up'); paint(); }
+    else if (ph === 'over' && plan.applied) { endNight(); paint(); }
+    // The free relay keeps messages for 12 hours: re-post a plan for a later day before it's forgotten.
+    if (Date.now() / 1000 - snapTime > 8 * 3600) send();
+  }
+
+  $('pinCard').addEventListener('submit', e => { e.preventDefault();
+    if (P.hash(`${HALL}:${$('pin').value.trim()}`) === H.adminPin) { admin = true; try { sessionStorage.setItem('poolar-admin-' + HALL, '1'); } catch {} paint(); check(); }
+    else $('pinMsg').textContent = "That PIN isn't right."; });
+
+  const take = (raw, time) => { let m; try { m = JSON.parse(raw); } catch { return false; }
+    if (!m || m.kind !== 'night') return false;
+    if (!plan || m.ts >= plan.ts) { const same = plan && plan.id === m.id; save(m); snapTime = Math.max(snapTime, time || 0); if (!same) draft = null; return true; }
+    if (m.ts === plan.ts) snapTime = Math.max(snapTime, time || 0);
+    return false; };
+  const setLive = on => { $('live').textContent = on ? 'Live' : 'Offline'; $('live').style.color = on ? 'var(--free)' : ''; };
+  (async () => {
+    try { const txt = await (await fetch(`${RELAY}/${TOPIC}/json?poll=1&since=12h`)).text();
+      for (const l of txt.split('\n')) { try { const e = JSON.parse(l); if (e.event === 'message') take(e.message, e.time); } catch {} } setLive(true); } catch { setLive(false); }
+    paint(); check();
+  })();
+  try { const es = new PoolarStream(`${RELAY}/${TOPIC}/sse`); es.onopen = () => setLive(true);
+    es.onmessage = e => { try { const d = JSON.parse(e.data); if (d.event === 'message' && take(d.message, d.time)) paint(); } catch {} }; } catch {}
+  paint();
+  setInterval(() => { check(); if (!admin) paint(); }, 60000);
+})();
+</script>
+<script src="build.js"></script>
+</body>
+</html>
