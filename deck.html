@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930213850"><script src="stream.js?v=20260930213850"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930215412"><script src="stream.js?v=20260930215412"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -803,10 +803,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930213850"></script>
-<script src="halls.js?v=20260930213850"></script>
-<script src="qrcode.js?v=20260930213850"></script>
-<script src="tablecv.js?v=20260930213850"></script>
+<script src="hallday.js?v=20260930215412"></script>
+<script src="halls.js?v=20260930215412"></script>
+<script src="qrcode.js?v=20260930215412"></script>
+<script src="tablecv.js?v=20260930215412"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -2167,12 +2167,66 @@
   setTimeout(paintRefLog, 500);
   function logCall(sug){ const saw = (($('refS').textContent || '').split('\nSaw: ')[1] || '').slice(0, 140);
     sug.log = { at: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' }), title: sug.title, saw, ans: 'Waiting…' }; refLog.unshift(sug.log); saveLog(); paintRefLog(); }
+  // ---- Read Terry's feedback and fix the game ----
+  // Rules first (instant): "the 8 went in", "11 still on the table", "Terry 2 won", "should be Terry1's turn", "scratch".
+  // Anything the rules don't understand goes to the relay's /interpret (Cloudflare Workers AI on Terry's account).
+  function parseFeedback(txt){
+    const t = ' ' + String(txt || '').toLowerCase().replace(/[’']/g, "'") + ' ', a = { made: [], back: [], turn: false, foul: false, win: null, shooter: null };
+    const who = w => { w = (w || '').trim(); const n0 = side(0).toLowerCase(), n1 = side(1).toLowerCase(); if (!w) return null;
+      if (n0 === w || n0.replace(/\s/g, '') === w.replace(/\s/g, '')) return 0; if (n1 === w || n1.replace(/\s/g, '') === w.replace(/\s/g, '')) return 1; return null; };
+    const names = [side(0), side(1)].map(n => n.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const nameRe = `(${names.join('|')})`;
+    // balls: "<n> (ball)? ... made/in/potted/down"  and  "<n> ... still on / didn't go / not in / on the table"
+    const clauses = t.split(/[.;,!?]| but | and | then /);
+    for (const c of clauses) {
+      const nums = [...c.matchAll(/\b(?:the\s+)?(1[0-5]|[1-9])(?:\s*-?\s*ball)?\b/g)].map(m => +m[1]).filter(n => n >= 1 && n <= 15);
+      if (!nums.length) continue;
+      const neg = /(still on|still there|didn'?t go|didnt go|not in|wasn'?t made|not made|missed|on the table|never went|stayed)/.test(c);
+      const pos = /(made|potted|pot |went in|sank|sunk|dropped|is down|was down|in the pocket|went down|holed)/.test(c);
+      if (neg) a.back.push(...nums); else if (pos) a.made.push(...nums);
+    }
+    let m;
+    if ((m = t.match(new RegExp(nameRe + "\\s+(?:just\\s+)?(?:won|wins|win)"))) ) a.win = who(m[1]);
+    if (a.win == null && /game (?:is )?over|won the (?:game|rack)/.test(t) && a.made.includes(8)) a.win = st.shooter;
+    if ((m = t.match(new RegExp("(?:should be|it's|its|it is)\\s+" + nameRe + "(?:'s|s)?\\s+turn"))) ) a.shooter = who(m[1]);
+    if (/turn (?:is )?over|end(?:ed)? (?:the |my |his |their )?turn|should have (?:ended|been over)/.test(t)) a.turn = true;
+    if (/(foul|scratch)/.test(t) && !/(not a foul|wasn'?t a foul|no foul|not foul|didn'?t scratch|no scratch)/.test(t)) a.foul = true;
+    a.made = [...new Set(a.made)]; a.back = [...new Set(a.back)].filter(n => !a.made.includes(n));
+    return a;
+  }
+  function applyFeedback(a){
+    const did = [];
+    if (a.back.length) act(() => { for (const n of a.back) if (st.down.includes(n)) { st.down = st.down.filter(x => x !== n); let j = -1; st.pots.forEach((e, k) => { if (+e.split('.')[0] === n) j = k; }); if (j >= 0) st.pots.splice(j, 1); did.push(`${n} back on the table`); } });
+    const mk = a.made.filter(n => !st.down.includes(n) && n !== (a.win != null ? 8 : -1)); if (mk.length) { markMade(mk); did.push(`${mk.join(', ')} made`); }
+    if (a.win != null) { $(a.win ? 'w1' : 'w0').click(); did.push(`${side(a.win)} won the rack`); return did; }
+    if (a.foul) { passTable(true); did.push('foul · ball in hand'); }
+    else if (a.shooter != null && a.shooter !== st.shooter) { passTable(false); did.push(`${side(st.shooter)} to shoot`); }
+    else if (a.turn) { passTable(false); did.push(`turn over → ${side(st.shooter)}`); }
+    return did;
+  }
+  const empty = a => !a.made.length && !a.back.length && !a.turn && !a.foul && a.win == null && a.shooter == null;
+  async function readFeedback(comment, sug){
+    let a = parseFeedback(comment);
+    if (empty(a)) try {
+      const r = await fetch('https://poolar-relay.poolar-relay.workers.dev/interpret', { method: 'POST', body: JSON.stringify({ comment, call: sug && sug.title, names: [side(0), side(1)], shooter: side(st.shooter), up: (st.gtype === 8 ? [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15] : []).filter(n => !st.down.includes(n)) }) });
+      const typed = new Set((String(comment).match(/\b(1[0-5]|[1-9])\b/g) || []).map(Number));   // balls only if you typed the number
+      const j = await r.json(); if (j && j.actions) { const x = j.actions; a = { made: (x.made || []).map(Number).filter(n => typed.has(n)), back: (x.back || []).map(Number).filter(n => typed.has(n)), turn: !!x.turn, foul: !!x.foul, win: x.winner === side(0) ? 0 : x.winner === side(1) ? 1 : null, shooter: x.shooter === side(0) ? 0 : x.shooter === side(1) ? 1 : null }; }
+    } catch {}
+    // A made-ball call you corrected with nothing made: the turn is over.
+    if (sug && (sug.type === 'made' || sug.type === 'eight') && !a.made.length && a.win == null && a.shooter == null && !a.foul) a.turn = true;
+    // The 8 went in and nobody was named: normal 8-ball call (group cleared = shooter wins, otherwise the opponent).
+    if (a.made.includes(8) && a.win == null && st.gtype === 8) { const g = st.groups[st.shooter], left = g ? GROUP[g].filter(n => !st.down.includes(n) && !a.made.includes(n)) : [1];
+      a.win = left.length ? 1 - st.shooter : st.shooter; }
+    if (empty(a)) return flash('Feedback saved (nothing to change on the scoreboard)');
+    const did = applyFeedback(a); if (did.length) flash('From your feedback: ' + did.join(' · ') + ' · Undo if wrong');
+  }
   function finish(choice){
     const sug = pop; if (!sug) return; closePop();
     if (sug.log) { sug.log.ans = choice === 'yes' ? 'Yes' : choice === 'no' ? 'No' : choice === 'other' ? 'Other' : sug.noAuto ? 'Skipped' : 'Applied'; sug.log.c = $('refC').value.trim(); saveLog(); paintRefLog(); }
     const comment = $('refC').value.trim();
     if ((choice === 'yes' || (choice === 'auto' && !sug.noAuto)) && stateKey() === sug.key) sug.apply();
     // "No" to a made-ball call means nothing of the shooter's went in: the turn is over.
+    if ((choice === 'no' || choice === 'other') && comment && !sug.fixed) { readFeedback(comment, sug); sug.fixed = true; }
     const denies = choice === 'no' || (choice === 'other' && /\b(no|not|didn'?t|didnt|missed|still on|wrong|never)\b/i.test(comment));
     if (denies && !sug.fixed && (sug.type === 'made' || sug.type === 'eight') && !sug.remote && stateKey() === sug.key && winner(scores()) < 0) {
       passTable(false); setTimeout(() => flash(`Turn over → ${side(st.shooter)} · tap Undo if that's wrong`), 60); }
@@ -2777,5 +2831,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930213850"></script>
+<script src="build.js?v=20260930215412"></script>
 </body></html>
