@@ -385,6 +385,7 @@
             this.quietFrom = 0;
           }
         }
+        if (this.shot && this.onStart) try { this.onStart(this.shot); } catch {}
         if (this.shot) { this.shot.rest0 = {}; for (const tr of this.tracks) { this.shot.rest0[tr.id] = tr.restX != null ? [tr.restX, tr.restY] : [tr.x, tr.y]; tr.restSince = 0; tr.lastRest = 0; tr.restDur = 0; tr.restX = null; } }
         else {
           if (!(this.handUntil > t)) restBook();   // a hand right by the cue ball: keep the pre-shot rest spot until it's gone
@@ -415,7 +416,8 @@
           if (!s.first) {
             const c = this.tracks.find(x => x.id === s.cueId);
             const near = c ? Math.hypot(c.x - tr.x, (c.y - tr.y) * .5) / R : 99;
-            s.first = { cls: tr.cls, num: tr.num, conf: near < 3.5 ? .8 : near < 6 ? .55 : .3 };
+            s.first = { cls: tr.cls, num: tr.num, conf: near < 3.5 ? .8 : near < 6 ? .55 : .3, x: tr.x, y: tr.y };
+            if (this.onContact) try { this.onContact(s.first, c); } catch {}
           }
         }
       }
