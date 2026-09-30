@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930063940"><script src="stream.js"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930065751"><script src="stream.js"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -498,6 +498,7 @@
         <div class="dopt"><span>Format</span><div class="seg seg3" role="radiogroup"><button type="button" role="radio" data-q="fo:race">Race</button><button type="button" role="radio" data-q="fo:wso">Winner stays</button><button type="button" role="radio" data-q="fo:rot">Rotate</button></div></div>
         <div class="dopt" id="dRaceRow"><span>Race to</span><div class="rstep"><button type="button" data-q="race:-1" aria-label="Shorter race">−</button><b id="dRace">5</b><button type="button" data-q="race:1" aria-label="Longer race">+</button></div></div>
       </div>
+      <button type="button" class="switch" role="switch" id="lineSw"><span><b id="lineSwT">Waitlist open</b><small id="lineSwS">People can scan the QR and join the line</small></span><span class="knob" aria-hidden="true"></span></button>
       <form class="addrow" id="dAdd"><input id="dAddName" placeholder="Add a player to the line" autocomplete="off" enterkeyhint="done"><select class="slpick" id="dAddSl" aria-label="Skill level"><option value="">SL</option><option value="1">SL 1</option><option value="2">SL 2</option><option value="3">SL 3</option><option value="4">SL 4</option><option value="5">SL 5</option><option value="6">SL 6</option><option value="7">SL 7</option><option value="8">SL 8</option><option value="9">SL 9</option></select><button type="submit" class="primary">Add player</button></form>
       <div class="two"><button type="button" id="dMore">All settings</button><button type="button" id="dNew">New match 0–0</button></div>
     </div>
@@ -544,7 +545,8 @@
 <div class="sheet" id="endSheet" hidden style="z-index:14">
   <div class="card">
     <h2>End this game?</h2>
-    <p id="endMsg">The table resets for the next players. Clips and stats from this game stay on this device.</p>
+    <p id="endMsg">The current game and waitlist will be removed. Clips and stats from this game stay on this device.</p>
+    <button class="primary" id="endChange">Change game type instead (keeps the waitlist)</button>
     <div class="two"><button id="endNo">Cancel</button><button class="danger" id="endYes">End game</button></div>
   </div>
 </div>
@@ -849,7 +851,7 @@
     location.replace(u.toString());
   }
   const fresh = () => ({ names:['BCA Shag','Terry'], race:[5,5], firstBreak:1, mode:'alt', racks:[], fix:null,
-    shooter:1, groups:[null,null], turns:0, bih:false, down:[], dbl:false, scotch:false, partners:['',''], rot:[0,0], fouls:[0,0], pots:[], inn:[0,0], tt:[0,0], t0:0, tEnd:0, tFrom:0, clockLen:60, clockV:2, gtype:8, rules:'bca', fmtMode:'race', sl:[5,5], adj:[0,0], queue:[], seen:[], games:[], streak:0, lastW:'', pairStart:0, locked:false, bs:'', qSince:0, hist:[] });
+    shooter:1, groups:[null,null], turns:0, bih:false, down:[], dbl:false, scotch:false, lineOpen:true, partners:['',''], rot:[0,0], fouls:[0,0], pots:[], inn:[0,0], tt:[0,0], t0:0, tEnd:0, tFrom:0, clockLen:60, clockV:2, gtype:8, rules:'bca', fmtMode:'race', sl:[5,5], adj:[0,0], queue:[], seen:[], games:[], streak:0, lastW:'', pairStart:0, locked:false, bs:'', qSince:0, hist:[] });
   // Every game is saved on this device under its own key, so opening another table (or a relay that
   // can't be reached) never overwrites a game in progress — that is what kept wiping table 9's
   // settings and waitlist. KEY still points at the last game, for links without a game code.
@@ -1384,11 +1386,11 @@
   let lastStatus = '', statusT, freed = false;
   function statusTick(){
     if (!tableMode || freed) return;
-    const key = JSON.stringify([side(0), side(1), scores(), st.race, st.locked, st.queue.length, st.dbl, st.gtype, st.fmtMode]);
+    const key = JSON.stringify([side(0), side(1), scores(), st.race, st.locked, st.queue.length, st.dbl, st.gtype, st.fmtMode, st.lineOpen]);
     if (key === lastStatus) return;
     lastStatus = key; clearTimeout(statusT);
     statusT = setTimeout(() => postStatus({ state: 'busy', gh: hashKey(game), names: [side(0), side(1)], score: scores(), race: st.race, over: winner(scores()) >= 0,
-      open: !st.locked, ...(st.locked ? {} : { key: game }), q: st.queue.length, dbl: st.dbl, gtype: st.gtype, fmt: st.fmtMode }).catch(() => {}), 1500);
+      open: !st.locked, line: lineOpen(), ...(st.locked ? {} : { key: game }), q: st.queue.length, dbl: st.dbl, gtype: st.gtype, fmt: st.fmtMode }).catch(() => {}), 1500);
   }
   if (tableMode) {
     setMine(`${HALL}-${TNUM}`, game);
@@ -1416,6 +1418,7 @@
   function takeWait(raw){
     let m; try { m = JSON.parse(raw); } catch { return; }
     if (!m || !m.id || (m.ts || 0) < (st.qSince || 0)) return;
+    if (m.kind === 'join' && !lineOpen()) return;   // line closed (or table locked): no new joins
     if (m.kind === 'join' && !st.seen.includes(m.id)) quiet(() => {
       st.seen.push(m.id); if (st.seen.length > 300) st.seen.shift();
       st.queue.push({ id: m.id, name: String(m.name || 'Guest').trim().slice(0, 24) || 'Guest', sl: Math.min(9, Math.max(0, parseInt(m.sl, 10) || 0)) }); });
@@ -1429,12 +1432,14 @@
     try { const es = new PoolarStream(`${RELAY}/${WAIT_TOPIC}/sse`);
       es.onmessage = e => { try { const d = JSON.parse(e.data); if (d.event === 'message') takeWait(d.message); } catch {} }; } catch {}
   }
+  // The line takes new people unless the table is locked or the host closed it.
+  const lineOpen = () => !st.locked && st.lineOpen !== false;
   let lastLine = '', lineT;
   function lineTick(){
     const q = st.queue.map(x => ({ id: x.id, n: x.name }));
-    const key = JSON.stringify([q, side(0), side(1), scores(), st.fmtMode]);
+    const key = JSON.stringify([q, side(0), side(1), scores(), st.fmtMode, lineOpen()]);
     if (key === lastLine) return; lastLine = key; clearTimeout(lineT);
-    lineT = setTimeout(() => fetch(`${RELAY}/${WAIT_TOPIC}`, { method: 'POST', body: JSON.stringify({ kind: 'line', q, now: [side(0), side(1)], score: scores(), fmt: st.fmtMode, table: tableMode ? TNUM : 0, ts: Date.now() }) }).catch(() => {}), 1500);
+    lineT = setTimeout(() => fetch(`${RELAY}/${WAIT_TOPIC}`, { method: 'POST', body: JSON.stringify({ kind: 'line', q, now: [side(0), side(1)], score: scores(), fmt: st.fmtMode, table: tableMode ? TNUM : 0, closed: !lineOpen(), ts: Date.now() }) }).catch(() => {}), 1500);
   }
   function paintLine(){
     $('lineList').innerHTML = $('lineList2').innerHTML = st.queue.length ? st.queue.map((q, k) => `<div><b>${k+1}</b><span>${esc(q.name)}${q.sl ? ` <small style="color:var(--muted)">SL ${q.sl}</small>` : ''}</span>${k ? `<button data-up="${esc(q.id)}" aria-label="Move ${esc(q.name)} up">↑</button>` : ''}<button data-rm="${esc(q.id)}" aria-label="Remove ${esc(q.name)}">✕</button></div>`).join('')
@@ -2198,7 +2203,11 @@
   // ---------- Bottom panel: quick controls ----------
   function recPref(){ try { return localStorage.getItem('poolar-rec-' + game); } catch { return null; } }
   function setRecPref(v){ try { localStorage.setItem('poolar-rec-' + game, v); } catch {} }
+  $('lineSw').onclick = () => act(() => { st.lineOpen = st.lineOpen === false; });
   function paintDock(){
+    const lo = lineOpen(); $('lineSw').setAttribute('aria-checked', String(lo));
+    $('lineSwT').textContent = lo ? 'Waitlist open' : 'Waitlist closed';
+    $('lineSwS').textContent = st.locked ? 'Table is locked, so no one new can join the line' : lo ? 'People can scan the QR and join the line' : 'No one new can join the line (people already in it stay)';
     const set = (q, on) => { const b = document.querySelector(`[data-q="${q}"]`); if (b) b.setAttribute('aria-checked', String(on)); };
     set('dbl:0', !st.dbl); set('dbl:1', !!st.dbl && !st.scotch); set('dbl:2', !!st.dbl && !!st.scotch);
     [8, 9, 10].forEach(g => set('gt:' + g, st.gtype === g));
@@ -2312,7 +2321,8 @@
   // ---------- End game ----------
   // Red button in the header -> confirm -> the table is freed for the next players, recording stops,
   // and a game-over card offers clips, stats and sharing.
-  $('endBtn').onclick = () => { $('endMsg').textContent = tableMode ? `Table ${TNUM} resets for the next players. Clips and stats from this game stay on this device.` : 'The scoreboard resets to 0–0. Clips and stats from this game stay on this device.'; $('endSheet').hidden = false; };
+  $('endBtn').onclick = () => { $('endMsg').textContent = `The current game and waitlist will be removed${tableMode ? ` and table ${TNUM} is freed for the next players` : ''}. Clips and stats from this game stay on this device.`; $('endSheet').hidden = false; };
+  $('endChange').onclick = () => { $('endSheet').hidden = true; openSetup(); };
   $('endNo').onclick = () => $('endSheet').hidden = true;
   $('endYes').onclick = async () => {
     $('endSheet').hidden = true;

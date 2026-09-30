@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="build" content="20260930063940"><script src="stream.js"></script>
+<meta charset="utf-8"><meta name="build" content="20260930065751"><script src="stream.js"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0a0f14">
 <title>Table Waitlist</title>
@@ -108,6 +108,11 @@
       $('now').innerHTML = `${esc(line.now[0])} vs ${esc(line.now[1])}<small>${line.fmt === 'wso' ? 'Winner stays on' : line.fmt === 'rot' ? 'Rotating games' : `Score ${line.score[0]}–${line.score[1]}`}</small>`; }
     const inLine = !!me;
     $('joinCard').hidden = inLine; $('youCard').hidden = !inLine;
+    // The table closed its line (or is locked): no new joins.
+    const closed = !!(line && line.closed) && !inLine;
+    $('joinForm').hidden = closed; let cn = document.getElementById('closedNote');
+    if (!cn) { cn = document.createElement('p'); cn.id = 'closedNote'; cn.style.cssText = 'color:#ff8a80;font-weight:700;margin:6px 0'; $('joinForm').after(cn); }
+    cn.hidden = !closed; cn.textContent = '🔒 This table isn\'t taking a waitlist right now.';
     if (inLine) {
       const playing = line && line.now && line.now.some(n => n === me.name) && mineAt < 0;
       $('pos').textContent = playing ? "You're up" : mineAt >= 0 ? `#${mineAt + 1}` : line ? 'Adding…' : '…';
