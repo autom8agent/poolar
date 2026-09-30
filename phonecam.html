@@ -1,12 +1,12 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="build" content="20260930183431"><script src="stream.js?v=20260930183431"></script>
+<meta charset="utf-8"><meta name="build" content="20260930185442"><script src="stream.js?v=20260930185442"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0a0f14">
 <title>Pool Cam</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
-<link rel="stylesheet" href="common.css?v=20260930183431">
+<link rel="stylesheet" href="common.css?v=20260930185442">
 <style>
   body{background:radial-gradient(120% 60% at 50% 0%,#12303f,var(--bg) 70%) fixed var(--bg)}
   .big{display:flex;flex-direction:column;gap:10px}
@@ -82,7 +82,7 @@
   <h2>Clip recorded</h2><p id="savedT"></p>
   <div class="row"><button class="primary" id="savedShare">Save / share</button><button id="savedClose">Close</button></div>
 </div>
-<script src="qrcode.js?v=20260930183431"></script>
+<script src="qrcode.js?v=20260930185442"></script>
 <script>
 (() => {
   const $ = id => document.getElementById(id);
@@ -217,7 +217,9 @@
       if (back && !ultraId) {
         try {
           const cams = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
-          const uw = cams.find(d => /ultra/i.test(d.label)) || cams.find(d => /0\.5/.test(d.label));
+          // 1st choice: the ultra-wide lens itself. 2nd: iPhone's multi-lens camera ("Triple"/"Dual Wide"), which reaches
+          // the ultra-wide view at its lowest zoom (set below).
+          const uw = cams.find(d => /ultra/i.test(d.label)) || cams.find(d => /0\.5/.test(d.label)) || cams.find(d => /triple|dual wide/i.test(d.label));
           if (uw && uw.deviceId && next.getVideoTracks()[0].getSettings().deviceId !== uw.deviceId) {
             next.getTracks().forEach(t => t.stop());
             next = await navigator.mediaDevices.getUserMedia(want(uw.deviceId)).catch(() => navigator.mediaDevices.getUserMedia(want(null)));
@@ -226,10 +228,14 @@
         } catch {}
       }
       const track = next.getVideoTracks()[0];
-      // Android phones often expose the wide lens as zoom below 1× instead of a separate camera.
-      try { const c = track.getCapabilities && track.getCapabilities(); if (back && c && c.zoom && c.zoom.min < 1) await track.applyConstraints({ advanced: [{ zoom: c.zoom.min }] }); } catch {}
-      const lbl = track.label || 'camera', wide = /ultra|0\.5/i.test(lbl) || (track.getSettings().zoom || 1) < 1;
-      $('lens').textContent = back ? (wide ? `Lens: ${lbl} (ultra-wide)` : `Lens: ${lbl}. This phone has no ultra-wide camera, so this is the widest view available.`) : `Lens: ${lbl}`;
+      // Zoom all the way out: whatever the lens, use the lowest zoom the camera allows (Android wide lenses show
+      // up as zoom below 1×; iPhone multi-lens cameras start zoomed in to 2 = the normal lens).
+      let zoomed = '';
+      try { const c = track.getCapabilities && track.getCapabilities(), z = track.getSettings().zoom;
+        if (back && c && c.zoom && (z == null || z > c.zoom.min)) { await track.applyConstraints({ advanced: [{ zoom: c.zoom.min }] }); zoomed = ` · zoom ${c.zoom.min}× (widest)`; }
+        else if (back && c && c.zoom) zoomed = ` · zoom ${c.zoom.min}× (widest)`; } catch {}
+      const lbl = track.label || 'camera', wide = /ultra|0\.5|triple|dual wide/i.test(lbl) || (track.getSettings().zoom || 1) < 1;
+      $('lens').textContent = back ? (wide ? `Lens: ${lbl} (ultra-wide)${zoomed}` : `Lens: ${lbl}${zoomed}. This phone has no ultra-wide camera, so this is the widest view available.`) : `Lens: ${lbl}`;
       track.onended = () => setState('Camera stopped. Reload this page to restart it.', 'bad');
       if (stream) stream.getTracks().forEach(t => t.stop());
       stream = next; $('preview').srcObject = stream;
@@ -354,6 +360,6 @@
   }
 })();
 </script>
-<script src="build.js?v=20260930183431"></script>
+<script src="build.js?v=20260930185442"></script>
 </body>
 </html>
