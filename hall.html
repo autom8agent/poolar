@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="build" content="20260930071815"><script src="stream.js?v=20260930071815"></script>
+<meta charset="utf-8"><meta name="build" content="20260930071934"><script src="stream.js?v=20260930071934"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0a0f14">
 <title>Surge Billiards Tables</title>
@@ -61,6 +61,10 @@
   a.evlink.night{background:linear-gradient(90deg,#0f3a52,#0b2433);border-color:var(--felt);color:#bfe8ff}
   a.evlink.night b{background:var(--felt);color:#04162b}
   .note{font-size:13px;color:var(--muted);margin:0;line-height:1.45}
+  .demo{background:#3a1d4a;border:1px solid #b77be0;color:#f1ddff;border-radius:12px;padding:8px 12px;font-weight:700;font-size:14px}
+  .demo a{color:#fff}
+  .tag2{font-family:var(--ui);font-weight:800;fill:#dfe9f1;letter-spacing:.15px}
+  .list .md{font-size:12px;color:var(--muted);grid-column:2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   h2{margin:4px 0 0;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
   .day{display:flex;align-items:center;gap:8px;margin:0}
   .day b{font-size:15px;font-weight:700}
@@ -98,14 +102,16 @@
     <span id="ftLegend">9-ft front · 7-ft back room</span>
     <span>Line: <i class="q" style="background:#57d98a">0</i><i class="q" style="background:#c8e04a">1–2</i><i class="q" style="background:#f59a3a">3–4</i><i class="q" style="background:#e4574a">5+</i></span>
   </div>
+  <div class="legend" id="modeLegend"><span>👤 Singles</span><span>👥 Doubles</span><span>👥S Scotch doubles</span><span>🏁 Race</span><span>👑 Winner stays</span><span>🎲 Rotate</span><span>🏆 Winner picks</span><span>🎲+ball Random game</span><span>🔒 Locked / no waitlist</span></div>
+  <div class="demo" id="demoBar" hidden>DEMO · made-up tables to show every option. <a id="demoOff" href="#">Show the real tables</a></div>
   <div class="map"><svg id="plan" role="group" aria-label="Floor plan"></svg></div>
   <h2>All tables</h2>
   <div class="list" id="grid"></div>
   <p class="note">A table locks to the first group that opens it. Friends join through the Share button inside the game. When you finish, tap <b>Free table</b> in the game so the next group can use it. A table that sits idle for 30 minutes frees up by itself.</p>
 </div>
 
-<script src="halls.js?v=20260930071815"></script>
-<script src="hallday.js?v=20260930071815"></script>
+<script src="hallday.js?v=20260930071934"></script>
+<script src="halls.js?v=20260930071934"></script>
 <script>
 (() => {
   const qs = new URLSearchParams(location.search);
@@ -165,7 +171,8 @@
         <rect class="felt" x="${x+i}" y="${y+i}" width="${tw-2*i}" height="${th-2*i}" rx=".4"/>
         ${pockets}${diamonds}
         <text class="tnum" x="${numX}" y="${numY}" text-anchor="middle" font-size="${fs}">${n}</text>
-        <text class="tag" id="tt${n}" x="${tagX}" y="${tagY}" text-anchor="middle" font-size="2.1"></text>
+        <text class="tag" id="tt${n}" x="${tagX}" y="${across ? tagY - 1 : tagY - 2.4}" text-anchor="middle" font-size="3"></text>
+        <text class="tag2" id="tm${n}" x="${tagX}" y="${across ? tagY + 2.4 : tagY + .6}" text-anchor="middle" font-size="1.7"></text>
         <g id="ti${n}" data-x="${x}" data-y="${y}" data-w="${tw}" data-h="${th}"></g>
       </g>`;
     }
@@ -176,7 +183,7 @@
       g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
     }
     $('grid').innerHTML = [...H.tables].sort((a, b) => a.n - b.n)
-      .map(t => `<a id="gl${t.n}" href="${esc(tableUrl(t.n))}"><span class="n">${t.n}</span><span class="ic" id="gi${t.n}"></span><span class="st" id="gs${t.n}">Open</span></a>`).join('');
+      .map(t => `<a id="gl${t.n}" href="${esc(tableUrl(t.n))}"><span class="n">${t.n}</span><span class="ic" id="gi${t.n}"></span><span class="st" id="gs${t.n}">Open</span><span class="md" id="gm${t.n}"></span></a>`).join('');
   }
 
   function paint(){
@@ -206,10 +213,12 @@
       const closed = !b0 && c.closed;
       // Map: game ball in the top-left corner, waitlist count in the top-right.
       const g = $('ti' + t.n), x = +g.dataset.x, y = +g.dataset.y, w = +g.dataset.w;
-      g.innerHTML = (b0 || c.gtype ? `<circle cx="${x+1.2}" cy="${y+1.2}" r="2.3" fill="${P.BALL[(gt-1)%8]}" stroke="#000" stroke-width=".3"/><circle cx="${x+1.2}" cy="${y+1.2}" r="1.2" fill="#f4efe2"/><text x="${x+1.2}" y="${y+1.75}" text-anchor="middle" font-size="1.5" font-weight="700" fill="#111">${gt}</text>` : '')
+      const rnd = b0 && s0.fmt === 'rand';
+      g.innerHTML = (rnd ? `<g aria-label="Random game"><rect x="${x-1}" y="${y-1}" width="4.4" height="4.4" rx=".9" fill="#fff" stroke="#000" stroke-width=".3"/>${[[.9,.9],[2.2,2.2],[3.5,3.5],[.9,3.5],[3.5,.9]].map(([a,b2]) => `<circle cx="${x-1+a}" cy="${y-1+b2}" r=".42" fill="#111"/>`).join('')}</g>` : '')
+        + (b0 || c.gtype ? `<g transform="translate(${rnd ? 4.6 : 0} 0)"><circle cx="${x+1.2}" cy="${y+1.2}" r="2.3" fill="${P.BALL[(gt-1)%8]}" stroke="#000" stroke-width=".3"/><circle cx="${x+1.2}" cy="${y+1.2}" r="1.2" fill="#f4efe2"/><text x="${x+1.2}" y="${y+1.75}" text-anchor="middle" font-size="1.5" font-weight="700" fill="#111">${gt}</text></g>` : '')
         + (b0 ? `<circle cx="${x+w-1.2}" cy="${y+1.2}" r="2.3" fill="${P.lineColor(q)}" stroke="#000" stroke-width=".3"/><text x="${x+w-1.2}" y="${y+2}" text-anchor="middle" font-size="2.3" font-weight="800" fill="#10161c">${q}</text>` : '')
         + (camLive(t.n) ? `<g aria-label="Camera live"><rect x="${x+1.8}" y="${y + +g.dataset.h - 5.2}" width="6.4" height="3.8" rx=".8" fill="#e5484d" stroke="#000" stroke-width=".25"/><path d="M${x+8.2} ${y + +g.dataset.h - 4.6}l2 -1v3.4l-2 -1z" fill="#e5484d" stroke="#000" stroke-width=".2"/><circle cx="${x+3.2}" cy="${y + +g.dataset.h - 3.3}" r=".6" fill="#fff"/></g>` : '');
-      $('gi' + t.n).innerHTML = `${P.ballSvg(gt, 18)}${P.peopleSvg(dbl, 16)}<span class="q" style="background:${P.lineColor(q)}">${q}</span>${camLive(t.n) ? '<span class="cam" title="Camera live">📹</span>' : ''}`;
+      $('gi' + t.n).innerHTML = `${rnd ? '🎲' : ''}${P.ballSvg(gt, 18)}${P.peopleSvg(dbl, 16)}${b0 && s0.scotch ? '<b style="font-size:11px">S</b>' : ''}<span class="q" style="background:${P.lineColor(q)}">${q}</span>${camLive(t.n) ? '<span class="cam" title="Camera live">📹</span>' : ''}`;
       $('gl' + t.n).classList.toggle('closed', !!closed);
       $('gl' + t.n).title = c.note || '';
     }
@@ -218,11 +227,16 @@
       const shut = b && (s.open === false || s.line === false);   // locked, or the waitlist is closed
       $('tb' + t.n).classList.toggle('busy', b); $('tb' + t.n).classList.toggle('shut', shut); $('tb' + t.n).classList.toggle('mine', false);
       const score = b && s.score ? `${s.score[0]}–${s.score[1]}` : '';
-      $('tt' + t.n).textContent = b ? (shut ? '🔒 ' + (score || 'IN USE') : score || 'IN USE') : '';
+      const who = b ? (s.dbl ? (s.scotch ? '👥S' : '👥') : '👤') : '';
+      const FM = { race: ['🏁', 'RACE'], wso: ['👑', 'WINNER STAYS'], rot: ['🎲', 'ROTATE'], pick: ['🏆', 'WINNER PICKS'], rand: ['🎲', 'RANDOM GAME'] }[b && s.fmt || 'race'];
+      const raceTxt = s && s.race ? (s.race[0] === s.race[1] ? `RACE ${s.race[0]}` : `RACE ${s.race[0]}/${s.race[1]}`) : 'RACE';
+      $('tt' + t.n).textContent = b ? `${shut ? '🔒' : ''}${who} ${FM[0]}` : '';
+      $('tm' + t.n).textContent = b ? ((s.fmt || 'race') === 'race' ? raceTxt : ({ wso: 'STAYS', rot: 'ROTATE', pick: 'PICKS', rand: 'RANDOM' }[s.fmt])) : '';
+      $('gm' + t.n).textContent = b ? `${FM[0]} ${(s.fmt || 'race') === 'race' ? raceTxt.toLowerCase().replace('race', 'Race') + (s.rules === 'apa' && s.sl ? ` (SL ${s.sl[0]} v ${s.sl[1]})` : '') : FM[1][0] + FM[1].slice(1).toLowerCase()}${s.dbl ? (s.scotch ? ' · Scotch doubles' : ' · Doubles') : ''}${s.qn && s.qn.length ? ` · Next: ${s.qn.join(', ')}` : ''}${s.line === false && !(s.open === false) ? ' · Waitlist closed' : ''}` : '';
       $('tb' + t.n).setAttribute('aria-label', `Table ${t.n}, ${t.ft}-foot, ${b ? `in use${s.names ? `: ${s.names[0]} vs ${s.names[1]} ${score}` : ''}` : 'open'}`);
       $('gl' + t.n).classList.toggle('busy', b); $('gl' + t.n).classList.toggle('shut', shut); $('gl' + t.n).classList.toggle('mine', false);
       const c = config[t.n] || {};
-      $('gs' + t.n).textContent = b ? (shut ? '🔒 ' : '') + (s.names ? `${s.names[0]} v ${s.names[1]}${score ? ' · ' + score : ''}` : 'In use') : c.closed ? (c.note || 'Reserved') : c.note ? `Open · ${c.note}` : 'Open';
+      $('gs' + t.n).textContent = b ? (shut ? '🔒 ' : '') + (s.names ? `${s.names[0]} v ${s.names[1]}` : 'In use') : c.closed ? (c.note || 'Reserved') : c.note ? `Open · ${c.note}` : 'Open';
     }
     paintDay();
   }
@@ -270,16 +284,40 @@
   const keep = p => `${p}?hall=${HALL}` + (RELAY !== 'https://ntfy.sh' ? `&relay=${encodeURIComponent(RELAY)}` : '');
   $('tourLink').href = keep('tournament.html'); $('nightLink').href = keep('night.html'); $('adminLink').href = keep('admin.html'); $('meLink').href = keep('profile.html');
   const prof = P.profile(); if (prof && prof.name) $('meLink').textContent = prof.name;
-  drawPlan(); showCal(calOpen); paint(); load();
-  try {
+  drawPlan(); showCal(calOpen);
+  // ?demo=1: made-up tables showing every option. Nothing is sent to the relay.
+  const DEMO = qs.get('demo') === '1';
+  if (DEMO) {
+    $('demoBar').hidden = false; $('demoOff').href = keep('hall.html');
+    const now = Date.now(), T = (t, o) => { status[t] = { kind: 'table', t, ts: now, state: 'busy', open: true, line: true, q: (o.qn || []).length, ...o }; };
+    T(1, { names: ['Terry', 'Kali'], gtype: 8, fmt: 'wso', qn: ['Marcus', 'Jen', 'Luis'] });
+    T(2, { names: ['Dre', 'Sam'], gtype: 9, fmt: 'wso', qn: ['Priya'] });
+    T(3, { names: ['Mike & Tasha', 'Ron & Bev'], gtype: 8, fmt: 'wso', dbl: true, qn: ['Kev & Ann', 'Jo & Pat'] });
+    T(4, { names: ['Cody & Mia', 'Al & Rita'], gtype: 9, fmt: 'wso', dbl: true, scotch: true, qn: ['Nate & Zoe'] });
+    T(5, { names: ['Chris', 'Omar'], gtype: 10, fmt: 'rand', qn: ['Lena', 'Big Tony', 'Shay', 'Vic'] });
+    T(6, { names: ['Hector', 'Dana'], gtype: 9, fmt: 'pick', qn: ['Ike', 'Rosa'] });
+    T(7, { names: ['Beth', 'Kurt'], gtype: 8, fmt: 'rot', qn: ['Mo', 'Gabe', 'Tia', 'Wes', 'Uma'] });
+    T(8, { names: ['Terry', 'Shag'], gtype: 8, fmt: 'race', rules: 'apa', race: [5, 2], sl: [6, 2], qn: ['Kali (SL 4)', 'Jay (SL 5)'] });
+    T(9, { names: ['Vince', 'Lou'], gtype: 9, fmt: 'race', race: [7, 7], open: false, line: false });
+    T(10, { names: ['Rae', 'Bo'], gtype: 10, fmt: 'race', race: [5, 5], line: false });
+    T(12, { names: ['Dom & Ty', 'Eve & Max'], gtype: 8, fmt: 'rot', dbl: true, open: false, line: false });
+    T(13, { names: ['Paulie', 'Nico'], gtype: 8, fmt: 'race', race: [3, 3], qn: ['Stevie'] });
+    T(14, { names: ['Jules', 'Rico'], gtype: 8, fmt: 'wso', qn: ['Bree', 'Cal'] });
+    config[11] = { closed: true, note: 'Reserved 9 PM · league' };
+    cams[1] = { top: now }; cams[14] = { top: now };
+    for (const t of H.tables) { const go = e => { e.preventDefault(); e.stopPropagation(); alert(`Demo table ${t.n}. Nothing here is real.`); };
+      $('tb' + t.n).addEventListener('click', go, true); $('gl' + t.n).addEventListener('click', go); }
+    paint();
+  } else { paint(); load(); }
+  if (!DEMO) try {
     const es = new PoolarStream(`${RELAY}/${TOPIC}/sse`);
     es.onopen = () => setLive(true); es.onerror = () => setLive(false);
     es.onmessage = e => { try { const d = JSON.parse(e.data); if (d.event === 'message') { take(d.message); paint(); } } catch {} };
   } catch {}
-  setInterval(paint, 30000);   // also clears the map by itself at 2 AM
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') load(); });
+  if (!DEMO) setInterval(paint, 30000);   // also clears the map by itself at 2 AM
+  document.addEventListener('visibilitychange', () => { if (!DEMO && document.visibilityState === 'visible') load(); });
 })();
 </script>
-<script src="build.js?v=20260930071815"></script>
+<script src="build.js?v=20260930071934"></script>
 </body>
 </html>
