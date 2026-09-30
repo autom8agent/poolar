@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930054527"><script src="stream.js"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930055942"><script src="stream.js"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -273,6 +273,10 @@
   .djoin .jbtns{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
   @media (max-width:799px){ .djoin{grid-template-columns:1fr 1fr} .djoin .jbtns{grid-column:1 / -1;justify-content:stretch} .djoin .jbtns button{flex:1} }
   body.viewer .hostonly{display:none!important}
+  /* Scoring only: no video anywhere on this device (lighter, for any phone). */
+  body.lite .tv, body.lite #camBtn, body.lite #clipBtn{display:none!important}
+  .scr button{font-size:13px;padding:10px 4px}
+  .scr button[aria-checked="true"]{background:var(--chalk);color:#04162b}
   /* Watching phones are read-only: no scoring taps. */
   body.viewer .ctrl, body.viewer .bar, body.viewer .won, body.viewer .pen, body.viewer #lockIc{display:none!important}
   body.viewer .nameb{pointer-events:none}
@@ -492,6 +496,11 @@
       </div>
       <form class="addrow" id="dAdd"><input id="dAddName" placeholder="Add a player to the line" autocomplete="off" enterkeyhint="done"><button type="submit" class="primary">Add player</button></form>
       <div class="two"><button type="button" id="dMore">All settings</button><button type="button" id="dNew">New match 0–0</button></div>
+    </div>
+    <div class="dcard">
+      <h3>Screen <small>Pick how this device shows the game</small></h3>
+      <div class="seg seg3 scr" role="radiogroup"><button type="button" role="radio" data-scr="video">📹 Scoring + video</button><button type="button" role="radio" data-scr="lite">📝 Scoring only</button><button type="button" id="scrBroadcast">📺 Broadcast ↗</button></div>
+      <p class="hlempty" id="scrHelp"></p>
     </div>
     <div class="dcard">
       <h3>Highlights <small id="hlSub"></small></h3>
@@ -835,6 +844,9 @@
   // recording, so a second device can never double up automatic calls.
   const VIEW = qs.get('view') === '1';
   if (VIEW) document.body.classList.add('viewer');
+  // Screen mode for this device: 'video' (scoring with the camera) or 'lite' (scoring only, no video).
+  let SCREEN = qs.get('screen') || (() => { try { return localStorage.getItem('poolar-screen'); } catch { return null; } })() || 'video';
+  if (SCREEN === 'lite') document.body.classList.add('lite');
   const rid = () => Math.random().toString(36).slice(2, 12);
   const game = (qs.get('game') || '').replace(/[^a-z0-9]/gi, '').slice(0, 24) || (st.game || rid());
   const me = qs.has('me') ? +qs.get('me') : -1;
@@ -1530,7 +1542,8 @@
   // Open a camera connection only when this table's camera is actually live: each open connection
   // counts against the free relay's per-address limit, shared by every device on the hall's Wi-Fi.
   // Cameras announce themselves on the hall topic (on start, every 4 min, and when they stop).
-  if (!tableMode || qs.get('cam')) { showFeed(qs.get('cam') || camChan('top')); $('behindFrame').src = watchSrc(camChan('behind')); }
+  if (SCREEN === 'lite') { /* scoring only: no camera connections at all */ }
+  else if (!tableMode || qs.get('cam')) { showFeed(qs.get('cam') || camChan('top')); $('behindFrame').src = watchSrc(camChan('behind')); }
   else {
     const camSeen = { top: 0, behind: 0 };
     const hallCams = new PoolarStream(`${RELAY}/${HALL_TOPIC}/sse?since=10m`);
@@ -1684,9 +1697,14 @@
       sug = foul('foul', 'Bad hit', `${me} is on ${onEight ? 'the 8' : g} but hit ${clsName(ev.first)} first.`, ev.first.conf, [ev.first.num || 0]);
     } else if (!isBreak && ev.first && !made.length && !ev.rail) {
       sug = foul('foul', 'No rail', `${me} hit ${clsName(ev.first)} but nothing reached a rail and nothing dropped.`, .4, [ev.first.num || 0]);
+    } else if (!isBreak && g && !ev.first && made.length && !made.some(ownOf)) {
+      // Only the opponent's ball(s) dropped and the first contact wasn't seen: almost always the
+      // opponent's ball was hit first -> foul (Terry: "I hit Shag's ball first - that's ball in hand").
+      sug = foul('foul', 'Bad hit?', `${me} made ${made.map(clsName).join(', ')} (${them}'s). If that was hit first, it's a foul.`, .5);
     } else if (made.length) {
       const own = made.filter(ownOf), keep = own.length > 0;
-      const pickGroup = !g && keep && !isBreak && new Set(own.map(b => b.cls)).size === 1 ? own[0].cls : null;
+      // APA: "you are what you make" — one group only (on the break too) sets the groups; both = still open.
+      const pickGroup = !g && keep && !ev.scratch && new Set(own.map(b => b.cls)).size === 1 ? own[0].cls : null;
       sug = { type: 'made', conf: .7, balls: nums.length ? nums : [0], title: made.length > 1 ? `${made.length} balls made` : 'Ball made',
         text: `${made.map(clsName).join(', ')} in. ${keep ? `${me} keeps shooting${pickGroup ? ` and takes ${pickGroup}s` : ''}?` : `Not ${me}'s group → turn over to ${them}?`}`,
         apply: () => { markMade(nums); if (pickGroup && !st.groups[i]) setSolids(pickGroup === 'solid' ? i : opp); if (!keep) passTable(false); }, auto: keep ? 'Mark ball' : 'Turn over' };
@@ -2152,6 +2170,13 @@
   qrInto($('qrWatch'), watchLink(), 'Watch this game'); qrInto($('qrLine'), waitUrl(), 'Join the line');
   $('jShare').onclick = () => navigator.share ? navigator.share({ title: 'Watch our pool game', url: watchLink() }).catch(() => {}) : $('jCopy').click();
   $('jCopy').onclick = async () => { try { await navigator.clipboard.writeText(watchLink()); $('jCopy').textContent = 'Copied'; } catch { $('jCopy').textContent = 'Copy failed'; } setTimeout(() => $('jCopy').textContent = 'Copy', 1500); };
+  // Screen switch + broadcast link.
+  const broadcastLink = () => { const u = new URL('broadcast.html', location.href); u.search = ''; u.searchParams.set('game', game); u.searchParams.set('cam', camKey || camChan('top')); u.searchParams.set('camb', camChan('behind')); if (RELAY !== 'https://ntfy.sh') u.searchParams.set('relay', RELAY); return String(u); };
+  const paintScr = () => { document.querySelectorAll('[data-scr]').forEach(b => b.setAttribute('aria-checked', String(b.dataset.scr === SCREEN)));
+    $('scrHelp').textContent = SCREEN === 'lite' ? 'Scoring only: no video on this device. The camera keeps working for everyone else.' : 'Scoring with the table camera, replays, clips and ref calls.'; };
+  document.querySelectorAll('[data-scr]').forEach(b => b.onclick = () => { if (b.dataset.scr === SCREEN) return; try { localStorage.setItem('poolar-screen', b.dataset.scr); } catch {} location.reload(); });
+  $('scrBroadcast').onclick = () => window.open(broadcastLink(), '_blank');
+  paintScr();
   // XREAL glasses view: coaching drawn from the same top-down camera, opened on the phone the glasses plug into.
   const glassesLink = () => { const u = new URL('glasses.html', location.href); u.search = ''; u.searchParams.set('game', game); u.searchParams.set('cam', camKey || '1'); if (RELAY !== 'https://ntfy.sh') u.searchParams.set('relay', RELAY); return String(u); };
   $('jGlasses').onclick = () => navigator.share ? navigator.share({ title: 'Pool Glasses', url: glassesLink() }).catch(() => {}) : navigator.clipboard.writeText(glassesLink()).then(() => { $('jGlasses').textContent = 'Link copied'; setTimeout(() => $('jGlasses').textContent = '🕶 Glasses', 1500); }, () => prompt('Glasses link', glassesLink()));
