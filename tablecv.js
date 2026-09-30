@@ -310,6 +310,13 @@
       const cueGoneAtPocket = c && t - c.seen > this.o.gone && POCKETS.some(([px2, py]) => Math.hypot(c.x - px2, (c.y - py) * .5) < this.o.pocketR);
       const cueResting = c && ((c.seen === t && c.v < this.o.still) || cueGoneAtPocket);
       const moving = this.tracks.some(tr => tr.seen === t && tr.v > this.o.still) || !cueResting;
+      // APA: after legal contact some ball (cue ball included) must reach a rail. A moving ball whose
+      // centre comes within ~2.6 ball radii of the table edge (our edge is the cushion's outer line)
+      // counts as a rail contact.
+      if (s.first && !s.rail) {
+        const rx = R * 2.6, ry = R * 2.6 * 2;
+        s.rail = this.tracks.some(tr => tr.seen === t && tr.v > this.o.still && (tr.x < rx || tr.x > 1 - rx || tr.y < ry || tr.y > 1 - ry));
+      }
       if (!moving) { if (!this.quietFrom) this.quietFrom = t; } else this.quietFrom = 0;
       if ((this.quietFrom && t - this.quietFrom > this.o.endQuiet) || t - s.t0 > this.o.maxShot) {
         // Balls that vanished during the shot next to a pocket were pocketed.
@@ -324,7 +331,7 @@
         }
         this.tracks = this.tracks.filter(tr => !tr.pocketed);
         this.shot = null;
-        const ev = { type: 'shot', first: s.first, pocketed, scratch, cuePocket, ms: t - s.t0, t };
+        const ev = { type: 'shot', first: s.first, pocketed, scratch, cuePocket, rail: !!s.rail, noHit: !s.first && !pocketed.length, ms: t - s.t0, t };
         if (this.onShot) this.onShot(ev);
       }
     }
