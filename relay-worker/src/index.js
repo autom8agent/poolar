@@ -34,7 +34,7 @@ export default {
     //   GET /shots            list of shot ids (newest first)      GET /shots/<id>/<n|meta>
     if (parts[0] === 'shots') {
       const H = { ...CORS, 'Cache-Control': 'no-store' };
-      if (req.method === 'PUT' && parts.length === 3 && /^[a-z0-9-]{6,60}$/i.test(parts[1]) && /^(meta|\d{1,2})$/.test(parts[2])) {
+      if (req.method === 'PUT' && parts.length === 3 && /^[a-z0-9-]{6,60}$/i.test(parts[1]) && /^(meta|fb|\d{1,2})$/.test(parts[2])) {
         const body = await req.arrayBuffer(); if (body.byteLength > 24e6) return new Response('too big', { status: 413, headers: H });
         await env.CLIPS.put(`shot:${parts[1]}:${parts[2]}`, body, { metadata: { type: req.headers.get('content-type') || '', at: Date.now() } });
         return Response.json({ ok: true }, { headers: H });
@@ -45,7 +45,7 @@ export default {
       }
       if (req.method === 'GET' && parts.length === 3) {
         const v = await env.CLIPS.getWithMetadata(`shot:${parts[1]}:${parts[2]}`, 'arrayBuffer'); if (!v.value) return new Response('not found', { status: 404, headers: H });
-        return new Response(v.value, { headers: { ...H, 'Content-Type': parts[2] === 'meta' ? 'application/json' : ((v.metadata && v.metadata.type) || 'video/webm') } });
+        return new Response(v.value, { headers: { ...H, 'Content-Type': (parts[2] === 'meta' || parts[2] === 'fb') ? 'application/json' : ((v.metadata && v.metadata.type) || 'video/webm') } });
       }
       return new Response('bad request', { status: 400, headers: H });
     }
