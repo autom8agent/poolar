@@ -182,7 +182,7 @@
   }
   class Tracker {
     constructor(opt){
-      this.o = Object.assign({ w: 480, h: 240, still: .6, move: 1.6, endQuiet: 1100, maxShot: 15000, gone: 700, pocketR: .085 }, opt || {});
+      this.o = Object.assign({ w: 480, h: 240, still: .6, move: 1.6, endQuiet: 2500, maxShot: 15000, gone: 700, pocketR: .085 }, opt || {});
       this.tracks = []; this.nid = 1; this.shot = null; this.quietFrom = 0; this.onShot = null; this.onPocket = null; this.frame = 0;
     }
     get ballPx(){ return this.o.h * 2.25 / 50; }
