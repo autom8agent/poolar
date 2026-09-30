@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="build" content="20260930060821"><script src="stream.js"></script>
+<meta charset="utf-8"><meta name="build" content="20260930061609"><script src="stream.js"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#05080a">
 <title>Pool Broadcast</title>
@@ -53,6 +53,13 @@
   .bih small{display:block;font:700 1vw var(--ui);letter-spacing:.08em;color:#d6ffe4}
   @keyframes bihp{50%{box-shadow:0 0 3vw rgba(87,217,138,.55)}}
   @keyframes wave{0%,100%{transform:rotate(0)}30%{transform:rotate(14deg)}60%{transform:rotate(-8deg)}}
+  .over{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:center;padding-bottom:2vh;z-index:5;pointer-events:none}
+  .over .ob{pointer-events:auto;display:flex;flex-direction:column;align-items:center;gap:.6vw;background:rgba(8,14,20,.92);border:.25vw solid var(--gold);border-radius:1.2vw;padding:1vw 2vw;min-width:40vw}
+  .over b{font:900 3vw var(--num);letter-spacing:.04em;color:var(--gold);text-transform:uppercase}
+  .over span{font:700 1.1vw var(--ui);color:var(--muted)}
+  .obtn{display:flex;gap:.8vw}.obtn button,.golist button{font:800 1.1vw var(--ui);color:#fff;background:#1d2a3a;border:1px solid rgba(255,255,255,.25);border-radius:.7vw;padding:.6vw 1.2vw;cursor:pointer}
+  .obtn .pri{background:var(--gold);color:#1d1606;border-color:var(--gold)}
+  .golist{display:flex;flex-wrap:wrap;gap:.4vw;justify-content:center;max-width:60vw}.golist p{width:100%;text-align:center;font:600 .9vw var(--ui);color:var(--muted);margin:.3vw 0 0}
   .rpl{position:fixed;left:2vw;top:3vh;font:900 2vw var(--num);letter-spacing:.14em;background:var(--red);padding:.3vw 1vw;border-radius:.5vw}
   .wait{position:fixed;inset:0;display:grid;place-items:center;text-align:center;color:var(--muted);font:600 1.4vw var(--ui)}
   .wait b{display:block;font:900 4vw var(--num);color:#fff;letter-spacing:.04em}
@@ -72,6 +79,9 @@
 </div>
 <div class="wait" id="wait"><div><b id="waitT">Pool Broadcast</b><span id="waitS">Connecting to the table…</span></div></div>
 <div class="rpl" id="rpl" hidden>REPLAY</div>
+<div class="over" id="over" hidden><div class="ob"><b id="goT"></b><span id="goS"></span>
+  <div class="obtn"><button id="goSkip">⏭ Skip</button><button id="goNext" class="pri">▶ Start next game</button><button id="goClips">🎬 Game clips</button></div>
+  <div class="golist" id="goList" hidden></div></div></div>
 <div class="bih" id="bih" hidden><span class="h">✋</span><span><span id="bihT">Ball in hand</span><small id="bihS"></small></span></div>
 <div class="toast" id="toast"><img id="toastI" alt=""><span id="toastT"></span></div>
 <div class="line" id="line" hidden></div>
@@ -120,7 +130,7 @@
   let live = false, lastLive = 0;
   function drawProg(now){
     const v = vid('camFrame');
-    if (v) { lastLive = now; if (!corners && now - lastTry > 1500) { lastTry = now; findTable(v); } }
+    if (v) { lastLive = now; if (!corners && now - lastTry > 1500) { lastTry = now; findTable(v); } feedTracker(v, now); }
     live = !!v && now - lastLive < 3000;
     px.fillStyle = '#05080a'; px.fillRect(0, 0, 1920, 1080);
     let tr = null;
@@ -163,36 +173,87 @@
     if (show) { $('bihT').textContent = bih === 'kitchen' ? 'Ball in hand · kitchen' : 'Ball in hand'; $('bihS').textContent = `${shooterName(st)} places the cue ball ${bih === 'kitchen' ? 'behind the head string' : 'anywhere on the table'}`; }
   }
 
-  // ---------- rolling buffer for replays (last ~16 s of the program picture) ----------
+  // ---------- rolling buffer of short standalone clips (3 s each, last ~24 s) ----------
   let buf = [], rec = null, progStream = null, replaying = false;
+  const SEG = 3000, KEEP = 8;
   const vtype = () => ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'].find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || '';
   function seg(){
     if (!progStream) progStream = P.captureStream ? P.captureStream(30) : null;
     if (!progStream || !window.MediaRecorder) return null;
     let r; try { const t = vtype(); r = new MediaRecorder(progStream, t ? { mimeType: t, videoBitsPerSecond: 4e6 } : undefined); } catch { return null; }
-    const ch = [], t0 = Date.now();
+    const ch = [], t0 = performance.now();
     r.ondataavailable = e => { if (e.data && e.data.size) ch.push(e.data); };
-    r.onstop = () => { if (ch.length && Date.now() - t0 > 400) { buf.push({ blob: new Blob(ch, { type: (r.mimeType || 'video/mp4').split(';')[0] }), ms: Date.now() - t0 }); while (buf.length > 3) buf.shift(); } if (r.done) r.done(); };
+    r.onstop = () => { const t1 = performance.now(); if (ch.length && t1 - t0 > 300) { buf.push({ blob: new Blob(ch, { type: (r.mimeType || 'video/mp4').split(';')[0] }), t0, t1 }); while (buf.length > KEEP) buf.shift(); } if (r.done) r.done(); };
     try { r.start(); } catch { return null; } return r;
   }
   function rotate(done){ const old = rec; rec = seg(); if (old && old.state !== 'inactive') { old.done = done; old.stop(); } else if (done) done(); }
-  setInterval(() => { if (live && !replaying) rotate(); }, 8000);
-  // Slow-motion replay of the last few seconds (the source broadcast has none; this is the upgrade).
-  function replay(secs, label){
-    if (!live || replaying || !window.MediaRecorder) return;
-    setTimeout(() => rotate(() => {
-      const segs = []; let tot = 0;
-      for (let i = buf.length - 1; i >= 0 && tot < secs * 1000; i--) { segs.unshift(buf[i]); tot += buf[i].ms; }
-      if (!segs.length) return;
-      const v = $('replay'); let i = 0, url = ''; replaying = true; v.hidden = false; $('rpl').hidden = false; $('rpl').textContent = label || 'REPLAY';
-      const skip = Math.max(0, (tot - secs * 1000) / 1000);
-      const next = () => { if (url) URL.revokeObjectURL(url); if (i >= segs.length) { v.hidden = true; $('rpl').hidden = true; replaying = false; return; }
-        url = URL.createObjectURL(segs[i].blob); const first = i === 0; i++;
-        v.onloadedmetadata = () => { if (first && skip > .3) try { v.currentTime = skip; } catch {} v.playbackRate = .5; v.play().catch(() => {}); };
-        v.onended = next; v.onerror = next; v.src = url; };
-      next();
-    }), 1500);   // let the balls finish rolling first
+  setInterval(() => { if (live) rotate(); }, SEG);
+  // A clip = the buffered pieces covering [a, b] (performance.now() times), played from a to b.
+  const clipOf = (a, b) => ({ segs: buf.filter(x => x.t1 > a && x.t0 < b), a, b });
+  const highlights = [];   // saved clips for the end-of-game reel
+  function playClip(c, label, rate, done){
+    if (!c || !c.segs.length) { if (done) done(); return; }
+    const v = $('replay'); let i = 0, url = ''; replaying = true; v.hidden = false; $('rpl').hidden = false; $('rpl').textContent = label || 'REPLAY';
+    const end = () => { v.onended = v.ontimeupdate = v.onerror = null; v.pause(); v.hidden = true; $('rpl').hidden = true; replaying = false; if (url) URL.revokeObjectURL(url); if (done) done(); };
+    const next = () => {
+      if (url) URL.revokeObjectURL(url);
+      if (i >= c.segs.length) return end();
+      const sgm = c.segs[i++]; url = URL.createObjectURL(sgm.blob);
+      const from = Math.max(0, (c.a - sgm.t0) / 1000), to = (c.b - sgm.t0) / 1000;
+      v.onloadedmetadata = () => { if (from > .05) try { v.currentTime = from; } catch {} v.playbackRate = rate || .75; v.play().catch(() => {}); };
+      v.ontimeupdate = () => { if (v.currentTime >= to) next(); };
+      v.onended = next; v.onerror = next; v.src = url;
+    };
+    next();
   }
+  // Replay a shot window once the balls have stopped (cut the current piece so it's included).
+  function replayWindow(a, b, label, keep){
+    if (!live || replaying || !window.MediaRecorder) return;
+    rotate(() => { const c = clipOf(a, b); if (keep) highlights.push({ ...c, label: keep }); playClip(c, label, .75); });
+  }
+
+  // ---------- shot tracking on this screen (same tracker as the ref) ----------
+  // Replays start just before the cue tip meets the cue ball and end when the ball drops or stops,
+  // straight from the video — not from when someone tapped the scoreboard.
+  const small = window.TableCV ? new TableCV.Warper(document.createElement('canvas'), [480, 240]) : null;
+  const tracker = window.TableCV ? new TableCV.Tracker() : null;
+  let lastShot = null, lastFeed = 0, sinceLive = 0;
+  if (tracker) tracker.onShot = ev => {
+    const now = performance.now(), a = now - ev.ms - 900, b = now + 300;   // tracker time is performance.now()
+    lastShot = { a, b, ev, used: false, at: now };
+    const made = ev.pocketed.filter(p => p.cls !== 'cue');
+    if (ev.scratch) { toast('Scratch · ball in hand', 0, true); lastShot.used = true; setTimeout(() => replayWindow(a, b, 'REPLAY · SCRATCH', 'Scratch'), 700); }
+    else if (made.length) { lastShot.used = true; setTimeout(() => replayWindow(a, b, 'REPLAY', made.map(p => p.num || p.cls).join(', ')), 700); }
+  };
+  function feedTracker(v, now){
+    if (!tracker || !small || !small.ok) return;
+    if (!sinceLive) sinceLive = now;
+    if (corners && small.q !== corners) small.setQuad(corners);
+    if (!corners && now - sinceLive < 15000) return;          // give straightening a moment first
+    if (now - lastFeed < 110) return; lastFeed = now;
+    if (small.draw(v, flipped())) try { tracker.feed(small.read(), now); } catch {}
+  }
+  // A scoreboard change (made ball / foul) with no replay yet: replay the tracker's last shot if it was
+  // recent, otherwise the last 5 seconds.
+  function replayForTap(label, keep){
+    const now = performance.now();
+    if (lastShot && !lastShot.used && now - lastShot.at < 25000) { lastShot.used = true; replayWindow(lastShot.a, lastShot.b, label, keep); }
+    else if (!lastShot || now - lastShot.at > 3000) replayWindow(now - 5000, now, label, keep);
+  }
+
+  // ---------- end of the game: highlight reel ----------
+  function gameOver(w, sc){
+    const reel = highlights.slice(-12), tot = reel.reduce((n, c) => n + (c.b - c.a), 0);
+    $('goT').textContent = `${side(w)} wins ${sc[w]}–${sc[1 - w]}`; $('goS').textContent = reel.length ? `Highlights · ${Math.round(Math.min(60000, tot) / 1000)} s` : 'No highlights recorded this game';
+    $('over').hidden = false;
+    let k = 0, spent = 0;
+    const nextClip = () => { if ($('over').hidden || k >= reel.length || spent > 60000) return; const c = reel[k++]; spent += c.b - c.a; playClip(c, `HIGHLIGHTS · ${c.label}`, 1, nextClip); };
+    nextClip();
+    $('goClips').onclick = () => { $('goList').hidden = !$('goList').hidden; $('goList').innerHTML = reel.map((c, i) => `<button data-i="${i}">⬇ ${i + 1}. ${c.label}</button>`).join('') + '<p>Full game &amp; each player\'s clips are saved on the scoring iPad → 🎬 Clips.</p>'; };
+    $('goList').onclick = e => { const bt = e.target.closest('[data-i]'); if (!bt) return; const c = reel[+bt.dataset.i]; c.segs.forEach((sgm, j) => { const a = document.createElement('a'); a.href = URL.createObjectURL(sgm.blob); a.download = `highlight-${+bt.dataset.i + 1}-${j + 1}.${sgm.blob.type.includes('mp4') ? 'mp4' : 'webm'}`; a.click(); }); };
+  }
+  const closeOver = () => { $('over').hidden = true; $('replay').pause(); $('replay').hidden = true; $('rpl').hidden = true; replaying = false; highlights.length = 0; };
+  $('goSkip').onclick = closeOver; $('goNext').onclick = closeOver;
 
   // ---------- game state (read-only, from the scoreboard's sync topic) ----------
   let st = null;
@@ -232,19 +293,21 @@
       toast(`${side(w)} wins rack ${cur.racks.length}`, 8, true);
       const onHill = sc[w] === race[w] - 1, done = sc[w] >= race[w];
       say(done ? `${side(w)} wins the match, ${sc[w]}–${sc[o]}!` : `${side(w)} ${sc[w] === sc[o] ? `ties it at ${sc[w]}–${sc[o]}` : sc[w] > sc[o] ? `takes a ${sc[w]}–${sc[o]} lead` : `closes to ${sc[w]}–${sc[o]}`}${onHill ? ' and is on the hill' : ''}. ${pick(['Winner breaks next.', 'Rack them up.'])}`);
-      replay(8, 'REPLAY · RACK WINNER'); return;
+      replayForTap('REPLAY · RACK WINNER', `${side(w)} wins rack ${cur.racks.length}`);
+      if (done) setTimeout(() => gameOver(w, sc), 7000);
+      return;
     }
     const made = (cur.down || []).filter(n => !(prev.down || []).includes(n));
     const i = prev.shooter;
     for (const n of made) {
-      toast(`${who(i)} made the ${n} ball`, n);
+      toast(`${who(i)} made the ${n} ball`, n); replayForTap('REPLAY', `${who(i)} · the ${n}`);
       const own = prev.groups && prev.groups[i] && GROUP[prev.groups[i]].includes(n);
       say(pick(own === false ? [`${who(i)} pockets the ${n}, but that's the opponent's ball.`] : [`${who(i)} drops the ${n}.`, `${who(i)} fires in the ${n} ball.`, `And the ${n} goes for ${who(i)}.`]));
     }
     const fp = prev.fouls || [0, 0], fc = cur.fouls || [0, 0];
     for (const k of [0, 1]) if ((fc[k] || 0) > (fp[k] || 0)) {
       toast('Foul · ball in hand', null, true);
-      say(`That's a foul on ${who(k)}. Ball in hand for ${side(1 - k)}.`); replay(6, 'REPLAY · FOUL');
+      say(`That's a foul on ${who(k)}. Ball in hand for ${side(1 - k)}.`); replayForTap('REPLAY · FOUL', `Foul · ${who(k)}`);
     }
     if (!(prev.groups && prev.groups[0]) && cur.groups && cur.groups[0]) { const s = cur.groups[0] === 'solids' ? 0 : 1; say(`${side(s)} takes the solids, ${side(1 - s)} the stripes.`); }
     else if (prev.shooter !== cur.shooter && !made.length && !((fc[0] || 0) > (fp[0] || 0) || (fc[1] || 0) > (fp[1] || 0)))
