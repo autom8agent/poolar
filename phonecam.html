@@ -279,9 +279,16 @@
     const hello = () => { if (linked) return; send({ t: 'hello' }); helloT = setTimeout(hello, gap); gap = Math.min(30000, gap * 2); };
     const keepAsking = () => { clearTimeout(helloT); gap = 5000; hello(); };
 
+    // Several camera pages on one channel (a second phone, a stale tab) all answer every hello; switching
+    // between their offers means nothing ever connects. Lock onto one camera: the newest to announce
+    // itself, else the first to offer. Others are ignored while that one is connecting or live.
+    let camId = null;
     listen(code, async m => {
-      if (m.t === 'ready') { linked = false; keepAsking(); return; }
+      if (m.t === 'ready') { camId = m.from; linked = false; keepAsking(); return; }
       if (m.t !== 'offer') return;
+      const busy = pc && ['new', 'connecting', 'connected'].includes(pc.connectionState);
+      if (camId && m.from !== camId && busy) return;
+      camId = m.from;
       if (pc) pc.close();
       pc = new RTCPeerConnection(ICE);
       const mine = pc;
