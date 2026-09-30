@@ -339,8 +339,47 @@
     races: 'APA skill levels: each player\'s race comes from the APA 8-ball chart (e.g. SL3 vs SL6 = 2 games to 5). APA 9-ball uses points (SL3 needs 25). Reduced races take one game off both players only if both still need at least 2 — 3/5 becomes 2/4, but 2/5 stays 2/5.',
   };
 
+  // ---------------------------------------------------------------- diagrams
+  /* A small picture of how players move through each format (SVG string). Colours come from CSS variables
+   * with fallbacks, so it matches the dark pool pages. */
+  function diagram(format, reset = true) {
+    const W = 340, box = (x, y, w, label, cls = '') => `<g class="dg-box ${cls}"><rect x="${x}" y="${y}" width="${w}" height="24" rx="6" fill="${cls === 'gold' ? '#3a2a08' : cls === 'lb' ? '#2a1a1a' : '#16303f'}" stroke="${cls === 'gold' ? '#f2c14e' : cls === 'lb' ? '#e4574a' : '#139fdc'}" stroke-width="1.2"/><text x="${x + w / 2}" y="${y + 16}" text-anchor="middle" font-size="10.5" font-weight="700" fill="#eef3f7" font-family="Barlow,system-ui,sans-serif">${label}</text></g>`;
+    const arrow = (x1, y1, x2, y2, col = '#8c9bab', dash = false) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${col}" stroke-width="1.4" ${dash ? 'stroke-dasharray="4 3"' : ''} marker-end="url(#ah${col.slice(1)})"/>`;
+    const out = (x, y) => `<text x="${x}" y="${y}" text-anchor="middle" font-size="9" fill="#e4574a" font-family="Barlow,system-ui,sans-serif">lose → out</text>`;
+    const note = (x, y, t, col = '#8c9bab', anchor = 'middle') => `<text x="${x}" y="${y}" text-anchor="${anchor}" font-size="9" fill="${col}" font-family="Barlow,system-ui,sans-serif">${t}</text>`;
+    const defs = `<defs>${['8c9bab', 'e4574a', 'f2c14e', '57d98a'].map(c => `<marker id="ah${c}" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L8 4L0 8z" fill="#${c}"/></marker>`).join('')}</defs>`;
+    let g = '', h = 90;
+    if (format === 'single') {
+      const xs = [4, 72, 140, 208], lab = ['Round 1', 'Quarters', 'Semis', 'Final'];
+      xs.forEach((x, i) => { g += box(x, 20, 58, lab[i], i === 3 ? 'gold' : ''); g += out(x + 29, 60); if (i < 3) g += arrow(x + 58, 32, xs[i + 1] - 2, 32, '#57d98a'); });
+      g += arrow(266, 32, 286, 32, '#f2c14e') + note(310, 36, '🏆 1st', '#f2c14e') + note(170, 80, 'Win and move right. One loss and you\'re out.');
+      h = 90;
+    } else if (format === 'double') {
+      h = 150;
+      const xs = [4, 70, 136];
+      ['W round 1', 'W round 2', 'W final'].forEach((l, i) => { g += box(xs[i], 14, 58, l); if (i < 2) g += arrow(xs[i] + 58, 26, xs[i + 1] - 2, 26, '#57d98a'); g += arrow(xs[i] + 29, 38, xs[i] + 29 + (i ? 14 : 0), 88, '#e4574a', true); });
+      g += note(34, 62, '1st loss', '#e4574a', 'start');
+      const lx = [4, 70, 136, 202];
+      ['L round 1', 'L round 2', 'L round 3', 'L final'].forEach((l, i) => { g += box(lx[i], 90, 58, l, 'lb'); if (i < 3) g += arrow(lx[i] + 58, 102, lx[i + 1] - 2, 102, '#57d98a'); });
+      g += note(130, 132, '2nd loss (any losers-bracket match) → out', '#e4574a');
+      g += box(222, 50, 70, 'Grand final', 'gold') + arrow(194, 26, 238, 48, '#57d98a') + arrow(260, 90, 258, 76, '#57d98a');
+      g += arrow(292, 62, 312, 62, '#f2c14e') + note(326, 58, '🏆', '#f2c14e');
+      if (reset) g += note(257, 144, 'If the L player wins: play again', '#f2c14e');
+    } else {
+      h = 150;
+      g += box(4, 14, 58, 'Round 1') + arrow(62, 26, 74, 26, '#57d98a') + box(76, 14, 58, 'Round 2') + out(105, 50);
+      g += arrow(134, 26, 158, 44, '#57d98a');
+      g += arrow(33, 38, 33, 88, '#e4574a', true) + note(38, 66, '1st-round loss', '#e4574a', 'start');
+      g += box(4, 90, 92, 'Second chance', 'lb') + out(50, 128) + arrow(96, 100, 158, 64, '#57d98a');
+      g += box(160, 42, 58, 'Last 8') + arrow(218, 54, 234, 54, '#57d98a') + box(236, 42, 50, 'Final', 'gold') + out(189, 80) + out(261, 80);
+      g += arrow(286, 54, 304, 54, '#f2c14e') + note(320, 58, '🏆', '#f2c14e');
+      g += note(222, 110, 'After round 1, one loss and you\'re out.');
+    }
+    return `<svg viewBox="0 0 ${W} ${h}" width="100%" role="img" aria-label="How ${format} elimination works" style="display:block;max-width:520px">${defs}${g}</svg>`;
+  }
+
   const api = { APA8, APA9, DEFAULT_SL, STAGES, STAGE_NAME, BYE, EXPLAIN, apa8Race, reduceRace, raceFor, usesSkill, cleanSl, slRange,
-    seedPositions, build, resolve, prune, setResult, parseRes, resKey, slotText, playerPath, assignTables, seedPlayers, shuffle, pack, Collector };
+    seedPositions, build, resolve, prune, setResult, parseRes, resKey, slotText, playerPath, assignTables, seedPlayers, shuffle, pack, Collector, diagram };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.Tourney = api;
 })(typeof self !== 'undefined' ? self : this);

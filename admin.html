@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="build" content="20260930054527"><script src="stream.js"></script>
+<meta charset="utf-8"><meta name="build" content="20260930062110"><script src="stream.js"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0a0f14">
 <title>Hall Admin</title>
@@ -28,7 +28,7 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="top"><a id="back" href="hall.html">← All tables</a><span class="pill" id="live">Offline</span></div>
+  <div class="top"><a id="back" href="hall.html">⌂ Tables</a><span class="pill" id="live">Offline</span></div>
   <h1 id="title">Hall admin</h1>
 
   <form class="card" id="pinCard">
@@ -39,6 +39,11 @@
   </form>
 
   <div id="adminUi" hidden style="display:flex;flex-direction:column;gap:14px">
+    <div class="card">
+      <h2>Events</h2>
+      <div class="row"><a class="btn primary" id="goTourney" href="tournament.html?tab=run">Run a tournament</a><a class="btn blue" id="goNight" href="night.html" style="background:var(--felt);border-color:var(--felt);color:#04162b">Plan open table night</a></div>
+      <p>Tournaments: sign-up QR code, entrants and payments, brackets (single, double, modified single), races and table calling. Open table night: pick tables and how each one plays for a night.</p>
+    </div>
     <div class="card">
       <h2>Event</h2>
       <label class="chk"><input type="checkbox" id="evOn"> Show an event banner on the tables page</label>
@@ -65,6 +70,11 @@
     <h2>Tables</h2>
     <div class="tables" id="tables"></div>
 
+    <div class="card" id="placeCard" hidden>
+      <h2>Tournament placings</h2>
+      <div id="placings"></div>
+    </div>
+
     <div class="card">
       <h2>Results tonight</h2>
       <div id="results"><p>No finished matches yet.</p></div>
@@ -83,7 +93,7 @@
   const $ = id => document.getElementById(id);
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
   const keep = p => `${p}?hall=${HALL}` + (RELAY !== 'https://ntfy.sh' ? `&relay=${encodeURIComponent(RELAY)}` : '');
-  $('back').href = keep('hall.html'); $('title').textContent = `${H.name} admin`; document.title = `${H.name} Admin`;
+  $('back').href = keep('hall.html'); $('goTourney').href = keep('tournament.html') + '&tab=run'; $('goNight').href = keep('night.html'); $('title').textContent = `${H.name} admin`; document.title = `${H.name} Admin`;
   const toast = t => { const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 1800); };
   const post = (topic, body) => fetch(`${RELAY}/${topic}`, { method: 'POST', body: JSON.stringify({ ...body, ts: Date.now() }) });
 
@@ -103,7 +113,10 @@
     if (m.kind === 'config' && m.t && (!config[m.t] || m.ts >= config[m.t].ts)) config[m.t] = m;
     if (m.kind === 'table' && m.t && (!status[m.t] || m.ts >= status[m.t].ts)) status[m.t] = m;
   }
-  function takeResult(raw){ let m; try { m = JSON.parse(raw); } catch { return; } if (m && m.id && !results.some(r => r.id === m.id)) results.unshift(m); }
+  const placings = [];
+  function takeResult(raw){ let m; try { m = JSON.parse(raw); } catch { return; } if (!m || !m.id) return;
+    if (m.kind === 'placings') { if (!placings.some(r => r.id === m.id)) placings.unshift(m); return; }
+    if (Array.isArray(m.names) && !results.some(r => r.id === m.id)) results.unshift(m); }
   const busy = t => { const s = status[t]; return s && s.state === 'busy' && Date.now() - s.ts < STALE; };
   const tables = [...H.tables].sort((a, b) => a.n - b.n);
 
@@ -150,7 +163,9 @@
     }
     const dur = ms => { const m = Math.round(ms / 60000); return m >= 60 ? `${Math.floor(m/60)}h ${m%60}m` : `${m}m`; };
     if (results.length) $('results').innerHTML = `<table class="t"><thead><tr><th>Time</th><th>Table</th><th>Match</th><th>Score</th></tr></thead><tbody>${results.map(r =>
-      `<tr><td>${new Date(r.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</td><td>${r.table || '–'}</td><td>${esc(r.names[0])} vs ${esc(r.names[1])}<br><span class="muted">${r.gtype}-ball${r.dur ? ` · ${dur(r.dur)}` : ''}</span></td><td>${r.score[0]}–${r.score[1]}</td></tr>`).join('')}</tbody></table>`;
+      `<tr><td>${new Date(r.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</td><td>${r.table || '–'}</td><td>${r.kind === 'tourney-match' ? `<b>${esc(r.names[0])}</b> beat ${esc(r.names[1])}` : `${esc(r.names[0])} vs ${esc(r.names[1])}`}<br><span class="muted">${r.kind === 'tourney-match' ? `${esc(r.tourney || 'Tournament')} #${r.num} · ` : ''}${r.gtype}-ball${r.dur ? ` · ${dur(r.dur)}` : ''}</span></td><td>${r.score ? `${r.score[0]}–${r.score[1]}` : 'W'}</td></tr>`).join('')}</tbody></table>`;
+    $('placeCard').hidden = !placings.length;
+    $('placings').innerHTML = placings.map(r => `<p style="color:var(--text)"><b>${esc(r.title)}</b> · ${r.places.length} players</p><table class="t"><tbody>${r.places.map(x => `<tr><td>${x.p}</td><td>${esc(x.n)}</td></tr>`).join('')}</tbody></table>`).join('');
   }
 
   function start(){
@@ -170,7 +185,7 @@
       await post(TOPIC, event).catch(() => {}); toast(event.on ? 'Event banner on' : 'Event banner off'); };
     $('csv').onclick = () => {
       const rows = [['time','table','game','player/team 1','player/team 2','score 1','score 2','format','minutes']].concat(results.map(r =>
-        [new Date(r.at).toISOString(), r.table, `${r.gtype}-ball`, r.names[0], r.names[1], r.score[0], r.score[1], r.fmt, Math.round((r.dur || 0) / 60000)]));
+        [new Date(r.at).toISOString(), r.table, `${r.gtype}-ball`, r.names[0], r.names[1], r.score ? r.score[0] : 'W', r.score ? r.score[1] : 'L', r.kind === 'tourney-match' ? `tournament ${r.tourney || ''} #${r.num}` : r.fmt, Math.round((r.dur || 0) / 60000)]));
       const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
       const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
       a.download = `${HALL}-results-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
