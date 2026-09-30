@@ -16,3 +16,6 @@ crons = ["0 7 * * *", "0 8 * * *"]
 
 [vars]
 HALLS = "surge-chicago"
+
+[ai]
+binding = "AI"

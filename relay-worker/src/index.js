@@ -17,6 +17,18 @@ export default {
     if (!parts.length) return new Response('poolar relay ok', { headers: CORS });
     // /turn: short-lived TURN credentials for the camera video (Cloudflare Realtime TURN on Terry's account).
     // Needs secrets TURN_KEY_ID + TURN_KEY_TOKEN; without them it returns STUN only.
+    // /interpret: turn Terry's free-text ref feedback into scoreboard fixes (Workers AI on his account).
+    if (parts[0] === 'interpret' && req.method === 'POST') {
+      try {
+        const q = await req.json();
+        const sys = 'You read a pool player\'s correction of an automatic referee and output ONLY JSON: {"made":[ball numbers that went in],"back":[ball numbers still on the table],"turn":true|false (turn is over),"foul":true|false,"winner":"exact player name who won the rack or null","shooter":"exact player name who should shoot next or null"}. Players: ' + JSON.stringify(q.names) + '. Shooting now: ' + JSON.stringify(q.shooter) + '. Balls still up: ' + JSON.stringify(q.up) + '. The referee had said: ' + JSON.stringify(q.call) + '. Only include what the player actually says.';
+        const out = await env.AI.run('@cf/meta/llama-3.3-70b-instruct-fp8-fast', { messages: [{ role: 'system', content: sys }, { role: 'user', content: String(q.comment || '').slice(0, 500) }], max_tokens: 200 });
+        const resp = out && (out.response !== undefined ? out.response : out.result && out.result.response);
+        if (resp && typeof resp === 'object') return Response.json({ actions: resp }, { headers: CORS });
+        const txt = String(resp || ''), m = txt.match(/\{[\s\S]*\}/);
+        return Response.json({ actions: m ? JSON.parse(m[0]) : null, raw: txt.slice(0, 300) }, { headers: CORS });
+      } catch (e) { return Response.json({ actions: null, err: String(e) }, { headers: CORS }); }
+    }
     if (parts[0] === 'turn') {
       const stun = { urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] };
       if (!env.TURN_KEY_ID || !env.TURN_KEY_TOKEN) return Response.json({ iceServers: [stun], turn: false }, { headers: CORS });
