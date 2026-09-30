@@ -12,6 +12,7 @@
   .big{display:flex;flex-direction:column;gap:10px}
   .big button{font-size:18px;padding:16px}
   .stage{position:relative;background:#000;border-radius:16px;overflow:hidden;border:1px solid var(--line);aspect-ratio:16/9}
+  #cam .stage{max-height:62vh;margin:0 auto;width:min(100%, calc(62vh * 16 / 9))}   /* phone held sideways: keep Stop on screen */
   .stage video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000}
   .stage .pill{position:absolute;top:10px;left:10px;background:rgba(0,0,0,.6)}
   .dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
@@ -19,6 +20,8 @@
   .qr{background:#fff;border-radius:12px;padding:10px;width:180px;align-self:center}
   .qr svg{display:block;width:100%;height:auto}
   .link{font-size:13px;word-break:break-all;color:var(--felt)}
+  .turn{background:var(--gold);color:#1d1606;font-weight:800;border-radius:12px;padding:12px;text-align:center}
+  .pick select{font:600 17px var(--ui, system-ui);padding:12px;border-radius:12px;width:100%}
   /* Watching: the video fills the screen, controls float on top. */
   body.watch{background:#000}
   body.watch .wrap{max-width:none;padding:0;gap:0}
@@ -45,6 +48,7 @@
     <p>Stream one phone's camera to any other phone, tablet or laptop. Works on any network, no app to install.</p>
     <div class="card big">
       <h2>On the phone pointed at the table</h2>
+      <label class="pick">Where is this camera?<select id="pickLoc"><option value="top">Top-down (above the table)</option><option value="behind">Behind the table (ball return)</option></select></label>
       <button class="primary" id="goCam">Use this phone as the camera</button>
     </div>
     <div class="card">
@@ -56,20 +60,13 @@
 
   <!-- Camera -->
   <section id="cam" hidden class="big">
-    <div class="top"><h1>Pool Cam</h1><a href="phonecam.html">Back</a></div>
+    <div class="top"><h1 id="camTitle">Pool Cam</h1><a id="camBack" href="phonecam.html">Back</a></div>
     <div class="stage"><video id="preview" playsinline muted autoplay></video><span class="pill" id="camState"><span class="dot"></span><span id="camStateT">Starting…</span></span></div>
+    <p class="turn" id="turnMsg" hidden>↻ Turn the phone sideways. The camera streams in landscape.</p>
     <p id="camMsg" hidden></p>
-    <div class="row"><button id="stop">Stop camera</button></div>
-    <div class="row"><button id="swap">Flip camera</button><select id="res" aria-label="Quality"><option value="720">720p</option><option value="1080">1080p</option><option value="480">480p</option></select></div>
+    <p id="camHelp"></p>
     <p id="lens"></p>
-    <p>For a top-down view, mount the phone over the middle of the table, rear camera facing down.</p>
-    <div class="card">
-      <h2>Watch from another screen</h2>
-      <div class="qr" id="qr"></div>
-      <a class="link" id="link" target="_blank" rel="noopener"></a>
-      <div class="row"><button class="blue" id="share">Share link</button><button id="copy">Copy link</button></div>
-      <p>On the iPad just open Pool Cam and tap <b>Watch the camera</b>, or scan this. Keep this page open with the screen on.</p>
-    </div>
+    <div class="row"><button id="stop">Stop camera</button></div>
   </section>
 
   <!-- Watch -->
@@ -95,7 +92,9 @@
   const clean = s => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
   const me = rid(10);
   // One fixed channel, so nobody types a code. ?t=3 (or ?hall=…&t=3) gives a table its own channel.
-  const CHANNEL = clean((qs.get('hall') || '') + (qs.get('t') ? 'T' + qs.get('t') : '')) || 'MAIN';
+  const CHANNEL = 'MAIN';
+  // Each table has its own channels: top-down and (optional) behind the table.
+  const HALLQ = (qs.get('hall') || '').replace(/[^a-z0-9-]/gi, ''), TQ = parseInt(qs.get('t'), 10) || 0, LOC = qs.get('loc') === 'behind' ? 'behind' : 'top';
   const ICE = { iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }] };
   const toast = t => { const el = $('toast'); el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => el.hidden = true, 1800); };
 
@@ -108,10 +107,12 @@
     for (let i = 0; i < n; i++)
       fetch(`${RELAY}/${topic}`, { method: 'POST', body: `${id}|${i}|${n}|${s.slice(i * N, (i + 1) * N)}` }).catch(() => {});
   }
-  function listen(code, onMsg, onState){
+  function listen(code, onMsg, onState, since){
     topic = 'poolar-cam-' + code;
+    let first = true;
     const open = () => {
-      es = new EventSource(`${RELAY}/${topic}/sse`);
+      // Watchers read the last few minutes too, so a camera that's already live is found at once.
+      es = new EventSource(`${RELAY}/${topic}/sse${since && first ? '?since=' + since : ''}`); first = false;
       es.onopen = () => onState(true);
       es.onerror = () => onState(false);
       es.onmessage = e => {
@@ -189,14 +190,16 @@
     const setState = (t, cls) => { $('camStateT').textContent = t; $('camState').className = 'pill ' + (cls || ''); };
     const viewers = () => [...pcs.values()].filter(pc => pc.connectionState === 'connected').length;
     const showCount = () => { const n = viewers(); setState(n ? `Live · ${n} watching` : 'Live · no one watching', 'on'); };
-    const watchUrl = new URL('phonecam.html', location.href); watchUrl.search = ''; watchUrl.searchParams.set('watch', code === CHANNEL ? '1' : code);
-    for (const k of ['hall', 't']) if (qs.get(k)) watchUrl.searchParams.set(k, qs.get(k));
-    if (RELAY !== 'https://ntfy.sh') watchUrl.searchParams.set('relay', RELAY);
-    $('link').textContent = $('link').href = watchUrl;
-    try { const q = qrcode(0, 'M'); q.addData(String(watchUrl)); q.make(); $('qr').innerHTML = q.createSvgTag({ cellSize: 4, margin: 0, scalable: true, alt: 'Watch link QR code' }); } catch { $('qr').hidden = true; }
-    $('share').onclick = () => navigator.share ? navigator.share({ title: 'Pool Cam', url: String(watchUrl) }).catch(() => {}) : $('copy').click();
-    $('copy').onclick = () => navigator.clipboard.writeText(String(watchUrl)).then(() => toast('Link copied'), () => toast(String(watchUrl)));
-    $('stop').onclick = () => { if (stopRec()) return; stream && stream.getTracks().forEach(t => t.stop()); pcs.forEach(pc => pc.close()); location.href = 'phonecam.html'; };
+    const where = LOC === 'behind' ? 'Behind the table' : 'Top-down';
+    $('camTitle').textContent = TQ ? `Table ${TQ} · ${where}` : `Pool Cam · ${where}`;
+    $('camHelp').textContent = LOC === 'behind' ? 'Point it at the ball return, phone sideways.' : 'Mount it over the middle of the table, rear camera facing down, phone sideways. Keep this page open and the phone plugged in.';
+    if (TQ && HALLQ) { const u = new URL('deck.html', location.href); u.search = ''; u.searchParams.set('hall', HALLQ); u.searchParams.set('t', TQ); $('camBack').href = u; $('camBack').textContent = `Table ${TQ}`; }
+    // Tell the hall's table map this table has a live camera (and again every 4 min).
+    const presence = on => { if (!HALLQ || !TQ) return; fetch(`${RELAY}/poolar-hall-${HALLQ}`, { method: 'POST', keepalive: true, body: JSON.stringify({ kind: 'cam', t: TQ, loc: LOC, on, ts: Date.now() }) }).catch(() => {}); };
+    const portrait = () => { const st = stream && stream.getVideoTracks()[0] && stream.getVideoTracks()[0].getSettings(); $('turnMsg').hidden = !((st && st.width && st.height && st.height > st.width) || matchMedia('(orientation: portrait)').matches); };
+    addEventListener('resize', () => setTimeout(portrait, 300));
+    $('stop').onclick = () => { presence(false); stream && stream.getTracks().forEach(t => t.stop()); pcs.forEach(pc => pc.close()); location.href = $('camBack').href; };
+    addEventListener('pagehide', () => presence(false));
 
     async function wake(){ try { lock = await navigator.wakeLock.request('screen'); } catch {} }
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') wake(); });
@@ -206,10 +209,10 @@
     // so open any back camera first, then re-open the one named "Ultra Wide" if the phone has it.
     let ultraId = null;
     async function start(){
-      const h = +$('res').value;
+      const h = 1080;   // always 1080p landscape
       const want = id => ({ audio: false, video: Object.assign(id ? { deviceId: { exact: id } } : { facingMode: { ideal: facing } },
         { width: { ideal: Math.round(h * 16 / 9) }, height: { ideal: h }, aspectRatio: { ideal: 16 / 9 }, frameRate: { ideal: 30 } }) });
-      const back = facing === 'environment';
+      const back = facing === 'environment' && LOC === 'top';   // ultra-wide for the top-down view only
       let next = await navigator.mediaDevices.getUserMedia(want(back ? ultraId : null)).catch(e => { if (!ultraId) throw e; ultraId = null; return navigator.mediaDevices.getUserMedia(want(null)); });
       if (back && !ultraId) {
         try {
@@ -227,7 +230,7 @@
       try { const c = track.getCapabilities && track.getCapabilities(); if (back && c && c.zoom && c.zoom.min < 1) await track.applyConstraints({ advanced: [{ zoom: c.zoom.min }] }); } catch {}
       const lbl = track.label || 'camera', wide = /ultra|0\.5/i.test(lbl) || (track.getSettings().zoom || 1) < 1;
       $('lens').textContent = back ? (wide ? `Lens: ${lbl} (ultra-wide)` : `Lens: ${lbl}. This phone has no ultra-wide camera, so this is the widest view available.`) : `Lens: ${lbl}`;
-      track.onended = () => setState('Camera stopped — tap Flip camera to restart', 'bad');
+      track.onended = () => setState('Camera stopped. Reload this page to restart it.', 'bad');
       if (stream) stream.getTracks().forEach(t => t.stop());
       stream = next; $('preview').srcObject = stream;
       // Viewers already connected keep their connection and just get the new picture.
@@ -240,8 +243,8 @@
       return;
     }
     // No recording on the camera phone: it only streams. Recording and clips happen on the iPad.
-    $('swap').onclick = () => { facing = facing === 'environment' ? 'user' : 'environment'; start().catch(() => toast('No other camera')); };
-    $('res').onchange = () => start().catch(() => toast("That quality isn't available"));
+    portrait(); presence(true);
+    setInterval(() => { presence(true); send({ t: 'ready' }); }, 240000);   // heartbeat: table map + late viewers
 
     async function offerTo(vid){
       const old = pcs.get(vid); if (old) old.close();
@@ -275,9 +278,11 @@
     const msg = t => { $('wmsgT').textContent = t; $('wmsg').hidden = !t; };
     // Ask the camera for a connection, backing off (5 s, 10 s, 20 s, then every 30 s) so a link that
     // can't form doesn't burn through the free relay's daily message limit.
-    let gap = 5000, fails = 0;
-    const hello = () => { if (linked) return; send({ t: 'hello' }); helloT = setTimeout(hello, gap); gap = Math.min(30000, gap * 2); };
-    const keepAsking = () => { clearTimeout(helloT); gap = 5000; hello(); };
+    // A few tries, then go quiet and wait for the camera to announce itself (it does on start and
+    // every 4 min), so an open table page with no camera costs almost nothing.
+    let gap = 5000, fails = 0, tries = 0;
+    const hello = () => { if (linked) return; send({ t: 'hello' }); if (++tries < 4) { helloT = setTimeout(hello, gap); gap = Math.min(30000, gap * 2); } };
+    const keepAsking = () => { clearTimeout(helloT); gap = 5000; tries = 0; hello(); };
 
     // Several camera pages on one channel (a second phone, a stale tab) all answer every hello; switching
     // between their offers means nothing ever connects. Lock onto one camera: the newest to announce
@@ -317,7 +322,7 @@
     }, ok => {
       if (!ok) return setState('Offline — retrying', 'bad');
       if (!linked) { setState('Waiting for camera…'); keepAsking(); }
-    });
+    }, '5m');
     addEventListener('pagehide', () => send({ t: 'bye' }));
     recorder($('wRec'), () => v.srcObject, $('wstage'));
 
@@ -344,7 +349,7 @@
   else if (qs.has('cam')) camera(chan('cam'));
   else {
     $('pick').hidden = false;
-    $('goCam').onclick = () => { qs.set('cam', '1'); location.search = qs; };
+    $('goCam').onclick = () => { qs.set('cam', $('pickLoc').value === 'behind' ? '1B' : '1'); qs.set('loc', $('pickLoc').value); location.search = qs; };
     $('goWatch').onclick = () => { qs.set('watch', '1'); location.search = qs; };
   }
 })();
