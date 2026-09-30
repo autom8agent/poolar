@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930071934"><script src="stream.js?v=20260930071934"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930072207"><script src="stream.js?v=20260930072207"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -761,10 +761,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930071934"></script>
-<script src="halls.js?v=20260930071934"></script>
-<script src="qrcode.js?v=20260930071934"></script>
-<script src="tablecv.js?v=20260930071934"></script>
+<script src="hallday.js?v=20260930072207"></script>
+<script src="halls.js?v=20260930072207"></script>
+<script src="qrcode.js?v=20260930072207"></script>
+<script src="tablecv.js?v=20260930072207"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -1083,7 +1083,7 @@
     $('raceLbl').textContent = (rotating() ? ({ wso: '👑 Winner stays', pick: '🏆 Winner picks', rand: '🎲 Random game' }[st.fmtMode] || '🎲 Rotate') : ptsMode() ? `${st.race[0]}–${st.race[1]} pts` : `Race ${st.race[0]}–${st.race[1]}`) + (st.gtype === 8 ? '' : ` · ${st.gtype}-ball`);
     $('shareBtn').textContent = 'Share';
     // Up next: the names in line, always on screen, updating as people join.
-    { const qn = st.queue, on = tableMode || qn.length > 0;
+    { const qn = [...st.queue.filter(q => !busyAt(q)), ...st.queue.filter(q => busyAt(q))], on = tableMode || qn.length > 0;
       $('upNext').hidden = !on;
       if (on) $('upNames').innerHTML = qn.length ? esc(qn[0].name) + (qn[0].sl && st.rules === 'apa' ? ` <i>SL ${qn[0].sl}</i>` : '') + (qn.length > 1 ? ` <i>then ${qn.slice(1, 4).map(x => esc(x.name)).join(', ')}${qn.length > 4 ? ` +${qn.length - 4}` : ''}</i>` : '')
         : lineOpen() ? '<i>Nobody yet · tap to add a name or show the QR</i>' : '<i>🔒 Waitlist closed</i>'; }
@@ -1151,7 +1151,7 @@
       $('winTitle').textContent = `${side(w)} win${st.dbl ? '' : 's'}`;
       $('winSub').textContent = `${s[w]}–${s[1-w]} in a race to ${st.race[w]}–${st.race[1-w]}, ${st.racks.length} racks.`;
       $('winStats').innerHTML = statsHTML();
-      const nx = !rotating() && !st.dbl && st.queue[0];
+      const nx = !rotating() && !st.dbl && firstFree();
       $('winNext').hidden = !nx;
       if (nx) { const r = nextRace(w, nx); $('winNext').textContent = `Next up: ${short(nx.name)} vs ${short(side(w))} · race ${r[w]}–${r[1-w]}`; }
     }
@@ -1255,6 +1255,20 @@
   const applySl = () => { if (st.rules !== 'apa' || !st.sl[0] || !st.sl[1]) return;
     if (st.gtype === 8) { const a = Math.min(7, Math.max(2, st.sl[0])), b = Math.min(7, Math.max(2, st.sl[1])); st.race = [apa8Race(a, b), apa8Race(b, a)]; }
     else if (st.gtype === 9) st.race = [APA9[st.sl[0]] || 25, APA9[st.sl[1]] || 25]; };
+  // Players can be in line at several tables. Someone busy on another table when their turn comes keeps
+  // their spot, and the next person below them goes ahead (checked against the hall's live table status).
+  const elsewhere = {};   // lower-case name -> table number they're playing on
+  const nm = x => String(x || '').trim().toLowerCase();
+  async function pollElsewhere(){ if (!tableMode) return;
+    try { const txt = await (await fetch(`${RELAY0}/${HALL_TOPIC}/json?poll=1&since=12h`)).text(), last = {};
+      for (const l of txt.split('\n')) { try { const e = JSON.parse(l); if (e.event !== 'message') continue; const m = JSON.parse(e.message);
+        if (m.kind === 'table' && m.t && m.t !== TNUM && (!last[m.t] || m.ts >= last[m.t].ts)) last[m.t] = m; } catch {} }
+      for (const k in elsewhere) delete elsewhere[k];
+      for (const m of Object.values(last)) if (m.state === 'busy' && Date.now() - m.ts < STALE && m.names) for (const n of m.names.flatMap(x => String(x).split(' & '))) elsewhere[nm(n)] = m.t;
+      render(); } catch {} }
+  const busyAt = q => elsewhere[nm(q.name)] || 0;
+  const takeNext = () => { const k = st.queue.findIndex(q => !busyAt(q)); return k < 0 ? null : st.queue.splice(k, 1)[0]; };
+  const firstFree = () => st.queue.find(q => !busyAt(q));
   function nextUp(w){
     const l = 1 - w, wn = side(w), ln = side(l);
     st.games.push({ w: wn, l: ln, t: Date.now() });
@@ -1262,10 +1276,10 @@
     const seat = (i, name, sl) => { st.names[i] = name; st.partners[i] = ''; if (sl) st.sl[i] = sl; };
     let changed = false;
     if (st.fmtMode !== 'rot') {   // winner stays on: plain, winner picks, random game
-      if (st.queue.length) { const nx = st.queue.shift(); toLine(ln, st.sl[l]); seat(l, nx.name, nx.sl); applySl(); changed = true; }
+      const nx = takeNext(); if (nx) { toLine(ln, st.sl[l]); seat(l, nx.name, nx.sl); applySl(); changed = true; }
       st.firstBreak = st.mode === 'win' ? w : l;
-    } else if (st.queue.length) {
-      const a = st.queue.shift(), b = st.queue.shift();
+    } else if (firstFree()) {
+      const a = takeNext(), b = takeNext();
       toLine(wn, st.sl[w]); if (b) toLine(ln, st.sl[l]);
       if (b) { seat(0, a.name, a.sl); seat(1, b.name, b.sl); } else seat(w, a.name, a.sl);   // winner doesn't stay on
       applySl();
@@ -1291,7 +1305,7 @@
     if (st.gtype === 8) { const a = Math.min(7, Math.max(2, sl[0])), b = Math.min(7, Math.max(2, sl[1])); return [apa8Race(a, b), apa8Race(b, a)]; }
     if (st.gtype === 9) return [APA9[sl[0]] || 25, APA9[sl[1]] || 25];
     return st.race.slice(); };
-  $('winNext').onclick = () => act(() => { const w = winner(scores()); if (w < 0 || !st.queue.length) return; const nx = st.queue.shift();
+  $('winNext').onclick = () => act(() => { const w = winner(scores()); if (w < 0) return; const nx = takeNext(); if (!nx) return;
     saveResult('match'); st.race = nextRace(w, nx); st.names[1-w] = nx.name; st.partners[1-w] = ''; if (nx.sl) st.sl[1-w] = nx.sl;
     st.firstBreak = st.rules === 'apa' ? w : 1 - w; resetMatch(); });
   const undo = () => { const prev = st.hist.pop(); if (!prev) return; st = { ...fresh(), ...JSON.parse(prev), game, hist: st.hist }; st.ts = Date.now(); save(); render(); sync(); };
@@ -1549,13 +1563,13 @@
   const lineOpen = () => !st.locked && st.lineOpen !== false;
   let lastLine = '', lineT;
   function lineTick(){
-    const q = st.queue.map(x => ({ id: x.id, n: x.name }));
+    const q = st.queue.map(x => ({ id: x.id, n: x.name, ...(busyAt(x) ? { at: busyAt(x) } : {}) }));
     const key = JSON.stringify([q, side(0), side(1), scores(), st.fmtMode, lineOpen()]);
     if (key === lastLine) return; lastLine = key; clearTimeout(lineT);
     lineT = setTimeout(() => fetch(`${RELAY}/${WAIT_TOPIC}`, { method: 'POST', body: JSON.stringify({ kind: 'line', q, now: [side(0), side(1)], score: scores(), fmt: st.fmtMode, gtype: st.gtype, rules: st.rules, dbl: st.dbl, table: tableMode ? TNUM : 0, closed: !lineOpen(), ts: Date.now() }) }).catch(() => {}), 1500);
   }
   function paintLine(){
-    $('lineList').innerHTML = $('lineList2').innerHTML = st.queue.length ? st.queue.map((q, k) => `<div><b>${k+1}</b><span>${esc(q.name)}${q.sl ? ` <small style="color:var(--muted)">SL ${q.sl}</small>` : ''}</span>${k ? `<button data-up="${esc(q.id)}" aria-label="Move ${esc(q.name)} up">↑</button>` : ''}<button data-rm="${esc(q.id)}" aria-label="Remove ${esc(q.name)}">✕</button></div>`).join('')
+    $('lineList').innerHTML = $('lineList2').innerHTML = st.queue.length ? st.queue.map((q, k) => `<div><b>${k+1}</b><span>${esc(q.name)}${q.sl ? ` <small style="color:var(--muted)">SL ${q.sl}</small>` : ''}${busyAt(q) ? ` <small style="color:var(--gold)">playing on table ${busyAt(q)} · keeps spot</small>` : ''}</span>${k ? `<button data-up="${esc(q.id)}" aria-label="Move ${esc(q.name)} up">↑</button>` : ''}<button data-rm="${esc(q.id)}" aria-label="Remove ${esc(q.name)}">✕</button></div>`).join('')
       : '<p>Nobody in line yet.</p>';
     paintLock();
   }
@@ -2481,6 +2495,7 @@
   render = function(){ renderBase(); try { lineTick(); paintLineCard(); if (!$('shareSheet').hidden) paintLine(); } catch {} try { onScoreChange(); } catch {} try { paintDock(); } catch {} };
 
   render(); drawClock(); save(); connect(); statusTick(); listenWait();
+  pollElsewhere(); setInterval(() => { if (document.visibilityState === 'visible') pollElsewhere(); }, 60000);
   // New game: the invite QR comes first (so friends can join the line), then names and game settings.
   $('pickGo').onclick = () => $('pickSheet').hidden = true;
   $('pickMore').onclick = () => { $('pickSheet').hidden = true; openSetup(); };
@@ -2495,5 +2510,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930071934"></script>
+<script src="build.js?v=20260930072207"></script>
 </body></html>

@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="build" content="20260930071934"><script src="stream.js?v=20260930071934"></script>
+<meta charset="utf-8"><meta name="build" content="20260930072207"><script src="stream.js?v=20260930072207"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0a0f14">
 <title>Table Waitlist</title>
@@ -65,7 +65,14 @@
     <p class="h">You're in line</p>
     <div class="me" id="pos">…</div>
     <p id="posNote">Keep this page open. It updates when the line moves.</p>
+    <button id="notify" type="button">🔔 Alert me when I'm next and when I'm up</button>
+    <p class="sub" style="margin:0;font-size:12px">Alerts show on this phone while this page is open. Text messages are coming later.</p>
     <button id="leave">Leave the line</button>
+  </div>
+  <div class="card" id="otherCard" hidden>
+    <p class="h">Your other lines</p>
+    <div id="others"></div>
+    <p class="sub" style="margin:0;font-size:12px">Join as many tables as you like. If your turn comes while you're playing somewhere else, you keep your spot and the next person goes ahead.</p>
   </div>
 
   <div class="card">
@@ -75,9 +82,9 @@
   <a id="back" href="hall.html">← All tables</a>
 </div>
 
-<script src="hallday.js?v=20260930071934"></script>
-<script src="halls.js?v=20260930071934"></script>
-<script src="auth.js?v=20260930071934"></script>
+<script src="hallday.js?v=20260930072207"></script>
+<script src="halls.js?v=20260930072207"></script>
+<script src="auth.js?v=20260930072207"></script>
 <script>
 (() => {
   const qs = new URLSearchParams(location.search);
@@ -131,8 +138,18 @@
     if (inLine) {
       const playing = line && line.now && line.now.some(n => n === me.name) && mineAt < 0;
       $('pos').textContent = playing ? "You're up" : mineAt >= 0 ? `#${mineAt + 1}` : line ? 'Adding…' : '…';
-      $('posNote').textContent = playing ? 'Head to the table.' : mineAt === 0 ? "You're next. Get your cue ready." : 'Keep this page open. It updates when the line moves.';
+      const at = mineAt >= 0 && q[mineAt].at;
+      $('posNote').textContent = playing ? 'Head to the table.' : at ? `You're playing on table ${at}. You keep your spot; the next person goes ahead until you're free.` : mineAt === 0 ? "You're next. Get your cue ready." : 'Keep this page open. It updates when the line moves.';
+      const stage = playing ? 'up' : mineAt === 0 ? 'next' : '';
+      if (stage && stage !== lastStage) alertMe(stage === 'up' ? `You're up on table ${T || ''}! Head to the table.` : `You're next on table ${T || ''}. Get your cue ready.`);
+      lastStage = stage;
     }
+    $('notify').textContent = notifyOn ? '🔔 Alerts on' : "🔔 Alert me when I'm next and when I'm up";
+    // Lines this phone is in at other tables of this hall.
+    const others = []; try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i);
+      if (k.startsWith('poolar-wait-me-') && k !== MEKEY && k.includes(HALL)) { const t = (k.match(/-t(\d+)$/) || k.match(/(\d+)$/) || [])[1]; others.push({ k, t }); } } } catch {}
+    $('otherCard').hidden = !others.length;
+    $('others').innerHTML = others.map(o => `<a href="wait.html?hall=${HALL}&t=${o.t}" style="display:block;color:#57d98a;font-weight:700;padding:4px 0">Table ${o.t} →</a>`).join('');
   }
   function take(raw){
     let m; try { m = JSON.parse(raw); } catch { return; }
@@ -145,6 +162,14 @@
     } catch {}
     paint();
   }
+  let notifyOn = false, lastStage = '';
+  try { notifyOn = localStorage.getItem('poolar-wait-notify') === '1'; } catch {}
+  function alertMe(t){ if (!notifyOn) return; try { navigator.vibrate && navigator.vibrate([300, 150, 300]); } catch {}
+    try { if (window.Notification && Notification.permission === 'granted') new Notification('Pool table', { body: t }); } catch {}
+    let d = document.getElementById('alertBar'); if (!d) { d = document.createElement('div'); d.id = 'alertBar'; d.style.cssText = 'position:fixed;left:12px;right:12px;top:12px;z-index:9;background:#57d98a;color:#08140c;font-weight:800;padding:14px;border-radius:12px;text-align:center'; document.body.appendChild(d); d.onclick = () => d.remove(); }
+    d.textContent = t; }
+  $('notify').onclick = async () => { notifyOn = !notifyOn; try { localStorage.setItem('poolar-wait-notify', notifyOn ? '1' : '0'); } catch {}
+    if (notifyOn && window.Notification && Notification.permission === 'default') { try { await Notification.requestPermission(); } catch {} } paint(); };
   // Signed-in member (or a saved profile): one tap to join. Otherwise name + phone/email signs you in or up.
   let useOther = false;
   const A = window.PoolarAuth;
@@ -180,6 +205,6 @@
   setInterval(() => { const had = !!(line || me); dayCheck(); if (had && !(line || me)) paint(); }, 30000);
 })();
 </script>
-<script src="build.js?v=20260930071934"></script>
+<script src="build.js?v=20260930072207"></script>
 </body>
 </html>
