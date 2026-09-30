@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930223355"><script src="stream.js?v=20260930223355"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930223717"><script src="stream.js?v=20260930223717"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -451,13 +451,13 @@
       </div>
       <div class="tvover" id="tvAsk" hidden>
         <b>Camera connected. Record this match?</b>
-        <p>Each rack and each player's turns are saved as separate clips on this iPad. Replays work either way.</p>
+        <p>Each rack and each player's turns are saved as separate clips on this device. Replays work either way.</p>
         <div class="row"><button class="primary" id="askRec">● Record match</button><button id="askNo">Don't record</button></div>
       </div>
       <div class="tvover" id="tvClip" hidden>
         <b id="tvClipT">Clip ready</b>
         <p>Saves to this iPad: tap Save, then <b>Save Video</b> to put it in Photos.</p>
-        <div class="row"><button class="primary" id="clipSave">Save clip to iPad</button><button id="clipPost">📤 Post to highlights</button><button id="clipNo">Discard</button></div>
+        <div class="row"><button class="primary" id="clipSave">Save clip</button><button id="clipPost">📤 Post to highlights</button><button id="clipNo">Discard</button></div>
       </div>
       <canvas id="clipCan" hidden></canvas><canvas id="progCan" width="1280" height="720" hidden></canvas>
       <div class="tvbar" id="tvBar" hidden>
@@ -805,10 +805,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930223355"></script>
-<script src="halls.js?v=20260930223355"></script>
-<script src="qrcode.js?v=20260930223355"></script>
-<script src="tablecv.js?v=20260930223355"></script>
+<script src="hallday.js?v=20260930223717"></script>
+<script src="halls.js?v=20260930223717"></script>
+<script src="qrcode.js?v=20260930223717"></script>
+<script src="tablecv.js?v=20260930223717"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -2261,8 +2261,25 @@
     if (empty(a)) return flash('Feedback saved (nothing to change on the scoreboard)');
     const did = applyFeedback(a); if (did.length) flash('From your feedback: ' + did.join(' · ') + ' · Undo if wrong');
   }
+  // Every refereed shot is saved with Terry's answer (training data on his Cloudflare account): the replay-buffer
+  // segments covering the shot, plus a JSON with the call, the answer, the comment, the fixes and what the ref saw.
+  function saveShot(sug, choice, comment){ try {
+    if (!tableMode) return;
+    const ev = sug.ev || {}, nowP = performance.now(), nowW = Date.now();
+    const toWall = p => nowW - (nowP - p), endW = ev.t ? toWall(ev.t) : nowW, startW = ev.t && ev.ms != null ? toWall(ev.t - ev.ms) : endW - 8000;
+    const id = `${HALL}-t${TNUM}-${new Date(startW).toISOString().replace(/[:.]/g, '-').slice(0, 19)}-${Math.random().toString(36).slice(2, 6)}`;
+    const R = 'https://poolar-relay.poolar-relay.workers.dev/shots/' + id;
+    const meta = { id, at: startW, table: TNUM, hall: HALL, game, names: [side(0), side(1)], shooter: side(sug.shooter ?? st.shooter), call: { type: sug.type, title: sug.title, text: sug.text, conf: sug.conf },
+      answer: choice, comment, fixed: !!sug.fixed, down: st.down.slice(), groups: st.groups, ev: { first: ev.first, pocketed: ev.pocketed, scratch: ev.scratch, rail: ev.rail, kick: ev.kick, noHit: ev.noHit, n0: ev.n0, n1: ev.n1, blocked: ev.blocked, maybe: ev.maybe, missed: ev.missed, ms: ev.ms },
+      build: (document.querySelector('meta[name="build"]') || {}).content, ua: navigator.userAgent.slice(0, 80) };
+    const up = segs => { segs.forEach((g, i) => fetch(`${R}/${i}`, { method: 'PUT', headers: { 'content-type': g.blob.type || 'video/webm' }, body: g.blob }).catch(() => {}));
+      meta.clips = segs.map(g => ({ t0: g.t0, t1: g.t1 })); fetch(`${R}/meta`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(meta) }).catch(() => {}); };
+    const pick = () => (typeof buf !== 'undefined' ? buf : []).filter(g => g.t1 >= startW - 1500 && g.t0 <= endW + 2500).slice(-6);
+    if (typeof rotate === 'function' && typeof bufRec !== 'undefined' && bufRec) rotate(() => up(pick())); else up(pick());
+  } catch (e) { console.warn(e); } }
   function finish(choice){
     const sug = pop; if (!sug) return; closePop();
+    setTimeout(() => saveShot(sug, choice, $('refC').value.trim()), 0);
     if (sug.log) { sug.log.ans = choice === 'yes' ? 'Yes' : choice === 'no' ? 'No' : choice === 'other' ? 'Other' : sug.noAuto ? 'Skipped' : 'Applied'; sug.log.c = $('refC').value.trim(); saveLog(); paintRefLog(); }
     const comment = $('refC').value.trim();
     if ((choice === 'yes' || (choice === 'auto' && !sug.noAuto)) && stateKey() === sug.key) sug.apply();
@@ -2360,7 +2377,7 @@
       clipFile = new File(chunks, `clip-${tableMode ? 'table-' + TNUM + '-' : ''}${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}.${mime.includes('mp4') ? 'mp4' : 'webm'}`, { type: mime });
       const secs = Math.round((Date.now() - t0) / 1000);
       $('tvClipT').textContent = `Clip ready · ${mmss(secs * 1000)}`; $('tvClip').hidden = false;
-      // Also keep it in Recordings on this iPad, so a missed Save isn't a lost clip.
+      // Also keep it in Recordings on this device, so a missed Save isn't a lost clip.
       const m = { id: Date.now(), name: clipFile.name, mime, secs, done: true };
       putRec(m).then(() => tx('chunks', 'readwrite', o => o.add({ rec: m.id, blob: clipFile }))).then(() => { clipFile.recId = m.id; }).catch(() => {});
     };
@@ -2638,7 +2655,7 @@
     const mine = (await allRecs()).filter(m => m.game === game && (m.kind === 'rack' || m.kind === 'turn') && m.done);
     const box = $('winClips'); if (!mine.length) { box.hidden = true; return; }
     const n = i => mine.filter(m => m.kind === 'turn' && m.player === i).length, r = mine.filter(m => m.kind === 'rack').length;
-    box.innerHTML = `<p>🎬 ${r} rack${r === 1 ? '' : 's'} · ${short(side(0))} ${n(0)} turns · ${short(side(1))} ${n(1)} turns, saved on this iPad.</p><div class="two"><button class="primary" id="winWatch">Watch &amp; share clips</button><button id="winShareR">Share all racks</button></div>`;
+    box.innerHTML = `<p>🎬 ${r} rack${r === 1 ? '' : 's'} · ${short(side(0))} ${n(0)} turns · ${short(side(1))} ${n(1)} turns, saved on this device.</p><div class="two"><button class="primary" id="winWatch">Watch &amp; share clips</button><button id="winShareR">Share all racks</button></div>`;
     box.hidden = false;
     const racks = mine.filter(m => m.kind === 'rack'); await Promise.all(racks.map(fileOf));
     $('winWatch').onclick = openClips;
@@ -2724,7 +2741,7 @@
       const row = $('hlRow');
       if (VIEW) return await paintPosted();
       const mine = (await allRecs()).filter(m => m.game === game && m.done && !recording(m.id)).sort((a, b) => b.id - a.id).slice(0, 12);
-      $('hlSub').textContent = mine.length ? `${mine.length} newest · saved on this iPad` : '';
+      $('hlSub').textContent = mine.length ? `${mine.length} newest · saved on this device` : '';
       if (!mine.length) { row.innerHTML = '<p class="hlempty">Clips of each turn and rack show up here while the camera records.</p>'; return; }
       row.innerHTML = '';
       for (const m of mine) {
@@ -2872,5 +2889,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930223355"></script>
+<script src="build.js?v=20260930223717"></script>
 </body></html>
