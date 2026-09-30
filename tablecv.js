@@ -456,7 +456,8 @@
         // hand or cue over it) counts too, in the nearest pocket, as long as the table really has that many fewer balls.
         const byPocket = tr => { const r0 = (s.rest0 || {})[tr.id]; if (!r0) return false; return POCKETS.some(([px2, py]) => Math.hypot(r0[0] - px2, (r0[1] - py) * .5) < .09); };   // where it rested before the shot
         const leftRest = tr => { const r0 = (s.rest0 || {})[tr.id]; return !!r0 && Math.hypot(tr.x - r0[0], (tr.y - r0[1]) * .5) > R * 3; };
-        const reallyMoved = tr => tr.id === s.cueId || s.seenMoving.has(tr.id) || leftRest(tr) || (s.moved.has(tr.id) && !byPocket(tr));
+        const hitFirst = tr => !!(s.first && s.first.num && s.first.num === tr.num);   // the ball the cue ball struck did move
+        const reallyMoved = tr => tr.id === s.cueId || s.seenMoving.has(tr.id) || leftRest(tr) || hitFirst(tr) || (s.moved.has(tr.id) && !byPocket(tr));
         const cand = [];
         for (const tr of this.tracks) {
           if (t - tr.seen < this.o.gone || tr.seen < s.t0 || nearOcc(tr)) continue;
@@ -482,13 +483,14 @@
         let room = blocked ? 0 : Math.max(0, (s.n0 || 0) - nNow - pocketed.length - (scratch ? 1 : 0));
         for (const n of gone) { if (room <= 0) break; room--;
           const tr = this.tracks.find(x => x.num === n), pos = tr || { x: .5, y: .5 };
+          if (tr && !nearOcc(tr) && !reallyMoved(tr) && byPocket(tr)) { (s.maybe = s.maybe || []).push(n); room++; continue; }   // ask, don't guess
           if (tr && (nearOcc(tr) || !reallyMoved(tr))) { room++; continue; }
           let pk = 0, d = 9; POCKETS.forEach(([px2, py], k) => { const dd = Math.hypot(pos.x - px2, (pos.y - py) * .5); if (dd < d) { d = dd; pk = k; } });
           pocketed.push({ cls: n === 8 ? 'eight' : n > 8 ? 'stripe' : 'solid', num: n, pocket: pk, counted: true });
           if (tr) tr.pocketed = true; }
         this.tracks = this.tracks.filter(tr => !tr.pocketed);
         this.shot = null;
-        const ev = { type: 'shot', first: s.first, pocketed, scratch, cuePocket, rail: !!s.rail, kick: !!s.kick, noHit: !s.first && !pocketed.length, ms: t - s.t0, t };
+        const ev = { type: 'shot', first: s.first, pocketed, scratch, cuePocket, rail: !!s.rail, kick: !!s.kick, maybe: s.maybe || [], noHit: !s.first && !pocketed.length, ms: t - s.t0, t };
         this.lastShotT = t; { const c2 = this.tracks.find(x => x.id === s.cueId); this.settled = c2 && !scratch ? { x: c2.x, y: c2.y, t, n: nNow } : null; }
         if (this.onShot) this.onShot(ev);
       }
