@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930071659"><script src="stream.js?v=20260930071659"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930071934"><script src="stream.js?v=20260930071934"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -761,9 +761,10 @@
   </div>
 </div>
 
-<script src="halls.js?v=20260930071659"></script>
-<script src="qrcode.js?v=20260930071659"></script>
-<script src="tablecv.js?v=20260930071659"></script>
+<script src="hallday.js?v=20260930071934"></script>
+<script src="halls.js?v=20260930071934"></script>
+<script src="qrcode.js?v=20260930071934"></script>
+<script src="tablecv.js?v=20260930071934"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -815,6 +816,40 @@
   const postRetry = (key, url, getBody, tries = 0) => fetch(url, { method: 'POST', body: getBody() }).then(r => { if (!r.ok) throw new Error(r.status); return r; })
     .catch(e => { clearTimeout(retryT[key]); if (tries < 7) retryT[key] = setTimeout(() => postRetry(key, url, getBody, tries + 1).catch(() => {}), Math.min(120000, 4000 * 2 ** tries) + Math.random() * 1500); throw e; });
   const postStatus = body => { const b = JSON.stringify({ kind: 'table', t: TNUM, ts: Date.now(), ...body }); return postRetry('status', `${RELAY0}/${HALL_TOPIC}`, () => b); };
+
+  // ---------- End of the day ----------
+  // The hall closes at 1 AM; at 2 AM Chicago time (hallday.js) every game ends and the tables start clean.
+  // A game last touched before then is never resumed, and never just deleted: it's archived to 'poolar-history'
+  // (full copy included; the profile page lists it), and only then is its saved copy removed. If the archive can't
+  // be written, the game is left exactly as it was. A game touched after 2 AM is never ended.
+  const dayB = () => window.PoolarDay ? PoolarDay.boundary() : 0;
+  const lastActive = s => Math.max(+s.ts || 0, +s.t0 || 0, +s.tEnd || 0, +s.created || 0);
+  const isStale = s => { const a = s ? lastActive(s) : 0; return a > 0 && a < dayB(); };
+  const gkey = id => 'poolar-game-' + id;
+  function archiveGame(s){
+    try {
+      const { hist, ...rest } = s, a = lastActive(s), from = s.pairStart || 0, sc = [0, 0], adj = s.adj || [0, 0];
+      if (s.rules === 'apa' && s.gtype === 9) { (s.pots || []).forEach(e => { const f = e.split('.'); if (+f[2] >= from) sc[+f[1]] += +f[0] === 9 ? 2 : 1; }); sc[0] += adj[0]; sc[1] += adj[1]; }
+      else (s.racks || []).forEach((r, k) => { if (k >= from) sc[r.w]++; });
+      const names = [0, 1].map(i => s.dbl ? `${s.names[i]} & ${(s.partners || [])[i] || 'Partner'}` : s.names[i]);
+      const rec = { id: `${s.game || 'game'}-reset-${a}`, kind: 'reset', at: a, hall: HALL || '', table: TNUM || 0, names, score: sc, race: s.race, gtype: s.gtype, rules: s.rules,
+        fmt: s.fmtMode, dbl: !!s.dbl, racks: (s.racks || []).length, games: (s.games || []).slice(-40), dur: s.t0 ? (s.tEnd || a) - s.t0 : 0, line: (s.queue || []).map(q => q.name), game: rest };
+      const h = JSON.parse(localStorage.getItem('poolar-history') || '[]');
+      if (!h.some(x => x.id === rec.id)) { h.unshift(rec); let n = 0; for (const x of h) if (x.game && ++n > 30) delete x.game;   // full copies of the last 30 only
+        localStorage.setItem('poolar-history', JSON.stringify(h.slice(0, 200))); }
+      return JSON.parse(localStorage.getItem('poolar-history') || '[]').some(x => x.id === rec.id);
+    } catch { return false; }
+  }
+  // Archive, then remove the saved copies of that game (and this device's claim on the table). False: nothing touched.
+  function endDay(s){
+    if (!archiveGame(s)) return false;
+    try { if (s.game) localStorage.removeItem(gkey(s.game));
+      const last = JSON.parse(localStorage.getItem(KEY) || 'null'); if (last && (!s.game || last.game === s.game)) localStorage.removeItem(KEY); } catch {}
+    if (tableMode && myTables()[`${HALL}-${TNUM}`] === s.game) setMine(`${HALL}-${TNUM}`, null);
+    return true;
+  }
+  const gateUrl = () => `deck.html?hall=${HALL}&t=${TNUM}` + (q0.get('relay') ? `&relay=${encodeURIComponent(q0.get('relay'))}` : '');
+
   if (tableMode && !q0.get('game')) { gate(); return; }
 
   async function gate(){
@@ -833,8 +868,11 @@
     el('gBack').href = hallUrl();
     let s = null, checked = true;
     try { s = await tableStatus(); } catch { checked = false; }
-    const mineKey = myTables()[`${HALL}-${TNUM}`];
-    const inUse = s && s.state === 'busy' && Date.now() - s.ts < STALE;
+    let mineKey = myTables()[`${HALL}-${TNUM}`];
+    // Your game on this table from before 2 AM: archive it and start the day clean.
+    if (mineKey) { let g = null; try { g = JSON.parse(localStorage.getItem(gkey(mineKey)) || 'null'); } catch {}
+      if (g && isStale(g) && endDay(g)) mineKey = null; }
+    const inUse = s && s.state === 'busy' && Date.now() - s.ts < STALE && s.ts >= dayB();
     // Your own game on this table (started from this device): go straight back in, even if the relay
     // dropped the "in use" message (it refuses busy networks) — and the scoreboard re-posts it.
     if (mineKey && (!inUse || s.gh === hashKey(mineKey))) return enter(mineKey, false);
@@ -875,7 +913,7 @@
       const race = Array.isArray(c.races) && c.races.length === 2 ? c.races.map(Number) : c.race ? [c.race, c.race] : [5, 5];
       if (pick.fo === 'rand') pick.gt = [8, 9, 10][Math.floor(Math.random() * 3)];
       const lineOn = el('gLine').checked;
-      try { localStorage.setItem(KEY, JSON.stringify({ game: key, names, clockV: 2, table: `${HALL}-${TNUM}`, qSince: Date.now() - 30 * 60 * 1000, locked: false,
+      try { localStorage.setItem(KEY, JSON.stringify({ game: key, names, clockV: 2, table: `${HALL}-${TNUM}`, created: Date.now(), qSince: Math.max(Date.now() - 30 * 60 * 1000, dayB()), locked: false,
         dbl: pick.dbl, scotch: !!pick.scotch, gtype: pick.gt, fmtMode: pick.fo, lineOpen: lineOn, rules: c.rules || 'bca', race, mode: c.rules === 'apa' ? 'win' : 'alt', ...(Array.isArray(c.sl) ? { sl: c.sl.map(Number) } : {}) })); } catch {}
       setMine(`${HALL}-${TNUM}`, key);
       try { await Promise.race([postStatus({ state: 'busy', gh: hashKey(key), names, score: [0, 0], race, dbl: pick.dbl, scotch: !!pick.scotch, gtype: pick.gt, fmt: pick.fo, line: lineOn, open: true, key, q: 0 }), new Promise(r => setTimeout(r, 2500))]); } catch {}
@@ -899,6 +937,14 @@
     const last = JSON.parse(localStorage.getItem(KEY) || 'null');
     st = urlGame ? (JSON.parse(localStorage.getItem(GKEY(urlGame)) || 'null') || (last && last.game === urlGame ? last : null) || fresh()) : (last || fresh());
   } catch { st = fresh(); }
+  // A game from before 2 AM: archived, then a table starts clean (back to the table's start screen); a personal
+  // scoreboard keeps its game code, names and settings but starts a new match with an empty waitlist.
+  const carry = o => ({ ...fresh(), game: o.game, names: o.names, partners: o.partners, race: o.race, gtype: o.gtype, rules: o.rules, fmtMode: o.fmtMode, dbl: o.dbl,
+    scotch: o.scotch, mode: o.mode, sl: o.sl, clockLen: o.clockLen, bs: o.bs, lineOpen: o.lineOpen, locked: o.locked, firstBreak: o.firstBreak, created: Date.now(), qSince: Date.now() });
+  if (isStale(st) && endDay(st)) {
+    if (tableMode) { location.replace(gateUrl()); return; }
+    st = carry(st);
+  }
   if (st.clockV !== 2) { st.clockLen = 60; st.clockV = 2; }
   st = { ...fresh(), ...st };
   // A match already under way when stats arrived: time it from its first finished rack.
@@ -932,6 +978,7 @@
     let m; try { m = JSON.parse(raw); } catch { return; }
     if (!m || !m.st || m.from === cid) return;
     if (!force && (m.ts || 0) <= (st.ts || 0)) return;
+    if ((m.ts || 0) < dayB()) return;   // a copy from before 2 AM: that game has ended
     const { hist, ...rest } = st;
     const h = st.hist; h.push(JSON.stringify(rest)); if (h.length > 200) h.shift();
     st = { ...fresh(), ...m.st, game, hist: h };
@@ -1483,7 +1530,7 @@
   const quiet = fn => { fn(); st.ts = Date.now(); save(); render(); sync(); };
   function takeWait(raw){
     let m; try { m = JSON.parse(raw); } catch { return; }
-    if (!m || !m.id || (m.ts || 0) < (st.qSince || 0)) return;
+    if (!m || !m.id || (m.ts || 0) < Math.max(st.qSince || 0, dayB())) return;
     if (m.kind === 'join' && !lineOpen()) return;   // line closed (or table locked): no new joins
     if (m.kind === 'join' && !st.seen.includes(m.id)) quiet(() => {
       st.seen.push(m.id); if (st.seen.length > 300) st.seen.shift();
@@ -2410,6 +2457,26 @@
   $('overClips').onclick = () => { $('overSheet').hidden = true; openClips(); };
   $('overNew').onclick = () => { if (tableMode) location.href = `deck.html?hall=${HALL}&t=${TNUM}` + (q0.get('relay') ? `&relay=${encodeURIComponent(q0.get('relay'))}` : ''); else { act(() => resetMatch()); $('overSheet').hidden = true; } };
 
+  // Open when 2 AM passes (or waking up after it): end the game the same way, and free the table on the map
+  // unless another group has claimed it since.
+  let dayDone = false;
+  async function dayTick(){
+    if (dayDone || !isStale(st)) return;
+    if (splitOn) try { stopSplit(); } catch {}
+    const old = st; if (!endDay(old)) return;
+    dayDone = true;
+    if (tableMode) {
+      freed = true; clearTimeout(statusT);
+      try { const s = await tableStatus(); if (!s || s.gh === hashKey(old.game) || s.ts < dayB()) await Promise.race([postStatus({ state: 'free' }), new Promise(r => setTimeout(r, 2500))]); } catch {}
+      location.replace(gateUrl()); return;
+    }
+    st = carry(old); st.ts = Date.now(); dayDone = false;
+    save(); render(); try { clockReset(); } catch {} drawClock(); sync();
+    flash("It's past 2 AM: that game ended and is saved in your history.");
+  }
+  setInterval(dayTick, 30000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') dayTick(); });
+
   const renderBase = render;
   render = function(){ renderBase(); try { lineTick(); paintLineCard(); if (!$('shareSheet').hidden) paintLine(); } catch {} try { onScoreChange(); } catch {} try { paintDock(); } catch {} };
 
@@ -2428,5 +2495,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930071659"></script>
+<script src="build.js?v=20260930071934"></script>
 </body></html>

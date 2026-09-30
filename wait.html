@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="build" content="20260930071659"><script src="stream.js?v=20260930071659"></script>
+<meta charset="utf-8"><meta name="build" content="20260930071934"><script src="stream.js?v=20260930071934"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0a0f14">
 <title>Table Waitlist</title>
@@ -75,8 +75,9 @@
   <a id="back" href="hall.html">← All tables</a>
 </div>
 
-<script src="halls.js?v=20260930071659"></script>
-<script src="auth.js?v=20260930071659"></script>
+<script src="hallday.js?v=20260930071934"></script>
+<script src="halls.js?v=20260930071934"></script>
+<script src="auth.js?v=20260930071934"></script>
 <script>
 (() => {
   const qs = new URLSearchParams(location.search);
@@ -91,6 +92,14 @@
   const MEKEY = 'poolar-wait-me-' + TOPIC;
   let me = null; try { me = JSON.parse(localStorage.getItem(MEKEY) || 'null'); } catch {}
   let line = null;   // latest line message from the table
+  // At 2 AM Chicago time (hallday.js) every game ends and so does its line: anything from before then is dropped.
+  const dayB = () => window.PoolarDay ? PoolarDay.boundary() : 0;
+  const joinedAt = m => m.at || parseInt(String(m.id).slice(1, -4), 36) || 0;   // ids are 'w' + time + 4 random characters
+  function dayCheck(){
+    if (line && (line.ts || 0) < dayB()) line = null;
+    if (me && joinedAt(me) < dayB()) { me = null; try { localStorage.removeItem(MEKEY); } catch {} }
+  }
+  dayCheck();
 
   if (T) { $('tb').hidden = false; $('tbN').textContent = T; $('title').textContent = `Table ${T}`; document.title = `Table ${T} Waitlist`; }
   $('where').textContent = H ? `${H.name} · ${H.area} · waitlist` : 'Waitlist';
@@ -127,7 +136,7 @@
   }
   function take(raw){
     let m; try { m = JSON.parse(raw); } catch { return; }
-    if (m && m.kind === 'line' && (!line || m.ts >= line.ts)) line = m;
+    if (m && m.kind === 'line' && (m.ts || 0) >= dayB() && (!line || m.ts >= line.ts)) line = m;
   }
   async function load(){
     try {
@@ -154,7 +163,7 @@
     join(name, sl);
   });
   async function join(name, sl){
-    me = { id: 'w' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name, sl };
+    me = { id: 'w' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6).padEnd(4, '0'), name, sl, at: Date.now() };
     try { localStorage.setItem(MEKEY, JSON.stringify(me)); localStorage.setItem('poolar-my-name', name); } catch {}
     paint();
     try { await post({ kind: 'join', id: me.id, name, sl }); } catch { $('posNote').textContent = "Couldn't reach the table. Check your connection and try again."; }
@@ -167,9 +176,10 @@
   load();
   try { const es = new PoolarStream(`${RELAY}/${TOPIC}/sse`);
     es.onmessage = e => { try { const d = JSON.parse(e.data); if (d.event === 'message') { take(d.message); paint(); } } catch {} }; } catch {}
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') load(); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { dayCheck(); load(); } });
+  setInterval(() => { const had = !!(line || me); dayCheck(); if (had && !(line || me)) paint(); }, 30000);
 })();
 </script>
-<script src="build.js?v=20260930071659"></script>
+<script src="build.js?v=20260930071934"></script>
 </body>
 </html>
