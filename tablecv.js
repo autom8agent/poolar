@@ -251,7 +251,8 @@
         if (POCKETS.some(([px, py]) => Math.hypot(x - px, (y - py) * .5) < .04)) continue;
         // Our table edge is the cushion's outer line, so a real ball's centre can't be this close to it:
         // anything there is a rail diamond, a pocket jaw or a hand on the rail. (Occluders still count.)
-        const nearEdge = x < this.ballPx * 1.5 / w || x > 1 - this.ballPx * 1.5 / w || y < this.ballPx * 1.5 / h || y > 1 - this.ballPx * 1.5 / h;
+        const EM = this.ballPx * .35;   // a ball frozen on the cushion sits ~half a ball from the edge: keep it
+        const nearEdge = x < EM / w || x > 1 - EM / w || y < EM / h || y > 1 - EM / h;
         if (nearEdge && b.n <= A * 1.9) continue;
         if (b.n <= A * 1.9 && fill > .45 && Math.max(bw, bh) < this.ballPx * 2) {
           const wf = b.wh / b.n, df = b.dk / b.n, cf = b.cn / b.n;
