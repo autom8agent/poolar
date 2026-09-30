@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930214137"><script src="stream.js?v=20260930214137"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930224542"><script src="stream.js?v=20260930224542"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -216,6 +216,7 @@
   .reflog .it small{color:#8ea69a;display:block} .reflog .it .a{font-weight:800;font-size:12px}
   .reflog .it .a.yes{color:#57d98a} .reflog .it .a.no{color:#ff6b5e} .reflog .it .a.wait{color:var(--gold)}
   .refpop{position:absolute;right:8px;bottom:60px;z-index:6;width:min(460px,calc(100% - 16px));font-size:16px;background:rgba(12,20,17,.96);border:2px solid var(--gold);border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:8px;box-shadow:0 8px 30px rgba(0,0,0,.5);overflow:hidden}
+  .replayb{width:100%;font:800 16px Barlow,system-ui,sans-serif!important;padding:11px!important;border-radius:10px;border:1px solid #5aa9ff;background:#0f2233;color:#cfe6ff;cursor:pointer}
   .rfix{display:flex;flex-direction:column;gap:6px;border-top:1px solid #26372f;padding-top:6px}
   .rfix small{color:#8ea69a;font-size:13px}
   .rfixb{display:flex;flex-wrap:wrap;gap:6px}
@@ -449,6 +450,8 @@
       </div>
       <div class="refpop" id="refPop" hidden>
         <div class="rtop"><b id="refT"></b><span class="rballs" id="refBalls"></span></div>
+        <img id="refSnap" alt="Contact frame" hidden style="width:100%;border-radius:8px;border:1px solid #26372f">
+        <button type="button" class="replayb" id="refReplay">▶ Watch the shot again</button>
         <p id="refS"></p>
         <div class="rbtn"><button data-c="yes">Yes</button><button data-c="no">No</button><button data-c="other">Other</button></div>
         <div class="rfix" id="refFix" hidden><small>Fix the game (applies now):</small><div class="rfixb" id="refFixB"></div></div>
@@ -469,13 +472,13 @@
       </div>
       <div class="tvover" id="tvAsk" hidden>
         <b>Camera connected. Record this match?</b>
-        <p>Each rack and each player's turns are saved as separate clips on this iPad. Replays work either way.</p>
+        <p>Each rack and each player's turns are saved as separate clips on this device. Replays work either way.</p>
         <div class="row"><button class="primary" id="askRec">● Record match</button><button id="askNo">Don't record</button></div>
       </div>
       <div class="tvover" id="tvClip" hidden>
         <b id="tvClipT">Clip ready</b>
         <p>Saves to this iPad: tap Save, then <b>Save Video</b> to put it in Photos.</p>
-        <div class="row"><button class="primary" id="clipSave">Save clip to iPad</button><button id="clipPost">📤 Post to highlights</button><button id="clipNo">Discard</button></div>
+        <div class="row"><button class="primary" id="clipSave">Save clip</button><button id="clipPost">📤 Post to highlights</button><button id="clipNo">Discard</button></div>
       </div>
       <canvas id="clipCan" hidden></canvas><canvas id="progCan" width="1280" height="720" hidden></canvas>
       <div class="tvbar" id="tvBar" hidden>
@@ -851,10 +854,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930214137"></script>
-<script src="halls.js?v=20260930214137"></script>
-<script src="qrcode.js?v=20260930214137"></script>
-<script src="tablecv.js?v=20260930214137"></script>
+<script src="hallday.js?v=20260930224542"></script>
+<script src="halls.js?v=20260930224542"></script>
+<script src="qrcode.js?v=20260930224542"></script>
+<script src="tablecv.js?v=20260930224542"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -1907,7 +1910,11 @@
   // clean 2:1 table. The same straightened picture feeds the shot tracker behind the ref pop-ups.
   const CKEY = () => 'poolar-corners-' + camKey;
   const warper = window.TableCV ? new TableCV.Warper($('viewCan')) : null;
-  const smallC = document.createElement('canvas'), smallW = window.TableCV ? new TableCV.Warper(smallC, [480, 240]) : null;
+  // Laptops/desktops have the power to read a sharper picture far more often: 960x480 at up to 25 checks a second
+  // (tablets: 480x240, ~9 a second). Fast balls then move inches between looks instead of a foot.
+  const HIFI = !/iPad|iPhone|Android|Mobile/i.test(navigator.userAgent) && !(navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
+  const REFW = HIFI ? [720, 360] : [480, 240]; let REFMS = HIFI ? 50 : 110, refCost = 0;   // REFMS adapts to how fast this computer is
+  const smallC = document.createElement('canvas'), smallW = window.TableCV ? new TableCV.Warper(smallC, REFW) : null;
   const grabC = document.createElement('canvas'); grabC.width = 320; grabC.height = 180;
   function setCorners(q, save){
     corners = q; const use = rawView ? null : (q && TableCV.withRails ? TableCV.withRails(q) : q);   // show rails + pockets, not just the cloth
@@ -1927,7 +1934,7 @@
     const fallback = !corners && now - viewTick.t0 > 15000;
     if (fallback && !viewTick.fb) { viewTick.fb = true; smallW.setQuad(null); note('Ref is on. For best calls: ⊞ Table → Adjust corners.'); }
     if (lagLive) { if (now - viewLast > 100) { viewLast = now; lagTick(v); } }   // lag / coin flip sheet: the ref waits
-    else if (refOn && (corners || fallback) && now - viewLast > 110) { viewLast = now; refTick(v); }
+    else if (refOn && (corners || fallback) && now - viewLast > REFMS) { viewLast = now; refTick(v); }
     else paintRefStat();
     return true;
   }
@@ -1992,9 +1999,38 @@
   try { const p = JSON.parse(localStorage.getItem(REFKEY)); if (p && p.v === 2 && p.gates) refP = { ...refP, ...p, gates: { ...refP.gates, ...p.gates } }; if (p && p.off) refOn = false; } catch {}
   if (VIEW) refOn = false;
   const saveRefP = () => { try { localStorage.setItem(REFKEY, JSON.stringify({ ...refP, off: !refOn })); } catch {} };
-  const tracker = window.TableCV ? new TableCV.Tracker() : null;
-  let shotsSeen = 0, lastShotAt = 0;
-  if (tracker) tracker.onShot = ev => { shotsSeen++; lastShotAt = Date.now(); try { judge(ev); } catch (e) { console.warn(e); } };
+  const tracker = window.TableCV ? new TableCV.Tracker(HIFI ? { w: 720, h: 360, still: .9, move: 2.4 } : {}) : null;
+  let shotsSeen = 0, lastShotAt = 0, shotSnaps = {};
+  const snapTable = (mark, label) => { try { const c = document.createElement('canvas'); c.width = smallC.width; c.height = smallC.height; const x = c.getContext('2d'); x.drawImage(smallC, 0, 0);
+      const L = tracker.last; if (L) { x.lineWidth = 2; x.font = '700 13px system-ui'; L.balls.forEach(b => { x.strokeStyle = b.cls === 'cue' ? '#fff' : '#9fe'; x.beginPath(); x.arc(b.x * c.width, b.y * c.height, c.width * .018, 0, 7); x.stroke(); x.fillStyle = x.strokeStyle; x.fillText(b.cls === 'cue' ? 'CUE' : String(b.num || '?'), b.x * c.width + 12, b.y * c.height - 10); }); }
+      if (mark) { x.lineWidth = 4; x.strokeStyle = '#ffd23f'; x.beginPath(); x.arc(mark.x * c.width, mark.y * c.height, c.width * .03, 0, 7); x.stroke(); }
+      if (label) { x.fillStyle = 'rgba(0,0,0,.7)'; x.fillRect(0, 0, c.width, 26); x.fillStyle = '#ffd23f'; x.font = '800 16px system-ui'; x.fillText(label, 8, 19); }
+      return c.toDataURL('image/jpeg', .75); } catch { return null; } };
+  if (tracker) { tracker.onStart = () => { shotSnaps = { start: snapTable(null, 'Before the shot') }; };
+    tracker.onContact = (f, cue) => { shotSnaps.contact = snapTable(f, `Contact: ${f.num ? 'the ' + f.num : f.cls} (sure ${Math.round((f.conf || 0) * 100)}%)`); shotSnaps.first = f; }; }
+  // ---- Scan: keep the scoreboard's balls matching the table, carefully ----
+  // Every second while the table is still and clear (no shot, no arm or cue over it): a ball up on the scoreboard that
+  // hasn't been seen for 10 s straight is marked made, and a ball marked made that's been seen for 10 s is put back,
+  // but only when the camera's ball count agrees. Shown with Undo.
+  const scanSeen = {}, scanMiss = {};
+  setInterval(() => { try {
+    if (!refOn || !feedLive || !tracker || !tracker.last || tracker.shot || (pop && !$('refPop').hidden) || lagLive) return;   // lagLive: the ref's tracker is paused
+    if (st.turns === 0 && !st.down.length) return;                      // racked: can't read a packed rack
+    if (tracker.last.occ && tracker.last.occ.some(o => (o.x1 - o.x0) * (o.y1 - o.y0) > .01)) { for (const k in scanMiss) scanMiss[k] = 0; for (const k in scanSeen) scanSeen[k] = 0; return; }
+    const balls = tracker.last.balls, nums = new Set(balls.filter(b => b.num && b.cls !== 'cluster').map(b => b.num));
+    const clustered = balls.filter(b => b.cls === 'cluster').reduce((a, b) => a + (b.n || 2), 0);
+    const objCount = balls.filter(b => b.cls !== 'cue' && b.cls !== 'cluster').length + clustered;
+    const all = st.gtype === 8 ? [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15] : Array.from({ length: st.gtype }, (_, k) => k + 1);
+    const up = all.filter(n => !st.down.includes(n));
+    for (const n of all) { if (nums.has(n)) { scanSeen[n] = (scanSeen[n] || 0) + 1; scanMiss[n] = 0; } else { scanMiss[n] = (scanMiss[n] || 0) + 1; scanSeen[n] = 0; } }
+    if (clustered) return;                                                // touching balls hide numbers: don't guess
+    const gone = up.filter(n => scanMiss[n] >= 10), back = st.down.filter(n => scanSeen[n] >= 10);
+    if (gone.length && objCount <= up.length - gone.length) { markMade(gone); gone.forEach(n => scanMiss[n] = 0); flash(`Scan: ${gone.join(', ')} not on the table → marked made · Undo if wrong`); }
+    else if (back.length && objCount >= up.length + back.length) { act(() => { for (const n of back) { st.down = st.down.filter(x => x !== n); let j = -1; st.pots.forEach((e, k) => { if (+e.split('.')[0] === n) j = k; }); if (j >= 0) st.pots.splice(j, 1); } });
+      back.forEach(n => scanSeen[n] = 0); flash(`Scan: ${back.join(', ')} is on the table → put back · Undo if wrong`); }
+  } catch {} }, 1000);
+  if (tracker) tracker.onShot = ev => { shotsSeen++; lastShotAt = Date.now(); shotSnaps.end = snapTable(null, 'After the shot'); ev.snaps = shotSnaps; shotSnaps = {};
+    try { judge(ev); } catch (e) { console.warn(e); } };
   // Ref health for Claude: what this scoreboard's ref is doing, every 15 s, on a private relay topic (own relay).
   if (tableMode) setInterval(() => { try {
     const L = tracker && tracker.last, v = feedVideo();
@@ -2008,7 +2044,8 @@
   function refUI(){ $('tvRef').textContent = refOn ? '🤖 Ref on' : '🤖 Ref off'; $('tvRef').classList.toggle('refon', refOn); }
   $('tvRef').onclick = () => { refOn = !refOn; saveRefP(); refUI(); if (!refOn) closePop(); };
   refUI();
-  function refTick(v){ if (!smallW || !smallW.ok || !smallW.draw(v, feedFlipped())) return; try { tracker.feed(smallW.read(), performance.now()); } catch {} paintRefStat(); }
+  function refTick(v){ if (!smallW || !smallW.ok || !smallW.draw(v, feedFlipped())) return; const a = performance.now(); try { tracker.feed(smallW.read(), a); } catch {}
+    refCost = refCost * .9 + (performance.now() - a) * .1; if (HIFI) REFMS = Math.max(40, Math.min(110, refCost * 1.4)); paintRefStat(); }
   // What the ref sees right now, on the video, so it's obvious when it can't work.
   let refStatT = 0;
   function paintRefStat(force){
@@ -2021,10 +2058,11 @@
     if (!corners && !viewTick.fb) t = '🤖 Ref: finding the table…';
     else if (!L) t = '🤖 Ref: starting…';
     else if (!n) { t = "🤖 Ref: can't see any balls: point the camera straight down at the lit table"; warn = true; }
-    else { const ob = cue ? n - 1 : n; t = `🤖 Ref: ${corners ? 'sees the table' : 'whole picture (⊞ Table → Adjust corners)'} · ${ob} ball${ob === 1 ? '' : 's'}${cue ? ' + cue ball' : ' · no cue ball'}`; warn = !corners || !cue; }
+    else { const all = st.gtype === 8 ? 15 : st.gtype, ob = all - st.down.length;   // the scoreboard's count (the camera's is a rough estimate)
+      t = `🤖 Ref: ${corners ? 'watching the table' : 'whole picture (⊞ Table → Adjust corners)'} · ${ob} ball${ob === 1 ? '' : 's'}${cue ? ' + cue ball ✓' : ' · no cue ball seen'}`; warn = !corners || !cue; }
     if (L && !st.groups[0] && n) t += ' · tap who has solids for foul calls';
     if (tracker && tracker.shot) t = '🤖 Ref: watching the shot…';
-    else if (st.turns === 0 && !st.down.length) { t = `🎱 ${side(breaker())} to break · rack the balls · waiting for the break`; warn = false; }
+    else if (st.turns === 0 && !st.down.length) { t = `🎱 Rack on the table${cue ? ' · cue ball ✓' : ''} · ${side(breaker())} to break · waiting for the break (balls are counted once the break spreads them)`; warn = false; }
     el.textContent = t; el.classList.toggle('warn', warn); el.hidden = false;
   }
   const GROUP = { solids: [1, 2, 3, 4, 5, 6, 7], stripes: [9, 10, 11, 12, 13, 14, 15] };
@@ -2043,6 +2081,12 @@
     // Waiting for the break: racking and placing the cue ball move balls by hand. Only a real break counts
     // (the cue ball hit something, a ball dropped, or a scratch).
     if (st.turns === 0 && !st.down.length && !ev.first && !ev.scratch && !ev.pocketed.some(b => b.cls !== 'cue') && !(ev.maybe && ev.maybe.length)) return;
+    // Fewer balls than before but I didn't see which one went in: ask instead of calling 'nothing dropped' or 'no hit'.
+    if (!ev.scratch && !ev.pocketed.some(b => b.cls !== 'cue') && !(ev.maybe && ev.maybe.length) && ev.n0 > ev.n1 && !ev.blocked) {
+      showFix && setTimeout(() => { if (pop) showFix(); }, 50);
+      return showPop({ type: 'made', conf: .5, balls: [], title: 'Did a ball go in?', text: `I saw ${ev.n0} → ${ev.n1} balls on the table but didn't catch which one dropped. Tap the ball that went in below (or No if nothing did).`,
+        apply: () => {}, auto: '', noAuto: true, key: stateKey(), shooter: st.shooter, group: null, ev });
+    }
     if (ev.maybe && ev.maybe.length && !ev.scratch && !ev.pocketed.some(b => b.cls !== 'cue')) {   // a ball by a pocket is gone from view: ask
       const n = ev.maybe[0];
       return showPop({ type: 'made', conf: .5, balls: [n], title: `Did the ${n} go in?`, text: `The ${n} was by a pocket and is gone from view, but I didn't see it move. Yes = it went in.`,
@@ -2078,7 +2122,7 @@
       sug = foul('foul', 'No ball hit', `${me}'s cue ball didn't touch a ball.`, .5, []);
     } else if (badFirst) {
       sug = foul('foul', 'Bad hit', `${me} is on ${onEight ? 'the 8' : g} but hit ${clsName(ev.first)} first.`, ev.first.conf, [ev.first.num || 0]);
-    } else if (!isBreak && ev.first && !made.length && !ev.rail) {
+    } else if (!isBreak && ev.first && !made.length && !ev.rail && !(ev.n0 > ev.n1) && !ev.blocked) {
       sug = foul('foul', 'No rail', `${me} hit ${clsName(ev.first)} but nothing reached a rail and nothing dropped.`, .4, [ev.first.num || 0]);
     } else if (!isBreak && g && !ev.first && made.length && !made.some(ownOf)) {
       // Only the opponent's ball(s) dropped and the first contact wasn't seen: almost always the
@@ -2119,7 +2163,7 @@
     if (ev.scratch) sug = foulSug('Scratch', `Cue ball went in${isBreak ? ' on the break (ball in hand anywhere)' : ''}.`, .7);
     else if (ev.noHit && !isBreak) sug = foulSug('No ball hit', `${me}'s cue ball didn't touch a ball.`, .5, []);
     else if (badFirst) sug = foulSug('Bad hit', `${me} had to hit the ${low} first but hit the ${f.num}.`, f.conf, [f.num]);
-    else if (!isBreak && f && !made.length && !ev.rail) sug = foulSug('No rail', 'Nothing reached a rail and nothing dropped.', .4, [f.num || 0]);
+    else if (!isBreak && f && !made.length && !ev.rail && !(ev.n0 > ev.n1) && !ev.blocked) sug = foulSug('No rail', 'Nothing reached a rail and nothing dropped.', .4, [f.num || 0]);
     else if (lastIn) sug = { type: 'eight', conf: .7, balls: nums, title: isBreak ? `${last} on the snap!` : `${last} made`,
         text: `${me} made the ${last}${isBreak ? ' on the break' : ''}. ${side(i)} wins the rack?`,
         apply: () => { markMade(nums.filter(n => n !== last)); $('w' + i).click(); }, auto: 'Rack to ' + short(side(i)) };
@@ -2150,11 +2194,15 @@
     closePop(); pop = sug; sug.choice = null;
     $('refT').textContent = sug.title; $('refS').textContent = sug.text;
     $('refBalls').innerHTML = sug.balls.map(ballEl).join('');
-    $('refFix').hidden = true; $('refC').value = st.lastTag || ''; if (st.lastTag) { st.lastTag = ''; save(); } document.querySelectorAll('#refPop .rbtn button').forEach(b => b.classList.remove('sel'));
+    $('refFix').hidden = true; $('refC').value = st.lastTag || '';
+    { const sn = sug.ev && sug.ev.snaps, im = $('refSnap'); if (im) { im.hidden = !(sn && (sn.contact || sn.end)); if (sn) im.src = sn.contact || sn.end; } }
+    // grab this shot's video now, before the rolling recording moves past it
+    if (sug.ev && typeof rotate === 'function' && typeof bufRec !== 'undefined' && bufRec) { const ev = sug.ev, nowP = performance.now(), nowW = Date.now(), w = p => nowW - (nowP - p);
+      const a = ev.t && ev.ms != null ? w(ev.t - ev.ms) : nowW - 8000, e = ev.t ? w(ev.t) : nowW; rotate(() => { sug.segs = buf.filter(g => g.t1 >= a - 1500 && g.t0 <= e + 2500).slice(-6); }); } if (st.lastTag) { st.lastTag = ''; save(); } document.querySelectorAll('#refPop .rbtn button').forEach(b => b.classList.remove('sel'));
     // What the camera understood, so a wrong call is easy to spot.
     if (sug.ev) { const e = sug.ev, bits = [];
       if (e.kick) bits.push('kick (cue ball hit a cushion first)');
-      bits.push(e.first ? `first hit: ${clsName(e.first)}` : 'first hit: not seen');
+      bits.push(e.first ? `FIRST HIT: ${clsName(e.first)}` : 'FIRST HIT: not seen');
       const pm = e.pocketed.filter(b => b.cls !== 'cue');
       bits.push(pm.length ? pm.map(b => `${clsName(b)} → ${PNAME[b.pocket] || 'pocket'}${b.bank ? ' (bank)' : ''}`).join(', ') : 'nothing dropped');
       if (e.scratch) bits.push(`cue ball in the ${PNAME[e.cuePocket] || 'pocket'}`);
@@ -2191,6 +2239,11 @@
       + up.map(n => `<button type="button" data-fx="b${n}" title="The ${n} went in">${ballEl(n)}</button>`).join('');
     $('refFix').hidden = false;
   }
+  // Replay the shot the pop-up is about: from ~1 s before the cue ball moved until the balls stopped (and a little after).
+  $('refReplay').onclick = () => { if (!pop) return; touch2(); if (!$('refStop').hidden) $('refStop').click();
+    const ev = pop.ev || {}, startPerf = ev.t && ev.ms != null ? ev.t - ev.ms : performance.now() - 8000;
+    const secBack = Math.max(4, Math.min(60, (performance.now() - startPerf) / 1000 + 1.5));   // tracker time is performance.now(); the buffer keeps the clock of the moment
+    if (typeof replay === 'function') replay(Math.round(secBack)); else flash('No replay recorded yet'); };
   $('refFixB').onclick = e => { const b = e.target.closest('[data-fx]'); if (!b || !pop) return; touch2(); const f = b.dataset.fx; let what = '';
     if (f === 'turn') { passTable(false); what = 'turn over'; }
     else if (f === 'foul') { passTable(true); what = 'foul'; }
@@ -2214,12 +2267,87 @@
   setTimeout(paintRefLog, 500);
   function logCall(sug){ const saw = (($('refS').textContent || '').split('\nSaw: ')[1] || '').slice(0, 140);
     sug.log = { at: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' }), title: sug.title, saw, ans: 'Waiting…' }; refLog.unshift(sug.log); saveLog(); paintRefLog(); }
+  // ---- Read Terry's feedback and fix the game ----
+  // Rules first (instant): "the 8 went in", "11 still on the table", "Terry 2 won", "should be Terry1's turn", "scratch".
+  // Anything the rules don't understand goes to the relay's /interpret (Cloudflare Workers AI on Terry's account).
+  function parseFeedback(txt){
+    const t = ' ' + String(txt || '').toLowerCase().replace(/[’']/g, "'") + ' ', a = { made: [], back: [], turn: false, foul: false, win: null, shooter: null };
+    const who = w => { w = (w || '').trim(); const n0 = side(0).toLowerCase(), n1 = side(1).toLowerCase(); if (!w) return null;
+      if (n0 === w || n0.replace(/\s/g, '') === w.replace(/\s/g, '')) return 0; if (n1 === w || n1.replace(/\s/g, '') === w.replace(/\s/g, '')) return 1; return null; };
+    const names = [side(0), side(1)].map(n => n.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const nameRe = `(${names.join('|')})`;
+    // balls: "<n> (ball)? ... made/in/potted/down"  and  "<n> ... still on / didn't go / not in / on the table"
+    const clauses = t.split(/[.;,!?]| but | and | then /);
+    for (const c of clauses) {
+      const nums = [...c.matchAll(/\b(?:the\s+)?(1[0-5]|[1-9])(?:\s*-?\s*ball)?\b/g)].map(m => +m[1]).filter(n => n >= 1 && n <= 15);
+      if (!nums.length) continue;
+      const neg = /(still on|still there|didn'?t go|didnt go|not in|wasn'?t made|not made|missed|on the table|never went|stayed)/.test(c);
+      const pos = /(made|potted|pot |went in|sank|sunk|dropped|is down|was down|in the pocket|went down|holed)/.test(c);
+      if (neg) a.back.push(...nums); else if (pos) a.made.push(...nums);
+    }
+    let m;
+    if ((m = t.match(new RegExp(nameRe + "\\s+(?:just\\s+)?(?:won|wins|win)"))) ) a.win = who(m[1]);
+    if (a.win == null && /game (?:is )?over|won the (?:game|rack)/.test(t) && a.made.includes(8)) a.win = st.shooter;
+    if ((m = t.match(new RegExp("(?:should be|it's|its|it is)\\s+" + nameRe + "(?:'s|s)?\\s+turn"))) ) a.shooter = who(m[1]);
+    else if ((m = t.match(new RegExp(nameRe + "(?:'s|s)\\s+(?:shot|turn|go)"))) ) a.shooter = who(m[1]);
+    if (/turn (?:is )?over|end(?:ed)? (?:the |my |his |their )?turn|should have (?:ended|been over)/.test(t)) a.turn = true;
+    if (/(foul|scratch)/.test(t) && !/(not a foul|wasn'?t a foul|no foul|not foul|didn'?t scratch|no scratch)/.test(t)) a.foul = true;
+    a.made = [...new Set(a.made)]; a.back = [...new Set(a.back)].filter(n => !a.made.includes(n));
+    return a;
+  }
+  function applyFeedback(a){
+    const did = [];
+    if (a.back.length) act(() => { for (const n of a.back) if (st.down.includes(n)) { st.down = st.down.filter(x => x !== n); let j = -1; st.pots.forEach((e, k) => { if (+e.split('.')[0] === n) j = k; }); if (j >= 0) st.pots.splice(j, 1); did.push(`${n} back on the table`); } });
+    const mk = a.made.filter(n => !st.down.includes(n) && n !== (a.win != null ? 8 : -1)); if (mk.length) { markMade(mk); did.push(`${mk.join(', ')} made`); }
+    if (a.win != null) { $(a.win ? 'w1' : 'w0').click(); did.push(`${side(a.win)} won the rack`); return did; }
+    if (a.foul) { passTable(true); did.push('foul · ball in hand'); }
+    else if (a.shooter != null && a.shooter !== st.shooter) { passTable(false); did.push(`${side(st.shooter)} to shoot`); }
+    else if (a.turn) { passTable(false); did.push(`turn over → ${side(st.shooter)}`); }
+    return did;
+  }
+  const empty = a => !a.made.length && !a.back.length && !a.turn && !a.foul && a.win == null && a.shooter == null;
+  async function readFeedback(comment, sug){
+    let a = parseFeedback(comment);
+    if (empty(a)) try {
+      const r = await fetch('https://poolar-relay.poolar-relay.workers.dev/interpret', { method: 'POST', body: JSON.stringify({ comment, call: sug && sug.title, names: [side(0), side(1)], shooter: side(st.shooter), up: (st.gtype === 8 ? [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15] : []).filter(n => !st.down.includes(n)) }) });
+      const typed = new Set((String(comment).match(/\b(1[0-5]|[1-9])\b/g) || []).map(Number));   // balls only if you typed the number
+      const j = await r.json(); if (j && j.actions) { const x = j.actions; a = { made: (x.made || []).map(Number).filter(n => typed.has(n)), back: (x.back || []).map(Number).filter(n => typed.has(n)), turn: !!x.turn, foul: !!x.foul, win: x.winner === side(0) ? 0 : x.winner === side(1) ? 1 : null, shooter: x.shooter === side(0) ? 0 : x.shooter === side(1) ? 1 : null }; }
+    } catch {}
+    // A made-ball call you corrected with nothing made: the turn is over.
+    if (sug && (sug.type === 'made' || sug.type === 'eight') && !a.made.length && a.win == null && a.shooter == null && !a.foul) a.turn = true;
+    // The 8 went in and nobody was named: normal 8-ball call (group cleared = shooter wins, otherwise the opponent).
+    if (a.made.includes(8) && a.win == null && st.gtype === 8) { const g = st.groups[st.shooter], left = g ? GROUP[g].filter(n => !st.down.includes(n) && !a.made.includes(n)) : [1];
+      a.win = left.length ? 1 - st.shooter : st.shooter; }
+    if (empty(a)) return flash('Feedback saved (nothing to change on the scoreboard)');
+    const did = applyFeedback(a); if (did.length) flash('From your feedback: ' + did.join(' · ') + ' · Undo if wrong');
+  }
+  // Every refereed shot is saved with Terry's answer (training data on his Cloudflare account): the replay-buffer
+  // segments covering the shot, plus a JSON with the call, the answer, the comment, the fixes and what the ref saw.
+  function saveShot(sug, choice, comment){ try {
+    if (!tableMode) return;
+    const ev = sug.ev || {}, nowP = performance.now(), nowW = Date.now();
+    const toWall = p => nowW - (nowP - p), endW = ev.t ? toWall(ev.t) : nowW, startW = ev.t && ev.ms != null ? toWall(ev.t - ev.ms) : endW - 8000;
+    const id = `${HALL}-t${TNUM}-${new Date(startW).toISOString().replace(/[:.]/g, '-').slice(0, 19)}-${Math.random().toString(36).slice(2, 6)}`;
+    const R = 'https://poolar-relay.poolar-relay.workers.dev/shots/' + id;
+    const meta = { id, at: startW, table: TNUM, hall: HALL, game, names: [side(0), side(1)], shooter: side(sug.shooter ?? st.shooter), call: { type: sug.type, title: sug.title, text: sug.text, conf: sug.conf },
+      answer: choice, comment, fixed: !!sug.fixed, down: st.down.slice(), groups: st.groups, ev: { first: ev.first, pocketed: ev.pocketed, scratch: ev.scratch, rail: ev.rail, kick: ev.kick, noHit: ev.noHit, n0: ev.n0, n1: ev.n1, blocked: ev.blocked, maybe: ev.maybe, missed: ev.missed, ms: ev.ms },
+      build: (document.querySelector('meta[name="build"]') || {}).content, ua: navigator.userAgent.slice(0, 80) };
+    const up = segs => { segs.forEach((g, i) => fetch(`${R}/${i}`, { method: 'PUT', headers: { 'content-type': g.blob.type || 'video/webm' }, body: g.blob }).catch(() => {}));
+      meta.clips = segs.map(g => ({ t0: g.t0, t1: g.t1 })); fetch(`${R}/meta`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(meta) }).catch(() => {}); };
+    const sn = ev.snaps || {}; meta.snaps = Object.keys(sn).filter(k => typeof sn[k] === 'string');
+    meta.snaps.forEach(k => fetch(sn[k]).then(r => r.blob()).then(b => fetch(`${R}/${{ start: 90, contact: 91, end: 92 }[k]}`, { method: 'PUT', headers: { 'content-type': 'image/jpeg' }, body: b })).catch(() => {}));
+    const pick = () => (typeof buf !== 'undefined' ? buf : []).filter(g => g.t1 >= startW - 1500 && g.t0 <= endW + 2500).slice(-6);
+    if (sug.segs && sug.segs.length) up(sug.segs);
+    else if (typeof rotate === 'function' && typeof bufRec !== 'undefined' && bufRec) rotate(() => up(pick())); else up(pick());
+  } catch (e) { console.warn(e); } }
   function finish(choice){
     const sug = pop; if (!sug) return; closePop();
+    setTimeout(() => saveShot(sug, choice, $('refC').value.trim()), 0);
     if (sug.log) { sug.log.ans = choice === 'yes' ? 'Yes' : choice === 'no' ? 'No' : choice === 'other' ? 'Other' : sug.noAuto ? 'Skipped' : 'Applied'; sug.log.c = $('refC').value.trim(); saveLog(); paintRefLog(); }
     const comment = $('refC').value.trim();
     if ((choice === 'yes' || (choice === 'auto' && !sug.noAuto)) && stateKey() === sug.key) sug.apply();
     // "No" to a made-ball call means nothing of the shooter's went in: the turn is over.
+    if ((choice === 'no' || choice === 'other') && comment && !sug.fixed) { readFeedback(comment, sug); sug.fixed = true; }
     const denies = choice === 'no' || (choice === 'other' && /\b(no|not|didn'?t|didnt|missed|still on|wrong|never)\b/i.test(comment));
     if (denies && !sug.fixed && (sug.type === 'made' || sug.type === 'eight') && !sug.remote && stateKey() === sug.key && winner(scores()) < 0) {
       passTable(false); setTimeout(() => flash(`Turn over → ${side(st.shooter)} · tap Undo if that's wrong`), 60); }
@@ -2312,7 +2440,7 @@
       clipFile = new File(chunks, `clip-${tableMode ? 'table-' + TNUM + '-' : ''}${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}.${mime.includes('mp4') ? 'mp4' : 'webm'}`, { type: mime });
       const secs = Math.round((Date.now() - t0) / 1000);
       $('tvClipT').textContent = `Clip ready · ${mmss(secs * 1000)}`; $('tvClip').hidden = false;
-      // Also keep it in Recordings on this iPad, so a missed Save isn't a lost clip.
+      // Also keep it in Recordings on this device, so a missed Save isn't a lost clip.
       const m = { id: Date.now(), name: clipFile.name, mime, secs, done: true };
       putRec(m).then(() => tx('chunks', 'readwrite', o => o.add({ rec: m.id, blob: clipFile }))).then(() => { clipFile.recId = m.id; }).catch(() => {});
     };
@@ -2590,7 +2718,7 @@
     const mine = (await allRecs()).filter(m => m.game === game && (m.kind === 'rack' || m.kind === 'turn') && m.done);
     const box = $('winClips'); if (!mine.length) { box.hidden = true; return; }
     const n = i => mine.filter(m => m.kind === 'turn' && m.player === i).length, r = mine.filter(m => m.kind === 'rack').length;
-    box.innerHTML = `<p>🎬 ${r} rack${r === 1 ? '' : 's'} · ${short(side(0))} ${n(0)} turns · ${short(side(1))} ${n(1)} turns, saved on this iPad.</p><div class="two"><button class="primary" id="winWatch">Watch &amp; share clips</button><button id="winShareR">Share all racks</button></div>`;
+    box.innerHTML = `<p>🎬 ${r} rack${r === 1 ? '' : 's'} · ${short(side(0))} ${n(0)} turns · ${short(side(1))} ${n(1)} turns, saved on this device.</p><div class="two"><button class="primary" id="winWatch">Watch &amp; share clips</button><button id="winShareR">Share all racks</button></div>`;
     box.hidden = false;
     const racks = mine.filter(m => m.kind === 'rack'); await Promise.all(racks.map(fileOf));
     $('winWatch').onclick = openClips;
@@ -2676,7 +2804,7 @@
       const row = $('hlRow');
       if (VIEW) return await paintPosted();
       const mine = (await allRecs()).filter(m => m.game === game && m.done && !recording(m.id)).sort((a, b) => b.id - a.id).slice(0, 12);
-      $('hlSub').textContent = mine.length ? `${mine.length} newest · saved on this iPad` : '';
+      $('hlSub').textContent = mine.length ? `${mine.length} newest · saved on this device` : '';
       if (!mine.length) { row.innerHTML = '<p class="hlempty">Clips of each turn and rack show up here while the camera records.</p>'; return; }
       row.innerHTML = '';
       for (const m of mine) {
@@ -2727,7 +2855,7 @@
   // The straightened table runs to the cushions' outer line; balls touch the cushion nose ~2 in inside it.
   const LAGLEN = ({ 7: 78, 8: 88, 9: 100 })[TINFO && TINFO.ft] || 100;   // playing length in inches (nose to nose)
   const CUSH = 2, LTOT = LAGLEN + 2 * CUSH, WTOT = LAGLEN / 2 + 2 * CUSH, BR = 1.125;
-  const lagTracker = window.TableCV ? new TableCV.Tracker({ keepEdge: true }) : null;   // the ref's tracker drops balls on a rail
+  const lagTracker = window.TableCV ? new TableCV.Tracker({ keepEdge: true, w: REFW[0], h: REFW[1] }) : null;   // same picture size as the ref reads
   const LAGC = ['#5aa9ff', '#ff9f43'];
   let lagCfg = { headLeft: true, topIs: 0 }, lagLive = false, lag = null, lagWin = -1, lagHow = 'lag';
   try { const c = JSON.parse(localStorage.getItem('poolar-lag')); if (c) lagCfg = { ...lagCfg, ...c }; } catch {}
@@ -2785,7 +2913,7 @@
       if (a && b) {
         const still = L.tr[0] && L.tr[1] && D(a, L.tr[0]) < rX * 1.5 && D(b, L.tr[1]) < rX * 1.5;
         if (!still) L.readyT = t;
-        L.tr = [a, b].map((q, k) => ({ x: q.x, y: q.y, x0: q.x, y0: q.y, half: k, seen: t, stillFrom: t, minFoot: footIn(q.x), foot: 0, near: false, cross: false, rail: false }));
+        L.tr = [a, b].map((q, k) => ({ x: q.x, y: q.y, x0: q.x, y0: q.y, half: k, seen: t, stillFrom: t, minFoot: footIn(q.x), maxBack: 0, back: false, foot: 0, cross: false, rail: false }));
         if (still && t - L.readyT > 900) L.phase = 'ready';
       } else { L.tr = [null, null]; L.readyT = t; }
     } else if (L.phase === 'ready' || L.phase === 'rolling') {
@@ -2800,11 +2928,16 @@
         if (D(q, tr) > rX * .5) tr.stillFrom = t;
         tr.x = q.x; tr.y = q.y; tr.seen = t;
         if (L.phase !== 'rolling') continue;
-        // Foot rail contact: the ball gets near the foot cushion and comes back off it. (Fast balls blur at
-        // the cushion, so "near, then heading back" is steadier than seeing the touch itself.) Twice = loss.
-        const f = footIn(q.x); tr.minFoot = Math.min(tr.minFoot, f);
-        if (f < 3) tr.near = true;
-        else if (tr.near && f > tr.minFoot + 6) { tr.foot++; tr.near = false; tr.minFoot = f; }
+        // Foot rail contact: a lag ball can only turn back by hitting the foot rail, so a turn-around near the
+        // foot end counts even if no frame caught it at the cushion (fast balls blur there). Two = loss.
+        const f = footIn(q.x);
+        if (!tr.back) {
+          tr.minFoot = Math.min(tr.minFoot, f);
+          if (tr.minFoot < 15 && f > tr.minFoot + 6) { tr.foot++; tr.back = true; tr.maxBack = f; }
+        } else {
+          tr.maxBack = Math.max(tr.maxBack, f);
+          if (f < tr.maxBack - 6) { tr.back = false; tr.minFoot = f; }                  // heading to the foot rail again
+        }
         const y = yIn(q.y), mid = WTOT / 2;
         if (tr.half === 0 ? y > mid + BR : y < mid - BR) tr.cross = true;
         if (lagIn(q.x) > LAGLEN * .25 && footIn(q.x) > 4 && (y < CUSH + BR + .75 || y > WTOT - CUSH - BR - .75)) tr.rail = true;
@@ -2822,7 +2955,7 @@
     const R = L.tr.map(tr => {
       const lost = t - tr.seen > 3000, bad = [];
       if (lost) bad.push(footIn(tr.x) < 6 || tr.x < .03 || tr.x > .97 || tr.y < .07 || tr.y > .93 ? 'went in a pocket or off the table' : 'lost by the camera');
-      if (tr.near && !tr.foot) tr.foot = 1;                                         // resting on the foot cushion: touched it
+      if (!tr.foot && tr.minFoot < 2.5) tr.foot = 1;                                 // resting on the foot cushion: touched it
       if (!lost && !tr.foot) bad.push("didn't reach the foot rail");
       if (tr.foot > 1) bad.push('hit the foot rail twice');
       if (tr.cross) bad.push('crossed into the other half');
@@ -3016,11 +3149,11 @@
     const take = (id, time, raw) => { if (seen.has(id) || time * 1000 < t0 - 2000) return; seen.add(id); let m; try { m = JSON.parse(raw); } catch { return; } try { run(m); } catch (e) { console.warn(e); } };
     const chip = document.createElement('div'); chip.id = 'deckChip';
     chip.style.cssText = 'position:fixed;left:10px;bottom:10px;z-index:30;background:rgba(10,16,14,.9);border:1px solid #3a4a42;color:#8ea69a;font:700 12px Barlow,system-ui,sans-serif;padding:5px 10px;border-radius:999px;pointer-events:none';
-    chip.textContent = `🎛️ Stream Deck${tableMode ? ' · table ' + TNUM : ''} · connecting…`; document.body.appendChild(chip);
+    chip.hidden = true; document.body.appendChild(chip); let lastPress = 0;
+    setInterval(() => { if (!lastPress) return; const s = Math.round((Date.now() - lastPress) / 1000); chip.hidden = s > 1800;
+      chip.textContent = `🎛️ Stream Deck · last press ${s < 60 ? s + 's' : Math.round(s / 60) + ' min'} ago`; }, 5000);
     for (const tp of topics) try { const es = new PoolarStream(`${OWN}/${tp}/sse`);
-      es.onopen = () => { chip.textContent = `🎛️ Stream Deck${tableMode ? ' · table ' + TNUM : ''} · ready`; chip.style.color = '#57d98a'; chip.style.borderColor = '#57d98a'; };
-      es.onmessage = e => { try { const d = JSON.parse(e.data); if (d.event === 'message') { take(d.id, d.time, d.message); chip.textContent = `🎛️ Stream Deck${tableMode ? ' · table ' + TNUM : ''} · ready`; chip.style.color = '#57d98a'; } } catch {} }; } catch {}
-    setTimeout(() => flash('🎛️ Stream Deck ready'), 1500);
+      es.onmessage = e => { try { const d = JSON.parse(e.data); if (d.event === 'message') { take(d.id, d.time, d.message); if (d.time * 1000 > Date.now() - 60000) { lastPress = Date.now(); chip.hidden = false; chip.textContent = '🎛️ Stream Deck · last press 0s ago'; chip.style.color = '#57d98a'; chip.style.borderColor = '#57d98a'; } } } catch {} }; } catch {}
   })();
   pollElsewhere(); setInterval(() => { if (document.visibilityState === 'visible') pollElsewhere(); }, 60000);
   // New game: the invite QR comes first (so friends can join the line), then names and game settings.
@@ -3037,5 +3170,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930214137"></script>
+<script src="build.js?v=20260930224542"></script>
 </body></html>

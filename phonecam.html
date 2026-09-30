@@ -1,12 +1,12 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="build" content="20260930214137"><script src="stream.js?v=20260930214137"></script>
+<meta charset="utf-8"><meta name="build" content="20260930224542"><script src="stream.js?v=20260930224542"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0a0f14">
 <title>Pool Cam</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
-<link rel="stylesheet" href="common.css?v=20260930214137">
+<link rel="stylesheet" href="common.css?v=20260930224542">
 <style>
   body{background:radial-gradient(120% 60% at 50% 0%,#12303f,var(--bg) 70%) fixed var(--bg)}
   .big{display:flex;flex-direction:column;gap:10px}
@@ -82,7 +82,7 @@
   <h2>Clip recorded</h2><p id="savedT"></p>
   <div class="row"><button class="primary" id="savedShare">Save / share</button><button id="savedClose">Close</button></div>
 </div>
-<script src="qrcode.js?v=20260930214137"></script>
+<script src="qrcode.js?v=20260930224542"></script>
 <script>
 (() => {
   const $ = id => document.getElementById(id);
@@ -199,7 +199,7 @@
     if (TQ && HALLQ) { const u = new URL('deck.html', location.href); u.search = ''; u.searchParams.set('hall', HALLQ); u.searchParams.set('t', TQ); $('camBack').href = u; $('camBack').textContent = `Table ${TQ}`; }
     // Tell the hall's table map this table has a live camera (and again every 4 min).
     const presence = on => { if (!HALLQ || !TQ) return; fetch(`${RELAY}/poolar-hall-${HALLQ}`, { method: 'POST', keepalive: true, body: JSON.stringify({ kind: 'cam', t: TQ, loc: LOC, on, ts: Date.now() }) }).catch(() => {}); };
-    const portrait = () => { const st = stream && stream.getVideoTracks()[0] && stream.getVideoTracks()[0].getSettings(); $('turnMsg').hidden = !((st && st.width && st.height && st.height > st.width) || matchMedia('(orientation: portrait)').matches); };
+    const portrait = () => { $('turnMsg').hidden = true; };   // the page turns the picture to landscape itself
     addEventListener('resize', () => setTimeout(portrait, 300));
     $('stop').onclick = () => { presence(false); stream && stream.getTracks().forEach(t => t.stop()); pcs.forEach(pc => pc.close()); location.href = $('camBack').href; };
     addEventListener('pagehide', () => presence(false));
@@ -211,6 +211,24 @@
     // (same approach as the self-scoring cam). Lens names only appear after camera permission,
     // so open any back camera first, then re-open the one named "Ultra Wide" if the phone has it.
     let ultraId = null;
+    // Always send landscape. A phone lying flat in the mount has no clear 'up', so iOS sometimes hands us a portrait
+    // picture; web pages can't lock orientation on iPhone, so we rotate portrait frames to landscape ourselves.
+    let rotRaf = 0;
+    function landscape(raw){
+      const t = raw.getVideoTracks()[0]; if (!t) return raw;
+      const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.srcObject = raw; v.play().catch(() => {});
+      const c = document.createElement('canvas'); c.width = 1920; c.height = 1080; const x = c.getContext('2d');
+      clearInterval(rotRaf);
+      const draw = () => { const w = v.videoWidth, h = v.videoHeight; if (!w || !h) return;
+        if (h > w) { x.save(); x.translate(1920, 0); x.rotate(Math.PI / 2); x.drawImage(v, 0, 0, 1080, 1920); x.restore(); }   // portrait -> landscape
+        else x.drawImage(v, 0, 0, 1920, 1080); };
+      rotRaf = setInterval(draw, 33); draw();   // timer, not animation frames: keeps going on a mounted phone
+      const outS = c.captureStream(30); const ot = outS.getVideoTracks()[0];
+      try { ot.contentHint = 'detail'; } catch {}
+      ot.stop = (orig => function(){ t.stop(); return orig.call(this); })(ot.stop);
+      outS.getSettings = () => t.getSettings();
+      return outS;
+    }
     async function start(){
       const h = 1080;   // always 1080p landscape
       const want = id => ({ audio: false, video: Object.assign(id ? { deviceId: { exact: id } } : { facingMode: { ideal: facing } },
@@ -242,9 +260,10 @@
       try { track.contentHint = 'detail'; } catch {}   // a table of small balls: keep sharpness, drop frames first
       track.onended = () => setState('Camera stopped. Reload this page to restart it.', 'bad');
       if (stream) stream.getTracks().forEach(t => t.stop());
-      stream = next; $('preview').srcObject = stream;
+      stream = landscape(next); $('preview').srcObject = stream;
+      const out = stream.getVideoTracks()[0];
       // Viewers already connected keep their connection and just get the new picture.
-      for (const pc of pcs.values()) { for (const s of pc.getSenders()) if (s.track && s.track.kind === 'video') s.replaceTrack(track).catch(() => {}); sharp(pc); }
+      for (const pc of pcs.values()) { for (const s of pc.getSenders()) if (s.track && s.track.kind === 'video') s.replaceTrack(out).catch(() => {}); sharp(pc); }
     }
     try { await start(); wake(); }
     catch (e) {
@@ -374,6 +393,6 @@
   }
 })();
 </script>
-<script src="build.js?v=20260930214137"></script>
+<script src="build.js?v=20260930224542"></script>
 </body>
 </html>

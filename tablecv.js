@@ -276,7 +276,7 @@
             num = b.cn ? ballNumber(hb * 10 + 5, b.vs / b.cn) + (cls === 'stripe' ? 8 : 0) : 0;
           }
           balls.push({ x, y, cls, num, wf, df, cf, vmean: b.vall / b.n, cfBall: (b.cn - b.cc) / b.n, sat: b.cn ? b.ss / b.cn : 0, cc: b.cc / b.n, fh: fhsv[0], hue: b.cn ? b.hue.indexOf(Math.max(...b.hue)) * 10 + 5 : -1 });
-        } else if (b.n <= A * 7 && fill > .4 && Math.max(bw, bh) < this.ballPx * 5) balls.push({ x, y, cls: 'cluster', num: 0, n: Math.round(b.n / A) });
+        } else if (b.n <= A * 7 && fill > .4 && Math.max(bw, bh) < this.ballPx * 5) balls.push({ x, y, cls: 'cluster', num: 0, n: Math.max(2, Math.round(b.n / (A * 1.3))) });   // shadows make touching balls look bigger: count cautiously
         else {
           // Something that isn't a ball: a cue shaft is long and thin (about a ball wide); a hand, glove
           // or arm is much thicker. Measure thickness as area / length of the shape.
@@ -345,6 +345,7 @@
         tr.v = Math.max(v, this.o.move * 1.5); tr.x = b.x; tr.y = b.y; tr.t = t; tr.seen = t; tr.stillFrom = 0;
       }
       const hasCue = this.tracks.some(tr => tr.cls === 'cue' && t - tr.seen < 1500);
+      balls.forEach((b, i) => { if (!used.has(i) && !(b.cls === 'cue' && hasCue) && this.shot) this.shot.spawned = (this.shot.spawned || 0) + 1; });
       balls.forEach((b, i) => { if (!used.has(i) && !(b.cls === 'cue' && hasCue)) this.tracks.push({ id: this.nid++, x: b.x, y: b.y, cls: b.cls, num: b.num, v: 0, t, seen: t, stillFrom: t, votes: { [b.cls + ':' + b.num]: 1 } }); });
       // forget tracks unseen for long (unless mid-shot, where "gone" means pocketed)
       this.tracks = this.tracks.filter(tr => t - tr.seen < (this.shot ? 20000 : 4000));
@@ -384,9 +385,10 @@
             this.quietFrom = 0;
           }
         }
+        if (this.shot && this.onStart) try { this.onStart(this.shot); } catch {}
         if (this.shot) { this.shot.rest0 = {}; for (const tr of this.tracks) { this.shot.rest0[tr.id] = tr.restX != null ? [tr.restX, tr.restY] : [tr.x, tr.y]; tr.restSince = 0; tr.lastRest = 0; tr.restDur = 0; tr.restX = null; } }
         else {
-          restBook();
+          if (!(this.handUntil > t)) restBook();   // a hand right by the cue ball: keep the pre-shot rest spot until it's gone
           // Safety net: the cue ball settled in a new spot (1.2 s still) and no shot was called since it last settled.
           if (cue && cue.restDur > 1200 && !(this.handUntil > t)) {
             const nowN = nNow;
@@ -414,7 +416,8 @@
           if (!s.first) {
             const c = this.tracks.find(x => x.id === s.cueId);
             const near = c ? Math.hypot(c.x - tr.x, (c.y - tr.y) * .5) / R : 99;
-            s.first = { cls: tr.cls, num: tr.num, conf: near < 3.5 ? .8 : near < 6 ? .55 : .3 };
+            s.first = { cls: tr.cls, num: tr.num, conf: near < 3.5 ? .8 : near < 6 ? .55 : .3, x: tr.x, y: tr.y };
+            if (this.onContact) try { this.onContact(s.first, c); } catch {}
           }
         }
       }
@@ -490,7 +493,7 @@
           if (tr) tr.pocketed = true; }
         this.tracks = this.tracks.filter(tr => !tr.pocketed);
         this.shot = null;
-        const ev = { type: 'shot', first: s.first, pocketed, scratch, cuePocket, rail: !!s.rail, kick: !!s.kick, maybe: s.maybe || [], noHit: !s.first && !pocketed.length, ms: t - s.t0, t };
+        const ev = { type: 'shot', first: s.first, pocketed, scratch, cuePocket, rail: !!s.rail, kick: !!s.kick, maybe: s.maybe || [], noHit: !s.first && !pocketed.length && !(s.spawned > 1) && s.moved.size === 0 && ![...(s.seenMoving || [])].some(id => id !== s.cueId) && !blocked && (s.n0 || 0) <= nNow, n0: s.n0 || 0, n1: nNow, blocked, ms: t - s.t0, t };
         this.lastShotT = t; { const c2 = this.tracks.find(x => x.id === s.cueId); this.settled = c2 && !scratch ? { x: c2.x, y: c2.y, t, n: nNow } : null; }
         if (this.onShot) this.onShot(ev);
       }
