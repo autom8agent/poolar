@@ -327,6 +327,24 @@
   .summary span{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
   .sub-h{margin:0;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
   @media (prefers-reduced-motion:reduce){.p{transition:none}.p.flash{animation:none}}
+  /* Lag / coin flip for the first break. With the camera on, the sheet lets the table show through. */
+  .sheet.see{background:transparent;pointer-events:none;justify-content:flex-end}
+  .sheet.see .card{pointer-events:auto;max-width:380px;box-shadow:0 10px 40px rgba(0,0,0,.6)}
+  .seg{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .seg button[aria-pressed="true"]{background:var(--chalk);border-color:var(--chalk);color:#04162b}
+  .lgstat{font-weight:700;color:var(--text)!important}
+  .lgp{display:grid;grid-template-columns:auto 1fr auto;gap:2px 10px;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:8px 10px}
+  .lgp i{width:12px;height:12px;border-radius:50%;grid-row:span 2}
+  .lgp b{font-size:16px} .lgp .d{font-family:var(--num);font-weight:900;font-size:24px;grid-row:span 2;font-variant-numeric:tabular-nums}
+  .lgp small{color:var(--muted);font-size:12px;grid-column:2} .lgp small.bad{color:#ff7a6e}
+  .lgp.won{border-color:var(--gold)} .lgp.won .d{color:var(--gold)}
+  .lgrules{font-size:13px;color:var(--muted)} .lgrules summary{cursor:pointer;font-weight:700;color:var(--text)}
+  .lgrules ul{margin:8px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+  #lagCan{position:absolute;inset:0;width:100%;height:100%;z-index:2;pointer-events:none}
+  .coin{width:96px;height:96px;margin:4px auto;position:relative;transform-style:preserve-3d;transition:transform 1.4s cubic-bezier(.2,.7,.2,1)}
+  .coin span{position:absolute;inset:0;border-radius:50%;display:grid;place-items:center;font-family:var(--num);font-weight:900;font-size:40px;
+    backface-visibility:hidden;-webkit-backface-visibility:hidden;background:radial-gradient(circle at 35% 30%,#ffe9a6,#d9a52b 60%,#9c7415);color:#5a410a;border:3px solid #b8871d}
+  .coin .t{transform:rotateY(180deg)}
 </style>
 
 <div class="app">
@@ -340,6 +358,7 @@
       <div class="tvadd" id="tvAdd"><button class="primary" id="tvAddBtn">+ Add camera</button><small>Top-down table view · replays · recording</small></div>
       <iframe id="feedFrame" title="Top-down table camera" allow="autoplay; fullscreen" hidden></iframe>
       <canvas id="viewCan" hidden></canvas>
+      <canvas id="lagCan" hidden></canvas>
       <div id="handles" hidden><i class="handle" data-k="tl"></i><i class="handle" data-k="tr"></i><i class="handle" data-k="br"></i><i class="handle" data-k="bl"></i>
         <div class="adjbar"><span>Drag the 4 dots onto the table corners</span><button class="primary" id="adjDone">Done</button><button id="adjCancel">Cancel</button></div></div>
       <div class="tvover" id="tvTable" hidden>
@@ -425,6 +444,7 @@
   <div class="bar">
     <button id="undo">Undo</button>
     <button id="swap">Swap break</button>
+    <button id="lagBtn" hidden>Lag / Flip</button>
     <button id="logBtn">Stats</button>
     <button id="setBtn">Setup</button>
     <button id="shareBtn" class="primary">Share</button>
@@ -605,6 +625,43 @@
   </div>
 </div>
 
+<div class="sheet" id="lagSheet" hidden>
+  <div class="card">
+    <h2>Who breaks first?</h2>
+    <div class="seg"><button id="lgModeLag" aria-pressed="true">Lag</button><button id="lgModeFlip" aria-pressed="false">Coin flip</button></div>
+    <div id="lgLag">
+      <div id="lgCam" hidden>
+        <p class="lgstat" id="lgStat"></p>
+        <div class="lgp" id="lgP0"><i></i><b></b><span class="d"></span><small></small></div>
+        <div class="lgp" id="lgP1"><i></i><b></b><span class="d"></span><small></small></div>
+        <div class="two"><button id="lgHead"></button><button id="lgSides">⇅ Swap sides</button></div>
+        <button id="lgAgain">↺ Lag again</button>
+      </div>
+      <p id="lgNoCam"></p>
+      <p class="sub-h" id="lgPickH">Who won the lag?</p>
+      <div class="two"><button id="lgW0"></button><button id="lgW1"></button></div>
+      <details class="lgrules"><summary>Lag rules (WPA)</summary><ul>
+        <li>Both players shoot at the same time from behind the head string, one on each side of the table.</li>
+        <li>The ball must hit the foot rail and come back. The ball that stops closest to the head rail wins. Touching the head rail is fine.</li>
+        <li>You lose the lag automatically if your ball crosses into the other player's half, touches a long rail, doesn't reach the foot rail, hits the foot rail more than once, goes in a pocket or off the table, or stops in the corner pocket past the nose of the head rail.</li>
+        <li>If both players lose, or it's too close to call, lag again.</li>
+        <li>The winner chooses who breaks.</li>
+      </ul></details>
+    </div>
+    <div id="lgFlip" hidden>
+      <div class="coin" id="coin"><span class="h">H</span><span class="t">T</span></div>
+      <p class="lgstat" id="flipStat">Who calls it?</p>
+      <div class="two" id="flipWho"><button data-i="0"></button><button data-i="1"></button></div>
+      <div class="two" id="flipCall" hidden><button data-c="H">Heads</button><button data-c="T">Tails</button></div>
+    </div>
+    <div id="lgChoose" hidden>
+      <p class="lgstat" id="lgWon"></p>
+      <div class="two"><button class="primary" id="lgBreak"></button><button id="lgGive"></button></div>
+    </div>
+    <button id="lgClose">Close</button>
+  </div>
+</div>
+
 <div class="sheet" id="logSheet" hidden>
   <div class="card">
     <h2>Match stats</h2>
@@ -655,7 +712,7 @@
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
-  const VERSION = '18';
+  const VERSION = '19';
   // Phones can hold on to an old copy of this page for a while. Check for a newer one and switch to it;
   // the score lives in storage and the relay, so nothing is lost by reloading.
   async function checkUpdate(){
@@ -1449,7 +1506,8 @@
     if (!warper.draw(v, feedFlipped())) return false;
     const now = performance.now();
     if (!corners && !rawView && now - cornerT > 1500) { cornerT = now; autoCorners(v); }
-    if (refOn && corners && now - viewLast > 110) { viewLast = now; refTick(v); }
+    if (lagLive) { if (now - viewLast > 100) { viewLast = now; lagTick(v); } }
+    else if (refOn && corners && now - viewLast > 110) { viewLast = now; refTick(v); }
     return true;
   }
   // Automatic corners: a few frames in a row must agree before the view switches over.
@@ -2075,8 +2133,195 @@
   $('hlAll').onclick = openClips;
   paintHL(); if (VIEW) setInterval(paintHL, 60000);
 
+  // ---------- Lag or coin flip for the first break ----------
+  // Separate from the break order (alternate / winner breaks): this only decides who breaks rack 1.
+  // With the top-down camera, the lag is judged on the straightened table: both balls are followed from
+  // behind the head string to the foot rail and back, checked against the WPA loss-of-lag rules, and
+  // measured to the head rail. The camera only suggests: someone still taps the winner.
+  const LAGLEN = ({ 7: 78, 8: 88, 9: 100 })[TINFO && TINFO.ft] || 100;   // playing length in inches
+  const LAGC = ['#5aa9ff', '#ff9f43'];
+  let lagCfg = { headLeft: true, topIs: 0 }, lagLive = false, lag = null, lagWin = -1, lagHow = 'lag';
+  try { const c = JSON.parse(localStorage.getItem('poolar-lag')); if (c) lagCfg = { ...lagCfg, ...c }; } catch {}
+  const saveLagCfg = () => { try { localStorage.setItem('poolar-lag', JSON.stringify(lagCfg)); } catch {} };
+  const lagCamOk = () => !!(feedLive && corners && !rawView && smallW && smallW.ok && tracker);
+  const lagWho = k => k === 0 ? lagCfg.topIs : 1 - lagCfg.topIs;                  // track (0 top half, 1 bottom) -> player
+  function setBreak(b){
+    act(() => {
+      if (st.racks.length === st.pairStart) { st.firstBreak = b; st.fix = null; } else st.fix = { n: st.racks.length, b };
+      if (st.turns === 0) st.shooter = b;
+    });
+  }
+  function lagOpen(){
+    $('lagSheet').hidden = false; lagWin = -1; $('lgChoose').hidden = true;
+    for (const i of [0, 1]) { $('lgW' + i).textContent = side(i); $('flipWho').children[i].textContent = side(i); }
+    lagMode(lagHow);
+  }
+  function lagMode(m){
+    lagHow = m;
+    $('lgModeLag').setAttribute('aria-pressed', m === 'lag'); $('lgModeFlip').setAttribute('aria-pressed', m === 'flip');
+    $('lgLag').hidden = m !== 'lag'; $('lgFlip').hidden = m !== 'flip';
+    if (m === 'flip') flipReset();
+    const cam = m === 'lag' && lagCamOk();
+    $('lgCam').hidden = !cam; $('lagSheet').classList.toggle('see', cam);
+    $('lgNoCam').hidden = cam;
+    $('lgNoCam').textContent = !feedLive ? 'Add the top-down camera and it can judge the lag for you. Or watch it and tap the winner.'
+      : 'The camera needs the straightened table view to judge the lag (⊞ Table → Straighten automatically). Or tap the winner.';
+    $('lgPickH').textContent = cam ? 'Confirm who won the lag' : 'Who won the lag?';
+    if (cam) { lagLive = true; $('lagCan').hidden = false; closePop(); lagReset(); } else lagStop();
+  }
+  function lagStop(){ lagLive = false; $('lagCan').hidden = true; }
+  function lagClose(){ lagStop(); $('lagSheet').hidden = true; $('lagSheet').classList.remove('see'); }
+  function lagReset(){ lag = { phase: 'wait', tr: [null, null], readyT: 0, rollT: 0, res: null, B: [] }; lagUI(); lagDraw(); }
+  const hxOf = x => lagCfg.headLeft ? x : 1 - x;                                    // 0 at the head rail, 1 at the foot rail
+  const ballIn = () => 1.125;
+  function lagTick(v){
+    if (!smallW.draw(v, feedFlipped())) return;
+    const t = performance.now(), L = lag; if (!L) return;
+    let B = []; try { B = tracker.detect(smallW.read()).balls; } catch { return; }
+    L.B = B;
+    const rX = tracker.ballPx / 2 / 480, rY = tracker.ballPx / 2 / 240, D = (a, b) => Math.hypot(a.x - b.x, (a.y - b.y) * .5);
+    if (L.phase === 'wait') {
+      // Ready once there's one ball behind the head string on each side, both still for a moment.
+      const pick = top => B.filter(b => b.cls !== 'cluster' && (top ? b.y < .5 : b.y >= .5) && hxOf(b.x) < .3).sort((a, b) => hxOf(a.x) - hxOf(b.x))[0];
+      const a = pick(true), b = pick(false);
+      if (a && b) {
+        const still = L.tr[0] && L.tr[1] && D(a, L.tr[0]) < rX * 1.5 && D(b, L.tr[1]) < rX * 1.5;
+        if (!still) L.readyT = t;
+        L.tr = [a, b].map((q, k) => ({ x: q.x, y: q.y, x0: q.x, y0: q.y, half: k, seen: t, stillFrom: t, maxHx: hxOf(q.x), foot: 0, away: true, cross: false, rail: false }));
+        if (still && t - L.readyT > 900) L.phase = 'ready';
+      } else { L.tr = [null, null]; L.readyT = t; }
+    } else if (L.phase === 'ready' || L.phase === 'rolling') {
+      // Follow both balls: nearest detection (blurred, fast balls may show as clusters, so those count too).
+      const used = new Set();
+      const order = [0, 1].map(k => { const tr = L.tr[k]; let best = -1, bd = .3; B.forEach((q, j) => { const d = D(q, tr); if (d < bd) { bd = d; best = j; } }); return { k, best, bd }; }).sort((a, b) => a.bd - b.bd);
+      for (const { k } of order) {
+        const tr = L.tr[k]; let best = -1, bd = t - tr.seen > 400 ? .45 : .3;
+        B.forEach((q, j) => { if (used.has(j)) return; const d = D(q, tr); if (d < bd) { bd = d; best = j; } });
+        if (best < 0) continue;
+        used.add(best); const q = B[best];
+        if (D(q, tr) > rX * .5) tr.stillFrom = t;
+        tr.x = q.x; tr.y = q.y; tr.seen = t;
+        if (L.phase !== 'rolling') continue;
+        const hx = hxOf(q.x);
+        tr.maxHx = Math.max(tr.maxHx, hx);
+        // Foot rail contact: the ball reaches the foot cushion. Counted again only after it came well back.
+        if (hx > 1 - rX * 2.4) { if (tr.away) { tr.foot++; tr.away = false; } } else if (hx < .8) tr.away = true;
+        if (tr.half === 0 ? q.y > .5 + rY : q.y < .5 - rY) tr.cross = true;
+        if (hx > .3 && hx < .95 && (q.y < rY * 1.5 || q.y > 1 - rY * 1.5)) tr.rail = true;
+      }
+      if (L.phase === 'ready' && L.tr.some(tr => D(tr, { x: tr.x0, y: tr.y0 }) > rX * 4)) { L.phase = 'rolling'; L.rollT = t; }
+      if (L.phase === 'rolling') {
+        const done = L.tr.every(tr => (t - tr.seen < 400 && t - tr.stillFrom > 1500) || t - tr.seen > 3000);
+        if ((done && t - L.rollT > 2500) || t - L.rollT > 25000) lagFinish(t);
+      }
+    }
+    lagUI(); lagDraw();
+  }
+  function lagFinish(t){
+    const L = lag; L.phase = 'done';
+    const R = L.tr.map(tr => {
+      const lost = t - tr.seen > 3000, bad = [];
+      if (lost) bad.push(hxOf(tr.x) > .9 || tr.x < .03 || tr.x > .97 || tr.y < .05 || tr.y > .95 ? 'went in a pocket or off the table' : 'lost by the camera');
+      if (!lost && !tr.foot) bad.push("didn't reach the foot rail");
+      if (tr.foot > 1) bad.push('hit the foot rail twice');
+      if (tr.cross) bad.push('crossed into the other half');
+      if (tr.rail) bad.push('touched a long rail');
+      return { d: lost ? null : Math.max(0, hxOf(tr.x) * LAGLEN - ballIn()), bad, camOnly: lost && !/pocket/.test(bad[0] || '') };
+    });
+    const ok = [0, 1].filter(k => !R[k].bad.length);
+    let w = -1, gap = 0;
+    if (ok.length === 2) { gap = Math.abs(R[0].d - R[1].d); w = gap < .5 ? -2 : R[0].d <= R[1].d ? 0 : 1; }
+    else if (ok.length === 1) w = ok[0];
+    L.res = { R, w, gap, ok: ok.length };
+  }
+  // Worded when shown, so swapping sides afterwards renames it correctly. w: track index, -1 both lost, -2 too close.
+  function lagWhy(res){
+    let t = res.w === -2 ? `Only ${res.gap.toFixed(1)} in apart: too close for the camera to call. Check by eye, or lag again.`
+      : res.w === -1 ? 'Both balls broke a lag rule: lag again.'
+      : `${side(lagWho(res.w))} wins the lag. ` + (res.ok === 2 ? `${res.gap.toFixed(1)} in closer to the head rail.` : `${side(lagWho(1 - res.w))}'s ball ${res.R[1 - res.w].bad[0]}.`);
+    if (res.R.some(r => r.camOnly)) t += ' The camera lost a ball, so check it.';
+    return t;
+  }
+  function lagUI(){
+    const L = lag; if (!L) return;
+    const stat = { wait: 'Put one ball behind the head string on each side of the table.', ready: 'Ready. Shoot together.', rolling: 'Watching the balls…' };
+    const res = L.res;
+    $('lgStat').textContent = L.phase === 'done' ? lagWhy(res) : stat[L.phase];
+    for (const k of [0, 1]) {
+      const el = $('lgP' + k), i = lagWho(k), tr = L.tr[k], r = res && res.R[k];
+      el.children[0].style.background = LAGC[k];
+      el.children[1].textContent = `${side(i)} · ${k === 0 ? 'top' : 'bottom'} half`;
+      el.children[2].textContent = r ? (r.d == null ? '—' : r.d.toFixed(1) + '″') : tr ? Math.max(0, hxOf(tr.x) * LAGLEN - ballIn()).toFixed(0) + '″' : '—';
+      el.children[3].textContent = r ? (r.bad.length ? r.bad.join(', ') : 'Legal lag') : tr ? (L.phase === 'rolling' ? (tr.foot ? 'Hit the foot rail' : 'Heading to the foot rail') : 'In place') : 'No ball found';
+      el.children[3].className = r && r.bad.length ? 'bad' : '';
+      el.classList.toggle('won', !!res && res.w === k);
+    }
+    $('lgHead').textContent = `Head rail: ${lagCfg.headLeft ? '◀ left' : 'right ▶'}`;
+    for (const i of [0, 1]) $('lgW' + i).classList.toggle('primary', !!res && res.w >= 0 && lagWho(res.w) === i);
+  }
+  function lagDraw(){
+    const c = $('lagCan'); if (c.hidden || !lag) return;
+    const r = viewRect(), k = devicePixelRatio || 1;
+    c.width = Math.round(r.b.width * k); c.height = Math.round(r.b.height * k);
+    const x = c.getContext('2d'); x.setTransform(k, 0, 0, k, 0, 0); x.clearRect(0, 0, r.b.width, r.b.height);
+    const P = (u, v) => [r.x + (lagCfg.headLeft ? u : 1 - u) * r.w, r.y + v * r.h];         // u: 0 head rail .. 1 foot rail
+    x.lineWidth = 4; x.strokeStyle = '#f2c14e'; x.beginPath(); x.moveTo(...P(0, 0)); x.lineTo(...P(0, 1)); x.stroke();
+    x.lineWidth = 1.5; x.setLineDash([6, 6]); x.strokeStyle = 'rgba(255,255,255,.55)';
+    x.beginPath(); x.moveTo(...P(.25, 0)); x.lineTo(...P(.25, 1)); x.moveTo(...P(0, .5)); x.lineTo(...P(1, .5)); x.stroke(); x.setLineDash([]);
+    x.font = '700 12px system-ui'; x.fillStyle = '#f2c14e'; x.textAlign = lagCfg.headLeft ? 'left' : 'right';
+    x.fillText('HEAD RAIL', P(0, 0)[0] + (lagCfg.headLeft ? 6 : -6), r.y + 16);
+    const rad = Math.max(7, r.h * 2.25 / 50 / 2 + 3), res = lag.res;
+    lag.tr.forEach((tr, k) => {
+      if (!tr) return;
+      const [px, py] = [r.x + tr.x * r.w, r.y + tr.y * r.h], won = res && res.w === k;
+      x.lineWidth = won ? 5 : 3; x.strokeStyle = won ? '#f2c14e' : LAGC[k];
+      x.beginPath(); x.arc(px, py, rad + (won ? 3 : 0), 0, 7); x.stroke();
+      const d = Math.max(0, hxOf(tr.x) * LAGLEN - ballIn());
+      // measuring line to the head rail
+      x.lineWidth = 1.5; x.setLineDash([3, 4]); x.strokeStyle = LAGC[k]; x.beginPath(); x.moveTo(px, py); x.lineTo(lagCfg.headLeft ? r.x : r.x + r.w, py); x.stroke(); x.setLineDash([]);
+      x.fillStyle = '#fff'; x.textAlign = 'center'; x.font = '700 13px system-ui';
+      x.fillText(`${short(side(lagWho(k)))} ${d.toFixed(1)}″`, px, py + (tr.y < .5 ? rad + 16 : -rad - 8));
+    });
+    if (lag.phase === 'wait') (lag.B || []).forEach(b => { x.strokeStyle = 'rgba(255,255,255,.5)'; x.lineWidth = 1.5; x.beginPath(); x.arc(r.x + b.x * r.w, r.y + b.y * r.h, rad, 0, 7); x.stroke(); });
+  }
+  // Coin flip: one player calls it in the air.
+  let flipCaller = -1, flipBusy = false, flipTurns = 0;
+  function flipReset(){ flipCaller = -1; $('flipStat').textContent = 'Who calls it?'; $('flipWho').hidden = false; $('flipCall').hidden = true; }
+  $('flipWho').onclick = e => { const b = e.target.closest('button'); if (!b) return; flipCaller = +b.dataset.i; $('flipStat').textContent = `${side(flipCaller)}, call it:`; $('flipWho').hidden = true; $('flipCall').hidden = false; };
+  $('flipCall').onclick = e => {
+    const b = e.target.closest('button'); if (!b || flipBusy) return;
+    const call = b.dataset.c, heads = crypto.getRandomValues(new Uint8Array(1))[0] < 128;
+    flipBusy = true; $('flipCall').hidden = true; $('flipStat').textContent = `${side(flipCaller)} called ${call === 'H' ? 'heads' : 'tails'}…`;
+    flipTurns += 5; $('coin').style.transform = `rotateY(${flipTurns * 360 + (heads ? 0 : 180)}deg)`;
+    setTimeout(() => {
+      flipBusy = false; flipTurns += heads ? 0 : .5; flipTurns = Math.ceil(flipTurns);
+      const w = (call === 'H') === heads ? flipCaller : 1 - flipCaller;
+      $('flipStat').textContent = `${heads ? 'Heads' : 'Tails'}! ${side(w)} wins the toss.`;
+      lagChoose(w, 'toss');
+    }, 1500);
+  };
+  function lagChoose(w, what){
+    lagWin = w; $('lgChoose').hidden = false;
+    $('lgWon').textContent = `${side(w)} won the ${what}: break, or give the break to ${side(1 - w)}?`;
+    $('lgBreak').textContent = `${short(side(w))} breaks`; $('lgGive').textContent = `${short(side(1 - w))} breaks`;
+  }
+  $('lagBtn').onclick = lagOpen;
+  $('lgModeLag').onclick = () => { $('lgChoose').hidden = true; lagMode('lag'); };
+  $('lgModeFlip').onclick = () => { $('lgChoose').hidden = true; lagMode('flip'); };
+  $('lgW0').onclick = () => { lagStop(); lagChoose(0, 'lag'); };
+  $('lgW1').onclick = () => { lagStop(); lagChoose(1, 'lag'); };
+  $('lgAgain').onclick = () => { $('lgChoose').hidden = true; lagMode('lag'); };
+  $('lgHead').onclick = () => { lagCfg.headLeft = !lagCfg.headLeft; saveLagCfg(); lagUI(); lagDraw(); };
+  $('lgSides').onclick = () => { lagCfg.topIs = 1 - lagCfg.topIs; saveLagCfg(); lagUI(); lagDraw(); };
+  $('lgBreak').onclick = () => { setBreak(lagWin); lagClose(); };
+  $('lgGive').onclick = () => { setBreak(1 - lagWin); lagClose(); };
+  $('lgClose').onclick = lagClose;
+  addEventListener('resize', () => { if (lagLive) lagDraw(); });
+
   const renderBase = render;
-  render = function(){ renderBase(); try { lineTick(); paintLineCard(); if (!$('shareSheet').hidden) paintLine(); } catch {} try { onScoreChange(); } catch {} try { paintDock(); } catch {} };
+  render = function(){ renderBase();
+    { const start = winner(scores()) < 0 && st.racks.length === st.pairStart && st.turns === 0; $('lagBtn').hidden = !start; $('swap').hidden = start; }
+    try { lineTick(); paintLineCard(); if (!$('shareSheet').hidden) paintLine(); } catch {} try { onScoreChange(); } catch {} try { paintDock(); } catch {} };
 
   render(); drawClock(); save(); connect(); statusTick(); listenWait();
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} openSetup(); }
