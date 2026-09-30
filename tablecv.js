@@ -328,7 +328,7 @@
         const handOnCue = cue && this.handNear(cue, occ);
         if (handOnCue) { this.handUntil = t + 900; if (this.onHand) this.onHand({ t, x: cue.x, y: cue.y }); }
         if (cue && cue.v > this.o.move && cue.prevStill && t - cue.prevStill > 500 && !(this.handUntil > t)) {
-          this.shot = { t0: t, cueFrom: { x: cue.x, y: cue.y }, first: null, moved: new Set(), stillAtStart: new Set(this.tracks.filter(tr => tr !== cue && tr.v < this.o.move).map(tr => tr.id))   /* compressed video jitters: 'not moving' is enough */, cueId: cue.id };
+          this.shot = { t0: t, cueFrom: { x: cue.x, y: cue.y }, first: null, n0: (this.last && this.last.balls ? this.last.balls.length : 0), moved: new Set(), stillAtStart: new Set(this.tracks.filter(tr => tr !== cue && tr.v < this.o.move).map(tr => tr.id))   /* compressed video jitters: 'not moving' is enough */, cueId: cue.id };
           this.quietFrom = 0;
         }
         // Fallback when the cue ball isn't recognised as the cue ball (ivory under this light, a cap-up stripe…):
@@ -337,7 +337,7 @@
           const movers = this.tracks.filter(tr => tr.seen === t && tr.v > this.o.move && tr.prevStill && t - tr.prevStill > 500);
           if (movers.length === 1 && !this.handNear(movers[0], occ)) {
             const m = movers[0];
-            this.shot = { t0: t, cueFrom: { x: m.x, y: m.y }, first: null, moved: new Set(), stillAtStart: new Set(this.tracks.filter(tr => tr !== m && tr.v < this.o.move).map(tr => tr.id)), cueId: m.id, guessedCue: m.cls !== 'cue' };
+            this.shot = { t0: t, cueFrom: { x: m.x, y: m.y }, first: null, n0: (this.last && this.last.balls ? this.last.balls.length : 0), moved: new Set(), stillAtStart: new Set(this.tracks.filter(tr => tr !== m && tr.v < this.o.move).map(tr => tr.id)), cueId: m.id, guessedCue: m.cls !== 'cue' };
             this.quietFrom = 0;
           }
         }
@@ -393,11 +393,22 @@
         // Balls that vanished during the shot next to a pocket were pocketed.
         const pocketed = [];
         let scratch = false, cuePocket = -1;
+        // A fast ball is often last seen well before the pocket, so a ball that moved and then vanished (with no
+        // hand or cue over it) counts too, in the nearest pocket, as long as the table really has that many fewer balls.
+        const cand = [];
         for (const tr of this.tracks) {
-          if (t - tr.seen < this.o.gone || tr.seen < s.t0) continue;
-          const pk = POCKETS.findIndex(([px2, py]) => Math.hypot(tr.x - px2, (tr.y - py) * .5) < this.o.pocketR);
-          if (pk < 0 || nearOcc(tr)) continue;
-          if (tr.id === s.cueId) { scratch = true; cuePocket = pk; } else pocketed.push({ cls: tr.cls, num: tr.num, pocket: pk, bank: !!(s.cush && s.cush.has(tr.id)) });
+          if (t - tr.seen < this.o.gone || tr.seen < s.t0 || nearOcc(tr)) continue;
+          let pk = -1, d = 9; POCKETS.forEach(([px2, py], k) => { const dd = Math.hypot(tr.x - px2, (tr.y - py) * .5); if (dd < d) { d = dd; pk = k; } });
+          const strict = d < this.o.pocketR, moved = tr.id === s.cueId || s.moved.has(tr.id);
+          if (strict || (moved && d < .35)) cand.push({ tr, pk, d, strict });
+        }
+        const fewer = Math.max(0, (s.n0 || 0) - ((this.last && this.last.balls) ? this.last.balls.length : 0));
+        cand.sort((a, b) => (b.strict - a.strict) || (a.d - b.d));
+        let loose = 0;
+        for (const c of cand) {
+          if (!c.strict && loose >= fewer) continue; if (!c.strict) loose++;
+          const tr = c.tr;
+          if (tr.id === s.cueId) { scratch = true; cuePocket = c.pk; } else pocketed.push({ cls: tr.cls, num: tr.num, pocket: c.pk, bank: !!(s.cush && s.cush.has(tr.id)), sure: c.strict });
           tr.pocketed = true;
         }
         this.tracks = this.tracks.filter(tr => !tr.pocketed);
