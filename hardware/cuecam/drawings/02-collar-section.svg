@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1580" height="840" viewBox="0 0 1580 840" font-family="'Helvetica Neue',Helvetica,Arial,sans-serif">
+<title>CueCam 02 - camera collar, longitudinal section</title>
+<defs>
+<marker id="a" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+  <path d="M0,0 L9,4.5 L0,9 z" fill="#5b6478"/></marker>
+<marker id="ab" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+  <path d="M0,0 L9,4.5 L0,9 z" fill="#2f6bff"/></marker>
+<marker id="as" markerWidth="9" markerHeight="9" refX="1" refY="4.5" orient="auto">
+  <path d="M9,0 L0,4.5 L9,9 z" fill="#5b6478"/></marker>
+<pattern id="hatch" width="7" height="7" patternTransform="rotate(45)"
+         patternUnits="userSpaceOnUse">
+  <line x1="0" y1="0" x2="0" y2="7" stroke="#2b3240" stroke-width="1.6" opacity="0.55"/>
+</pattern>
+<pattern id="hatch2" width="6" height="6" patternTransform="rotate(-45)"
+         patternUnits="userSpaceOnUse">
+  <line x1="0" y1="0" x2="0" y2="6" stroke="#aab3c4" stroke-width="2" opacity="0.9"/>
+</pattern>
+<pattern id="hatch3" width="5" height="5" patternTransform="rotate(45)"
+         patternUnits="userSpaceOnUse">
+  <line x1="0" y1="0" x2="0" y2="5" stroke="#c9760f" stroke-width="1.6" opacity="0.6"/>
+</pattern>
+<linearGradient id="cf" x1="0" y1="0" x2="0" y2="1">
+  <stop offset="0" stop-color="#4a5568"/><stop offset="0.35" stop-color="#1c2331"/>
+  <stop offset="0.62" stop-color="#2c3648"/><stop offset="1" stop-color="#0d1219"/>
+</linearGradient>
+<linearGradient id="cf2" x1="0" y1="0" x2="0" y2="1">
+  <stop offset="0" stop-color="#57637a"/><stop offset="0.4" stop-color="#232c3b"/>
+  <stop offset="1" stop-color="#0b0f16"/></linearGradient>
+<linearGradient id="alu" x1="0" y1="0" x2="0" y2="1">
+  <stop offset="0" stop-color="#e8ecf3"/><stop offset="0.45" stop-color="#b3bccd"/>
+  <stop offset="1" stop-color="#7e8798"/></linearGradient>
+</defs>
+<rect x="0.00" y="0.00" width="1580.00" height="840.00" rx="0" fill="#ffffff" stroke="none" stroke-width="1"/>
+<text x="34.00" y="44.00" font-size="22" fill="#141a26" font-weight="700" text-anchor="start">CueCam 02 - camera collar, longitudinal section</text>
+<text x="34.00" y="68.00" font-size="13" fill="#5b6478" font-weight="400" text-anchor="start">Section through the 1/3 station, scale 7:1. Cartridge shown home and locked. Tip is off-sheet to the left.</text>
+<polygon points="330.00,355.99 344.00,355.88 358.00,355.77 372.00,355.66 386.00,355.55 400.00,355.44 414.00,355.33 428.00,355.27 442.00,354.86 456.00,353.72 470.00,351.69 484.00,348.78 498.00,345.13 512.00,340.98 526.00,336.62 540.00,332.38 554.00,328.55 568.00,325.40 582.00,323.10 596.00,321.70 610.00,321.10 624.00,321.00 638.00,321.00 652.00,321.00 666.00,321.00 680.00,321.00 694.00,321.00 708.00,321.00 722.00,321.00 736.00,321.00 750.00,321.00 764.00,321.00 778.00,321.00 792.00,321.00 806.00,321.00 820.00,321.00 834.00,321.00 848.00,321.00 862.00,321.00 876.00,321.00 890.00,321.00 904.00,321.00 918.00,321.00 932.00,321.00 946.00,321.00 960.00,321.00 974.00,321.00 988.00,321.04 1002.00,321.28 1016.00,321.86 1030.00,322.86 1044.00,324.31 1058.00,326.18 1072.00,328.42 1086.00,330.94 1100.00,333.64 1114.00,336.40 1128.00,339.10 1142.00,341.63 1156.00,343.86 1170.00,345.74 1184.00,347.18 1198.00,348.18 1212.00,348.76 1226.00,349.00 1240.00,349.04 1254.00,348.93 1254.00,362.93 1240.00,363.04 1226.00,363.00 1212.00,362.76 1198.00,362.18 1184.00,361.18 1170.00,359.74 1156.00,357.86 1142.00,355.63 1128.00,353.10 1114.00,350.40 1100.00,347.64 1086.00,344.94 1072.00,337.80 1058.00,337.80 1044.00,337.80 1030.00,337.80 1016.00,337.80 1002.00,337.80 988.00,337.80 974.00,337.80 960.00,337.80 946.00,337.80 932.00,337.80 918.00,337.80 904.00,337.80 890.00,337.80 876.00,337.80 862.00,337.80 848.00,337.80 834.00,337.80 820.00,337.80 806.00,337.80 792.00,337.80 778.00,337.80 764.00,337.80 750.00,337.80 736.00,337.80 722.00,337.80 708.00,337.80 694.00,337.80 680.00,337.80 666.00,337.80 652.00,337.80 638.00,337.80 624.00,337.80 610.00,337.80 596.00,337.80 582.00,337.80 568.00,337.80 554.00,337.80 540.00,337.80 526.00,337.80 512.00,337.80 498.00,337.80 484.00,362.78 470.00,365.69 456.00,367.72 442.00,368.60 428.00,368.60 414.00,368.60 400.00,368.60 386.00,368.60 372.00,368.60 358.00,368.60 344.00,368.60 330.00,368.60" fill="url(#hatch)" stroke="#141a26" stroke-width="1.4"/>
+<polygon points="330.00,454.01 344.00,454.12 358.00,454.23 372.00,454.34 386.00,454.45 400.00,454.56 414.00,454.67 428.00,454.73 442.00,455.14 456.00,456.28 470.00,458.31 484.00,461.22 498.00,464.87 512.00,469.02 526.00,473.38 540.00,477.62 554.00,481.45 568.00,484.60 582.00,486.90 596.00,488.30 610.00,488.90 624.00,489.00 638.00,489.00 652.00,489.00 666.00,489.00 680.00,489.00 694.00,489.00 708.00,489.00 722.00,489.00 736.00,489.00 750.00,489.00 764.00,489.00 778.00,489.00 792.00,489.00 806.00,489.00 820.00,489.00 834.00,489.00 848.00,489.00 862.00,489.00 876.00,489.00 890.00,489.00 904.00,489.00 918.00,489.00 932.00,489.00 946.00,489.00 960.00,489.00 974.00,489.00 988.00,488.96 1002.00,488.72 1016.00,488.14 1030.00,487.14 1044.00,485.69 1058.00,483.82 1072.00,481.58 1086.00,479.06 1100.00,476.36 1114.00,473.60 1128.00,470.90 1142.00,468.37 1156.00,466.14 1170.00,464.26 1184.00,462.82 1198.00,461.82 1212.00,461.24 1226.00,461.00 1240.00,460.96 1254.00,461.07 1254.00,447.07 1240.00,446.96 1226.00,447.00 1212.00,447.24 1198.00,447.82 1184.00,448.82 1170.00,450.26 1156.00,452.14 1142.00,454.37 1128.00,456.90 1114.00,459.60 1100.00,462.36 1086.00,465.06 1072.00,472.20 1058.00,472.20 1044.00,472.20 1030.00,472.20 1016.00,472.20 1002.00,472.20 988.00,472.20 974.00,472.20 960.00,472.20 946.00,472.20 932.00,472.20 918.00,472.20 904.00,472.20 890.00,472.20 876.00,472.20 862.00,472.20 848.00,472.20 834.00,472.20 820.00,472.20 806.00,472.20 792.00,472.20 778.00,472.20 764.00,472.20 750.00,472.20 736.00,472.20 722.00,472.20 708.00,472.20 694.00,472.20 680.00,472.20 666.00,472.20 652.00,472.20 638.00,472.20 624.00,472.20 610.00,472.20 596.00,472.20 582.00,472.20 568.00,472.20 554.00,472.20 540.00,472.20 526.00,472.20 512.00,472.20 498.00,472.20 484.00,447.22 470.00,444.31 456.00,442.28 442.00,441.40 428.00,441.40 414.00,441.40 400.00,441.40 386.00,441.40 372.00,441.40 358.00,441.40 344.00,441.40 330.00,441.40" fill="url(#hatch)" stroke="#141a26" stroke-width="1.4"/>
+<line x1="302.00" y1="405.00" x2="1282.00" y2="405.00" stroke="#98a2b6" stroke-width="0.9" stroke-dasharray="14 4 3 4"/>
+<text x="316.00" y="399.00" font-size="11" fill="#98a2b6" font-weight="400" text-anchor="end">◀ to tip</text>
+<rect x="337.00" y="339.20" width="133.00" height="131.60" rx="0" fill="url(#alu)" stroke="#141a26" stroke-width="1.2"/>
+<rect x="351.00" y="370.70" width="91.00" height="68.60" rx="0" fill="#ffffff" stroke="#141a26" stroke-width="1"/>
+<line x1="354.50" y1="370.70" x2="362.20" y2="439.30" stroke="#141a26" stroke-width="0.7"/>
+<line x1="365.00" y1="370.70" x2="372.70" y2="439.30" stroke="#141a26" stroke-width="0.7"/>
+<line x1="375.50" y1="370.70" x2="383.20" y2="439.30" stroke="#141a26" stroke-width="0.7"/>
+<line x1="386.00" y1="370.70" x2="393.70" y2="439.30" stroke="#141a26" stroke-width="0.7"/>
+<line x1="396.50" y1="370.70" x2="404.20" y2="439.30" stroke="#141a26" stroke-width="0.7"/>
+<line x1="407.00" y1="370.70" x2="414.70" y2="439.30" stroke="#141a26" stroke-width="0.7"/>
+<line x1="417.50" y1="370.70" x2="425.20" y2="439.30" stroke="#141a26" stroke-width="0.7"/>
+<line x1="428.00" y1="370.70" x2="435.70" y2="439.30" stroke="#141a26" stroke-width="0.7"/>
+<line x1="438.50" y1="370.70" x2="446.20" y2="439.30" stroke="#141a26" stroke-width="0.7"/>
+<rect x="547.00" y="342.00" width="476.00" height="126.00" rx="5" fill="#fdf1f9" stroke="#c81fa8" stroke-width="1.7"/>
+<rect x="556.10" y="351.10" width="457.80" height="107.80" rx="4" fill="#ffe4f5" stroke="#c81fa8" stroke-width="1" stroke-dasharray="4 3"/>
+<rect x="571.50" y="398.70" width="322.00" height="12.60" rx="0" fill="#0e9c58" stroke="#141a26" stroke-width="0.8"/>
+<rect x="578.50" y="358.80" width="63.00" height="40.60" rx="0" fill="#20293a" stroke="#141a26" stroke-width="1"/>
+<rect x="551.20" y="319.60" width="42.00" height="35.00" rx="0" fill="#2b3648" stroke="#141a26" stroke-width="1"/>
+<rect x="542.10" y="321.00" width="11.20" height="32.20" rx="0" fill="#cfe4ff" stroke="#2f6bff" stroke-width="1.6"/>
+<line x1="554.00" y1="337.10" x2="344.00" y2="337.10" stroke="#2f6bff" stroke-width="1.4" stroke-dasharray="9 5"/>
+<line x1="554.00" y1="337.10" x2="344.00" y2="341.10" stroke="#cf2f3d" stroke-width="1.1" stroke-dasharray="4 4"/>
+<text x="350.00" y="328.10" font-size="10.5" fill="#2f6bff" font-weight="400" text-anchor="start">optical axis</text>
+<text x="350.00" y="359.10" font-size="10.5" fill="#cf2f3d" font-weight="400" text-anchor="start">0.67° tilt limit</text>
+<rect x="743.00" y="412.00" width="182.00" height="39.20" rx="0" fill="#e8eefc" stroke="#141a26" stroke-width="1"/>
+<text x="834.00" y="427.40" font-size="10" fill="#5b6478" font-weight="400" text-anchor="middle">LiPo</text>
+<rect x="890.00" y="370.00" width="98.00" height="16.80" rx="0" fill="#f6f0d8" stroke="#141a26" stroke-width="1"/>
+<rect x="1037.00" y="328.00" width="56.00" height="154.00" rx="0" fill="url(#hatch2)" stroke="#141a26" stroke-width="1.3"/>
+<path d="M1023.0,358.8 l9.8,-15.4 l9.8,15.4 l9.8,-15.4 l9.8,15.4 l9.8,-15.4 l9.8,15.4 l9.8,-15.4 l9.8,15.4" fill="none" stroke="#141a26" stroke-width="1.6"/>
+<circle cx="1079.00" cy="465.20" r="2.60" fill="#ffffff" stroke="#141a26" stroke-width="1.1"/>
+<circle cx="358.00" cy="363.00" r="2.40" fill="#5b6478" stroke="none" stroke-width="1"/>
+<path d="M358.00,363.00 L326.00,138.00 L300.00,138.00" fill="none" stroke="#5b6478" stroke-width="0.9"/>
+<text x="293.00" y="142.00" font-size="11.5" fill="#5b6478" font-weight="700" text-anchor="end">joint 1 female socket</text>
+<text x="293.00" y="156.00" font-size="11.5" fill="#5b6478" font-weight="400" text-anchor="end">6061, 3/8-10 radial pin</text>
+<circle cx="547.70" cy="304.90" r="2.40" fill="#5b6478" stroke="none" stroke-width="1"/>
+<path d="M547.70,304.90 L326.00,224.00 L300.00,224.00" fill="none" stroke="#5b6478" stroke-width="0.9"/>
+<text x="293.00" y="228.00" font-size="11.5" fill="#5b6478" font-weight="700" text-anchor="end">sapphire window 6 x 4 x 0.8</text>
+<text x="293.00" y="242.00" font-size="11.5" fill="#5b6478" font-weight="400" text-anchor="end">bonded flush with the barrel</text>
+<circle cx="571.50" cy="302.10" r="2.40" fill="#5b6478" stroke="none" stroke-width="1"/>
+<path d="M571.50,302.10 L326.00,320.00 L300.00,320.00" fill="none" stroke="#5b6478" stroke-width="0.9"/>
+<text x="293.00" y="324.00" font-size="11.5" fill="#5b6478" font-weight="700" text-anchor="end">1/4&quot; sensor + M12 lens, 150°</text>
+<text x="293.00" y="338.00" font-size="11.5" fill="#5b6478" font-weight="400" text-anchor="end">axis PARALLEL to the cue - max</text>
+<text x="293.00" y="352.00" font-size="11.5" fill="#5b6478" font-weight="400" text-anchor="end">down-tilt 0.67° before the shaft</text>
+<text x="293.00" y="366.00" font-size="11.5" fill="#5b6478" font-weight="400" text-anchor="end">blocks it (tools/optics.py)</text>
+<circle cx="701.00" cy="392.40" r="2.40" fill="#5b6478" stroke="none" stroke-width="1"/>
+<path d="M701.00,392.40 L326.00,440.00 L300.00,440.00" fill="none" stroke="#5b6478" stroke-width="0.9"/>
+<text x="293.00" y="444.00" font-size="11.5" fill="#5b6478" font-weight="700" text-anchor="end">camera PCB, 16 mm wide</text>
+<text x="293.00" y="458.00" font-size="11.5" fill="#5b6478" font-weight="400" text-anchor="end">long-and-thin is what keeps</text>
+<text x="293.00" y="472.00" font-size="11.5" fill="#5b6478" font-weight="400" text-anchor="end">the collar down to ⌀24</text>
+<circle cx="911.00" cy="351.10" r="2.40" fill="#5b6478" stroke="none" stroke-width="1"/>
+<path d="M911.00,351.10 L1242.00,150.00 L1268.00,150.00" fill="none" stroke="#5b6478" stroke-width="0.9"/>
+<text x="1275.00" y="154.00" font-size="11.5" fill="#5b6478" font-weight="700" text-anchor="start">TPU 95A shock boot</text>
+<text x="1275.00" y="168.00" font-size="11.5" fill="#5b6478" font-weight="400" text-anchor="start">1.2 mm wall, 20% gyroid</text>
+<circle cx="834.00" cy="392.40" r="2.40" fill="#5b6478" stroke="none" stroke-width="1"/>
+<path d="M834.00,392.40 L1242.00,236.00 L1268.00,236.00" fill="none" stroke="#5b6478" stroke-width="0.9"/>
+<text x="1275.00" y="240.00" font-size="11.5" fill="#5b6478" font-weight="700" text-anchor="start">LiPo 402040, 400 mAh</text>
+<text x="1275.00" y="254.00" font-size="11.5" fill="#5b6478" font-weight="400" text-anchor="start">captive pocket - never taped</text>
+<circle cx="939.00" cy="361.60" r="2.40" fill="#5b6478" stroke="none" stroke-width="1"/>
+<path d="M939.00,361.60 L1242.00,322.00 L1268.00,322.00" fill="none" stroke="#5b6478" stroke-width="0.9"/>
+<text x="1275.00" y="326.00" font-size="11.5" fill="#5b6478" font-weight="700" text-anchor="start">microSD, push-push</text>
+<text x="1275.00" y="340.00" font-size="11.5" fill="#5b6478" font-weight="400" text-anchor="start">+ printed retainer clip</text>
+<circle cx="1065.00" cy="328.00" r="2.40" fill="#5b6478" stroke="none" stroke-width="1"/>
+<path d="M1065.00,328.00 L1242.00,408.00 L1268.00,408.00" fill="none" stroke="#5b6478" stroke-width="0.9"/>
+<text x="1275.00" y="412.00" font-size="11.5" fill="#5b6478" font-weight="700" text-anchor="start">bayonet ring + ejector</text>
+<text x="1275.00" y="426.00" font-size="11.5" fill="#5b6478" font-weight="400" text-anchor="start">spring - see drawing 05</text>
+<circle cx="1079.00" cy="465.20" r="2.40" fill="#5b6478" stroke="none" stroke-width="1"/>
+<path d="M1079.00,465.20 L1242.00,494.00 L1268.00,494.00" fill="none" stroke="#5b6478" stroke-width="0.9"/>
+<text x="1275.00" y="498.00" font-size="11.5" fill="#5b6478" font-weight="700" text-anchor="start">0.8 mm vent, PTFE membrane</text>
+<text x="1275.00" y="512.00" font-size="11.5" fill="#5b6478" font-weight="400" text-anchor="start">stops the pod pumping dust</text>
+<circle cx="1002.00" cy="489.00" r="2.20" fill="#2f6bff" stroke="none" stroke-width="1"/>
+<path d="M1002.00,489.00 L1002.00,527.00" fill="none" stroke="#2f6bff" stroke-width="0.9"/>
+<text x="997.00" y="531.00" font-size="11.5" fill="#2f6bff" font-weight="400" text-anchor="middle">⌀24.0 collar OD</text>
+<circle cx="652.00" cy="472.20" r="2.20" fill="#5b6478" stroke="none" stroke-width="1"/>
+<path d="M652.00,472.20 L225.00,527.00" fill="none" stroke="#5b6478" stroke-width="0.9"/>
+<text x="220.00" y="531.00" font-size="11.5" fill="#5b6478" font-weight="400" text-anchor="middle">⌀19.2 bore</text>
+<line x1="418.20" y1="568.00" x2="418.20" y2="578.00" stroke="#5b6478" stroke-width="1"/>
+<line x1="1240.00" y1="568.00" x2="1240.00" y2="578.00" stroke="#5b6478" stroke-width="1"/>
+<line x1="418.20" y1="573.00" x2="1240.00" y2="573.00" stroke="#5b6478" stroke-width="1" marker-start="url(#as)" marker-end="url(#a)"/>
+<text x="829.10" y="566.00" font-size="11.5" fill="#5b6478" font-weight="400" text-anchor="middle">117.4 mm collar length</text>
+<line x1="540.00" y1="604.00" x2="540.00" y2="614.00" stroke="#5b6478" stroke-width="1"/>
+<line x1="1030.00" y1="604.00" x2="1030.00" y2="614.00" stroke="#5b6478" stroke-width="1"/>
+<line x1="540.00" y1="609.00" x2="1030.00" y2="609.00" stroke="#5b6478" stroke-width="1" marker-start="url(#as)" marker-end="url(#a)"/>
+<text x="785.00" y="602.00" font-size="11.5" fill="#5b6478" font-weight="400" text-anchor="middle">70.0 mm cartridge bay</text>
+<rect x="300.00" y="676.00" width="690.00" height="130.00" rx="8" fill="#f7f9fc" stroke="#e6eaf2" stroke-width="1.2"/>
+<text x="312.00" y="696.00" font-size="12.5" fill="#141a26" font-weight="700" text-anchor="start">Collar diameter is the whole design fight</text>
+<text x="312.00" y="734.00" font-size="11.5" fill="#5b6478" font-weight="400" text-anchor="start">The cue is only ⌀14.2 mm at this station, so any camera makes a bump. How big</text>
+<text x="312.00" y="750.00" font-size="11.5" fill="#5b6478" font-weight="400" text-anchor="start">is set by the WIDEST dimension of the electronics, not by the sensor:</text>
+<text x="312.00" y="766.00" font-size="11.5" fill="#5b6478" font-weight="400" text-anchor="start">    16 mm custom PCB, stood on edge   →  ⌀24.0 mm collar   (this drawing)</text>
+<text x="312.00" y="782.00" font-size="11.5" fill="#5b6478" font-weight="400" text-anchor="start">    19 mm RunCam Thumb Pro, de-cased  →  ⌀29.0 mm collar   (fast path)</text>
+<text x="312.00" y="798.00" font-size="11.5" fill="#5b6478" font-weight="400" text-anchor="start">    21 mm cased action camera        →  ⌀33 mm - unplayable, don&#x27;t</text>
+<text x="312.00" y="814.00" font-size="11.5" fill="#5b6478" font-weight="400" text-anchor="start">POD_OD is a parameter in cad/collar.scad. Print whichever you are building.</text>
+<rect x="1020.00" y="676.00" width="540.00" height="130.00" rx="8" fill="#f7f9fc" stroke="#e6eaf2" stroke-width="1.2"/>
+<text x="1032.00" y="696.00" font-size="12.5" fill="#141a26" font-weight="700" text-anchor="start">Shock case</text>
+<text x="1032.00" y="734.00" font-size="11.5" fill="#5b6478" font-weight="400" text-anchor="start">Tip-to-ball contact lasts about 1 ms and takes the cue from</text>
+<text x="1032.00" y="750.00" font-size="11.5" fill="#5b6478" font-weight="400" text-anchor="start">~7 m/s to ~2 m/s. That is roughly 500 g of axial deceleration,</text>
+<text x="1032.00" y="766.00" font-size="11.5" fill="#5b6478" font-weight="400" text-anchor="start">every shot, thousands of times. Nothing in the cartridge is</text>
+<text x="1032.00" y="782.00" font-size="11.5" fill="#5b6478" font-weight="400" text-anchor="start">held by tape or friction: the cell sits in a captive pocket, the</text>
+<text x="1032.00" y="798.00" font-size="11.5" fill="#5b6478" font-weight="400" text-anchor="start">card is retained, and the whole cartridge floats on the TPU boot.</text>
+<text x="1032.00" y="814.00" font-size="11.5" fill="#5b6478" font-weight="400" text-anchor="start">Bayonet lugs take the load in shear, not the detent.</text>
+</svg>
