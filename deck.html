@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930034409"><script src="stream.js"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930035322"><script src="stream.js"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -1540,7 +1540,11 @@
     if (!warper.draw(v, feedFlipped())) return false;
     const now = performance.now();
     if (!corners && !rawView && now - cornerT > 1500) { cornerT = now; autoCorners(v); }
-    if (refOn && corners && now - viewLast > 110) { viewLast = now; refTick(v); }
+    if (!viewTick.t0) viewTick.t0 = now;
+    // Table edges not found yet: after 15 s run the ref on the whole picture rather than stay quiet.
+    const fallback = !corners && now - viewTick.t0 > 15000;
+    if (fallback && !viewTick.fb) { viewTick.fb = true; smallW.setQuad(null); note('Ref is on. For best calls: ⊞ Table → Adjust corners.'); }
+    if (refOn && (corners || fallback) && now - viewLast > 110) { viewLast = now; refTick(v); }
     return true;
   }
   // Automatic corners: a few frames in a row must agree before the view switches over.
@@ -1589,8 +1593,9 @@
   // pop-up; with no answer it applies itself after a countdown. Every answer (and comment) is sent to
   // Claude with a picture of the shot, and nudges how sure the ref must be before it speaks up.
   const REFKEY = 'poolar-ref-params', FBTOPIC = 'poolar-ref-fb';
-  let refOn = true, refP = { gates: { scratch: .4, foul: .5, made: .4, turn: .3, eight: .5 }, autoSec: 12 };
-  try { const p = JSON.parse(localStorage.getItem(REFKEY)); if (p && p.gates) refP = { ...refP, ...p, gates: { ...refP.gates, ...p.gates } }; if (p && p.off) refOn = false; } catch {}
+  // Eager defaults (v2): speak up often while it learns; "No" answers raise a call's bar again.
+  let refOn = true, refP = { v: 2, gates: { scratch: .25, foul: .2, made: .25, turn: .2, eight: .3 }, autoSec: 12 };
+  try { const p = JSON.parse(localStorage.getItem(REFKEY)); if (p && p.v === 2 && p.gates) refP = { ...refP, ...p, gates: { ...refP.gates, ...p.gates } }; if (p && p.off) refOn = false; } catch {}
   if (VIEW) refOn = false;
   const saveRefP = () => { try { localStorage.setItem(REFKEY, JSON.stringify({ ...refP, off: !refOn })); } catch {} };
   const tracker = window.TableCV ? new TableCV.Tracker() : null;
@@ -1628,9 +1633,8 @@
         text: `${made.map(clsName).join(', ')} in. ${keep ? `${me} keeps shooting?` : `Not ${me}'s group → turn over to ${them}?`}`,
         apply: () => { markMade(nums); if (!keep) passTable(false); }, auto: keep ? 'Mark ball' : 'Turn over' };
     }
-    // Only call a turn over when the tracker saw the cue ball actually hit something: a shaky read
-    // must never end someone's turn by itself.
-    if (!sug && !ev.first) return;
+    // No hit seen: still ask, but never apply it by itself (a shaky read must not end a turn).
+    if (!sug && !ev.first) sug = { type: 'turn', conf: .45, balls: [], title: 'Turn over?', text: `Shot over, nothing of ${me}'s went in. ${them} to shoot?`, apply: () => passTable(false), auto: '', noAuto: true };
     if (!sug) sug = { type: 'turn', conf: .6, balls: [], title: 'Turn over?', text: `No ball made. ${them} to shoot.`, apply: () => passTable(false), auto: 'Turn over' };
     if (sug.conf < (refP.gates[sug.type] || .5)) return;       // not sure enough yet: stay quiet
     sug.ev = ev; sug.key = stateKey(); sug.shooter = i; sug.group = g || null;
@@ -1662,6 +1666,7 @@
       if (!pop || pop !== sug) return;
       $('refStop').hidden = !!sug.touched;
       if (sug.touched) { $('refAuto').textContent = 'Timer stopped. Pick an answer, comment, Submit.'; $('refBar').style.width = '0'; return; }
+      if (sug.noAuto) { $('refStop').hidden = true; $('refAuto').textContent = 'Not sure — tap Yes to apply, or No'; $('refBar').style.width = '0'; if (stateKey() !== sug.key) return closePop(); popT = setTimeout(tick, 500); return; }
       const left = T - (Date.now() - t0);
       if (stateKey() !== sug.key) return closePop();            // someone already tapped on the scoreboard
       if (left <= 0) { finish('auto'); return; }
@@ -1680,7 +1685,7 @@
   function finish(choice){
     const sug = pop; if (!sug) return; closePop();
     const comment = $('refC').value.trim();
-    if ((choice === 'yes' || choice === 'auto') && stateKey() === sug.key) sug.apply();
+    if ((choice === 'yes' || (choice === 'auto' && !sug.noAuto)) && stateKey() === sug.key) sug.apply();
     // Learn: a "No" makes the ref more cautious about that kind of call, a "Yes" slightly bolder.
     const g = refP.gates;
     if (choice === 'no') g[sug.type] = Math.min(.95, (g[sug.type] || .5) + .1);
