@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930224547"><script src="stream.js?v=20260930224547"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930230600"><script src="stream.js?v=20260930230600"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -217,6 +217,7 @@
   .reflog .it .a.yes{color:#57d98a} .reflog .it .a.no{color:#ff6b5e} .reflog .it .a.wait{color:var(--gold)}
   .refpop{position:absolute;right:8px;bottom:60px;z-index:6;width:min(460px,calc(100% - 16px));font-size:16px;background:rgba(12,20,17,.96);border:2px solid var(--gold);border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:8px;box-shadow:0 8px 30px rgba(0,0,0,.5);overflow:hidden}
   .replayb{width:100%;font:800 16px Barlow,system-ui,sans-serif!important;padding:11px!important;border-radius:10px;border:1px solid #5aa9ff;background:#0f2233;color:#cfe6ff;cursor:pointer}
+  .rsnaps{display:grid;grid-template-columns:1fr 1fr;gap:6px}.rsnaps img{width:100%;border-radius:8px;border:1px solid #26372f}
   .rfix{display:flex;flex-direction:column;gap:6px;border-top:1px solid #26372f;padding-top:6px}
   .rfix small{color:#8ea69a;font-size:13px}
   .rfixb{display:flex;flex-wrap:wrap;gap:6px}
@@ -430,6 +431,7 @@
       </div>
       <div class="refpop" id="refPop" hidden>
         <div class="rtop"><b id="refT"></b><span class="rballs" id="refBalls"></span></div>
+        <div class="rsnaps" id="refSnaps" hidden><img id="refPre" alt="Before"><img id="refPost" alt="After"></div>
         <img id="refSnap" alt="Contact frame" hidden style="width:100%;border-radius:8px;border:1px solid #26372f">
         <button type="button" class="replayb" id="refReplay">▶ Watch the shot again</button>
         <p id="refS"></p>
@@ -806,10 +808,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930224547"></script>
-<script src="halls.js?v=20260930224547"></script>
-<script src="qrcode.js?v=20260930224547"></script>
-<script src="tablecv.js?v=20260930224547"></script>
+<script src="hallday.js?v=20260930230600"></script>
+<script src="halls.js?v=20260930230600"></script>
+<script src="qrcode.js?v=20260930230600"></script>
+<script src="tablecv.js?v=20260930230600"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -1982,8 +1984,23 @@
     else if (back.length && objCount >= up.length + back.length) { act(() => { for (const n of back) { st.down = st.down.filter(x => x !== n); let j = -1; st.pots.forEach((e, k) => { if (+e.split('.')[0] === n) j = k; }); if (j >= 0) st.pots.splice(j, 1); } });
       back.forEach(n => scanSeen[n] = 0); flash(`Scan: ${back.join(', ')} is on the table → put back · Undo if wrong`); }
   } catch {} }, 1000);
+  // ---- Before / after: the table when it was last clear before the shot vs when it's clear again after ----
+  const tableClear = () => { const L = tracker && tracker.last; return !!L && !(L.occ || []).some(o => (o.x1 - o.x0) * (o.y1 - o.y0) > .004); };
+  const tableRead = label => { const L = tracker.last, balls = L.balls;
+    const nums = balls.filter(b => b.num && b.cls !== 'cluster').map(b => b.num), clumps = balls.filter(b => b.cls === 'cluster').reduce((a, b) => a + (b.n || 2), 0);
+    return { t: performance.now(), img: snapTable(null, label), nums: [...new Set(nums)], cue: balls.some(b => b.cls === 'cue'), count: balls.filter(b => b.cls !== 'cue' && b.cls !== 'cluster').length + clumps, clumps }; };
+  let clearHist = [];
+  setInterval(() => { try { if (!tracker || !tracker.last || tracker.shot || !feedLive || !tableClear()) return;
+    clearHist.push(tableRead('BEFORE the shot')); if (clearHist.length > 4) clearHist.shift(); } catch {} }, 700);
   if (tracker) tracker.onShot = ev => { shotsSeen++; lastShotAt = Date.now(); shotSnaps.end = snapTable(null, 'After the shot'); ev.snaps = shotSnaps; shotSnaps = {};
-    try { judge(ev); } catch (e) { console.warn(e); } };
+    const startP = ev.t && ev.ms != null ? ev.t - ev.ms : performance.now() - 5000;
+    ev.pre = [...clearHist].reverse().find(r => r.t < startP - 150) || null;
+    // wait (up to 6 s) until the table is clear again, then read it
+    const t0 = performance.now();
+    const go = () => { if (!tableClear() && performance.now() - t0 < 6000) return setTimeout(go, 300);
+      try { ev.post = tableRead('AFTER the shot'); } catch {} clearHist = [];
+      try { judge(ev); } catch (e) { console.warn(e); } };
+    go(); };
   // Ref health for Claude: what this scoreboard's ref is doing, every 15 s, on a private relay topic (own relay).
   if (tableMode) setInterval(() => { try {
     const L = tracker && tracker.last, v = feedVideo();
@@ -2030,8 +2047,29 @@
   //  wrong ball first (opponent's group, or the 8 while not on it)? -> foul, ball in hand
   //  nothing down and no ball reached a rail after contact? -> foul, ball in hand
   //  own ball down (or any ball on an open table) -> keep shooting; else -> turn over
+  // What went down, from the before/after reads: fewer balls, which numbers are missing, is the cue ball still there.
+  function beforeAfter(ev){
+    const a = ev.pre, b = ev.post; if (!a || !b) return null;
+    const drop = a.count - b.count, missing = a.nums.filter(n => !b.nums.includes(n) && !st.down.includes(n));
+    const cueGone = a.cue && !b.cue;
+    return { drop, missing, cueGone, sure: drop >= 1 && missing.length === drop && !a.clumps && !b.clumps };
+  }
   function judge(ev){
     if (!refOn || winner(scores()) >= 0) return;
+    { const d = beforeAfter(ev); ev.diff = d;
+      if (d) {
+        if (d.cueGone && !ev.scratch) ev.scratch = true;                               // the white isn't on the table after the shot
+        if (ev.post.cue && ev.scratch && !d.cueGone) ev.scratch = false;                  // the white is still there: no scratch
+        ev.pocketed = ev.pocketed.filter(b => b.cls === 'cue' || !(b.num && ev.post.nums.includes(b.num)));   // seen on the table after: not made
+        const seen = ev.pocketed.filter(b => b.cls !== 'cue').map(b => b.num);
+        if (d.sure) { for (const n of d.missing) if (!seen.includes(n)) ev.pocketed.push({ num: n, cls: n === 8 ? 'eight' : n > 8 ? 'stripe' : 'solid', pocket: -1, fromDiff: true }); }
+        else if (d.drop >= 1 && !seen.length) {                                          // fewer balls but can't tell which: ask, with before/after
+          return showPop({ type: 'made', conf: .5, balls: d.missing, title: d.drop > 1 ? `${d.drop} balls went down?` : 'Which ball went in?',
+            text: `Before: ${ev.pre.count} balls${ev.pre.cue ? ' + cue' : ''} · After: ${ev.post.count}${ev.post.cue ? ' + cue' : ' · NO cue ball'}.${d.missing.length ? ` Missing: ${d.missing.join(', ')}.` : ''} First hit: ${ev.first ? clsName(ev.first) : 'not seen'}. Tap the ball(s) that went in.`,
+            apply: () => {}, auto: '', noAuto: true, key: stateKey(), shooter: st.shooter, group: null, ev, askBalls: true });
+        }
+      }
+    }
     // Waiting for the break: racking and placing the cue ball move balls by hand. Only a real break counts
     // (the cue ball hit something, a ball dropped, or a scratch).
     if (st.turns === 0 && !st.down.length && !ev.first && !ev.scratch && !ev.pocketed.some(b => b.cls !== 'cue') && !(ev.maybe && ev.maybe.length)) return;
@@ -2149,7 +2187,9 @@
     $('refT').textContent = sug.title; $('refS').textContent = sug.text;
     $('refBalls').innerHTML = sug.balls.map(ballEl).join('');
     $('refFix').hidden = true; $('refC').value = st.lastTag || '';
-    { const sn = sug.ev && sug.ev.snaps, im = $('refSnap'); if (im) { im.hidden = !(sn && (sn.contact || sn.end)); if (sn) im.src = sn.contact || sn.end; } }
+    { const sn = sug.ev && sug.ev.snaps, im = $('refSnap'); if (im) { im.hidden = !(sn && sn.contact); if (sn && sn.contact) im.src = sn.contact; } }
+    { const e = sug.ev || {}, ok = !!(e.pre && e.post && e.pre.img && e.post.img); $('refSnaps').hidden = !ok; if (ok) { $('refPre').src = e.pre.img; $('refPost').src = e.post.img; } }
+    if (sug.askBalls) setTimeout(() => { if (pop === sug) { showFix(); } }, 30);
     // grab this shot's video now, before the rolling recording moves past it
     if (sug.ev && typeof rotate === 'function' && typeof bufRec !== 'undefined' && bufRec) { const ev = sug.ev, nowP = performance.now(), nowW = Date.now(), w = p => nowW - (nowP - p);
       const a = ev.t && ev.ms != null ? w(ev.t - ev.ms) : nowW - 8000, e = ev.t ? w(ev.t) : nowW; rotate(() => { sug.segs = buf.filter(g => g.t1 >= a - 1500 && g.t0 <= e + 2500).slice(-6); }); } if (st.lastTag) { st.lastTag = ''; save(); } document.querySelectorAll('#refPop .rbtn button').forEach(b => b.classList.remove('sel'));
@@ -2161,6 +2201,7 @@
       bits.push(pm.length ? pm.map(b => `${clsName(b)} → ${PNAME[b.pocket] || 'pocket'}${b.bank ? ' (bank)' : ''}`).join(', ') : 'nothing dropped');
       if (e.scratch) bits.push(`cue ball in the ${PNAME[e.cuePocket] || 'pocket'}`);
       bits.push(e.rail ? 'a ball reached a rail' : 'no rail seen');
+      if (e.pre && e.post) bits.push(`balls before ${e.pre.count}${e.pre.cue ? '+cue' : ''} → after ${e.post.count}${e.post.cue ? '+cue' : ' (NO cue ball)'}`);
       $('refS').textContent = sug.text + '\nSaw: ' + bits.join(' · '); $('refS').style.whiteSpace = 'pre-line'; }
     $('refPop').hidden = false; wakeBar(); try { logCall(sug); } catch {}
     const t0 = Date.now(), T = Math.max(60, refP.autoSec) * 1000;   // 1 minute to answer while the ref is being trained
@@ -2906,5 +2947,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930224547"></script>
+<script src="build.js?v=20260930230600"></script>
 </body></html>
