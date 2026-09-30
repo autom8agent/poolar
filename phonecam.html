@@ -1,12 +1,12 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="build" content="20260930213347"><script src="stream.js?v=20260930213347"></script>
+<meta charset="utf-8"><meta name="build" content="20260930213850"><script src="stream.js?v=20260930213850"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0a0f14">
 <title>Pool Cam</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
-<link rel="stylesheet" href="common.css?v=20260930213347">
+<link rel="stylesheet" href="common.css?v=20260930213850">
 <style>
   body{background:radial-gradient(120% 60% at 50% 0%,#12303f,var(--bg) 70%) fixed var(--bg)}
   .big{display:flex;flex-direction:column;gap:10px}
@@ -82,7 +82,7 @@
   <h2>Clip recorded</h2><p id="savedT"></p>
   <div class="row"><button class="primary" id="savedShare">Save / share</button><button id="savedClose">Close</button></div>
 </div>
-<script src="qrcode.js?v=20260930213347"></script>
+<script src="qrcode.js?v=20260930213850"></script>
 <script>
 (() => {
   const $ = id => document.getElementById(id);
@@ -95,7 +95,10 @@
   const CHANNEL = 'MAIN';
   // Each table has its own channels: top-down and (optional) behind the table.
   const HALLQ = (qs.get('hall') || '').replace(/[^a-z0-9-]/gi, ''), TQ = parseInt(qs.get('t'), 10) || 0, LOC = qs.get('loc') === 'behind' ? 'behind' : 'top';
-  const ICE = { iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }] };
+  let ICE = { iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }] };
+  // TURN from Terry's own relay (Cloudflare Realtime TURN on his account): carries the video when two devices can't
+  // connect directly (venue Wi-Fi, laptops, cellular). Falls back to STUN only.
+  const iceReady = fetch('https://poolar-relay.poolar-relay.workers.dev/turn', { cache: 'no-store' }).then(r => r.json()).then(j => { if (j && j.iceServers && j.iceServers.length) ICE = { iceServers: j.iceServers }; }).catch(() => {});
   const toast = t => { const el = $('toast'); el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => el.hidden = true, 1800); };
 
   // Signaling rides on an ntfy.sh topic named after the camera code. ntfy caps a message at 4 KB,
@@ -262,6 +265,7 @@
           p.degradationPreference = 'maintain-resolution'; snd.setParameters(p).catch(() => {}); } catch {} }
     }
     async function offerTo(vid){
+      await iceReady;
       const old = pcs.get(vid); if (old) old.close();
       const pc = new RTCPeerConnection(ICE); pcs.set(vid, pc);
       stream.getTracks().forEach(t => pc.addTrack(t, stream));
@@ -370,6 +374,6 @@
   }
 })();
 </script>
-<script src="build.js?v=20260930213347"></script>
+<script src="build.js?v=20260930213850"></script>
 </body>
 </html>
