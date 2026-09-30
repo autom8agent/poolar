@@ -295,7 +295,10 @@
             continue;
           }
           // area = real pixel share of the table (a thin rail ring round the cloth has a huge box but tiny area)
-          occ.push({ x0: b.x0 / w, x1: b.x1 / w, y0: b.y0 / h, y1: b.y1 / h, area: b.n / (w * h), dark: b.dk / b.n > .45 && b.n > A * 6, thick, id: blobs.indexOf(b) + 1 });
+          // ring = the rail band round the cloth (spans the whole table both ways); an arm never does. Only a ring with a
+          // lot more area than a bare ring (an arm merged into it) counts as covering the table.
+          const ring = (b.x1 - b.x0) > w * .85 && (b.y1 - b.y0) > h * .85;
+          occ.push({ x0: b.x0 / w, x1: b.x1 / w, y0: b.y0 / h, y1: b.y1 / h, area: b.n / (w * h), ring, dark: b.dk / b.n > .45 && b.n > A * 6, thick, id: blobs.indexOf(b) + 1 });
         }
       }
       // Lighting varies table to table, so fixed colour cut-offs can miss the two balls that matter most.
@@ -467,7 +470,7 @@
         for (const tr of this.tracks) { if (tr.seen !== t || tr.v <= this.o.still || !edge(tr) || nearPk(tr)) continue;
           if (tr.id === s.cueId) { if (!s.first) s.kick = true; } else if (s.moved.has(tr.id)) s.cush.add(tr.id); } }
       if (!moving) { if (!this.quietFrom) this.quietFrom = t; } else this.quietFrom = 0;
-      const blocked = occ.some(o => o.area > .012);   // a person/arm over the table hides balls (by real area, not the box)
+      const blocked = occ.some(o => o.ring ? o.area > .11 : o.area > .012);   // a person/arm over the table hides balls
       if ((this.quietFrom && t - this.quietFrom > this.o.endQuiet && (!blocked || t - this.quietFrom > this.o.endQuiet + 5000)) || t - s.t0 > this.o.maxShot) {
         // Balls that vanished during the shot next to a pocket were pocketed.
         const pocketed = [];
