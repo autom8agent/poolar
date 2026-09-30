@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930185952"><script src="stream.js?v=20260930185952"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930190139"><script src="stream.js?v=20260930190139"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -400,7 +400,7 @@
         <b>Table view</b>
         <p id="tvTableS"></p>
         <div class="row"><button class="primary" id="tAuto">Straighten automatically</button><button id="tAdjust">Adjust corners</button></div>
-        <div class="row"><button id="tRaw">Show camera as-is</button><button id="tClose">Close</button></div>
+        <div class="row"><button id="tRaw">Straighten to the table</button><button id="tClose">Close</button></div>
       </div>
       <div class="refpop" id="refPop" hidden>
         <div class="rtop"><b id="refT"></b><span class="rballs" id="refBalls"></span></div>
@@ -766,10 +766,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930185952"></script>
-<script src="halls.js?v=20260930185952"></script>
-<script src="qrcode.js?v=20260930185952"></script>
-<script src="tablecv.js?v=20260930185952"></script>
+<script src="hallday.js?v=20260930190139"></script>
+<script src="halls.js?v=20260930190139"></script>
+<script src="qrcode.js?v=20260930190139"></script>
+<script src="tablecv.js?v=20260930190139"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -1661,7 +1661,7 @@
   // ---------- Pool Cam feed in the middle of the scoreboard ("tv") ----------
   // phonecam.html in watch mode, embedded. Same origin, so its video can be recorded and replayed here.
   const FEEDKEY = 'poolar-feed';
-  let camKey = '1', corners = null, cornerTry = [], cornerT = 0, rawView = false, viewLast = 0;   // straightened view state (see tablecv)
+  let camKey = '1', corners = null, cornerTry = [], cornerT = 0, rawView = (() => { try { return localStorage.getItem('poolar-rawview') !== '0'; } catch { return true; } })(), viewLast = 0;   // default: the phone's own picture, uncropped   // straightened view state (see tablecv)
   const fdoc = () => { try { return $('feedFrame').contentDocument; } catch { return null; } };
   const feedVideo = () => { const d = fdoc(), v = d && d.getElementById('remote'); return v && v.videoWidth ? v : null; };
   const feedFlipped = () => { const d = fdoc(), w = d && d.getElementById('wstage'); return !!(w && w.classList.contains('flip')); };
@@ -1806,7 +1806,7 @@
     if (cornerTry.length === 3 && TableCV.cornerDiff(cornerTry[0], cornerTry[2]) < .02) {
       const avg = {}; ['tl', 'tr', 'br', 'bl'].forEach(k => avg[k] = { x: cornerTry.reduce((a, c) => a + c[k].x, 0) / 3, y: cornerTry.reduce((a, c) => a + c[k].y, 0) / 3 });
       setCorners(avg, true); cornerTry = [];
-      note('Table straightened automatically. ⊞ Table to adjust.');
+      note(rawView ? 'Ref found the table. Showing the camera as-is (⊞ Table to straighten).' : 'Table straightened automatically. ⊞ Table to adjust.');
     }
   }
   let noteEl = null;
@@ -1815,7 +1815,9 @@
   $('tvTableBtn').onclick = () => { $('tvTableS').textContent = corners ? (rawView ? 'Showing the camera as-is.' : 'Straightened to the table corners.') : 'Looking for the table edges…'; $('tvTable').hidden = false; };
   $('tClose').onclick = () => $('tvTable').hidden = true;
   $('tAuto').onclick = () => { rawView = false; cornerTry = []; cornerT = 0; setCorners(null); try { localStorage.removeItem(CKEY()); } catch {} $('tvTable').hidden = true; note('Looking for the table edges…'); };
-  $('tRaw').onclick = () => { rawView = !rawView; setCorners(corners); $('tRaw').textContent = rawView ? 'Straighten again' : 'Show camera as-is'; $('tvTable').hidden = true; };
+  const rawLbl = () => { $('tRaw').textContent = rawView ? 'Straighten to the table' : 'Show camera as-is'; };
+  $('tRaw').onclick = () => { rawView = !rawView; try { localStorage.setItem('poolar-rawview', rawView ? '1' : '0'); } catch {} setCorners(corners); rawLbl(); $('tvTable').hidden = true; };
+  rawLbl();
   // Adjust corners by hand: show the plain camera picture with four draggable dots.
   let adj = null;
   $('tAdjust').onclick = () => {
@@ -2622,5 +2624,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930185952"></script>
+<script src="build.js?v=20260930190139"></script>
 </body></html>
