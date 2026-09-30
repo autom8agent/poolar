@@ -36,8 +36,8 @@ window.POOLAR_HALLS = {
       { kind: 'wall', x: 2, y: 34.5, w: 38, h: 1.8 },
       { kind: 'wall', x: 60, y: 34.5, w: 38, h: 1.8 },
       { kind: 'divider', y: 42, label: '▼ 9-FT TABLES' },
-      { kind: 'bar', x: 1.2, y: 119, w: 60, h: 5, label: 'Bar' },
-      { kind: 'door', x: 8, y: 132.6, w: 22, label: 'Entrance' },
+      { kind: 'bar', x: 16.5, y: 119, w: 60, h: 5, label: 'Bar' },
+      { kind: 'door', x: 76, y: 132.6, w: 20, label: 'Entrance' },
     ],
   },
 };
