@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930230837"><script src="stream.js?v=20260930230837"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930231151"><script src="stream.js?v=20260930231151"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -808,10 +808,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930230837"></script>
-<script src="halls.js?v=20260930230837"></script>
-<script src="qrcode.js?v=20260930230837"></script>
-<script src="tablecv.js?v=20260930230837"></script>
+<script src="hallday.js?v=20260930231151"></script>
+<script src="halls.js?v=20260930231151"></script>
+<script src="qrcode.js?v=20260930231151"></script>
+<script src="tablecv.js?v=20260930231151"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -1995,6 +1995,7 @@
   if (tracker) tracker.onShot = ev => { shotsSeen++; lastShotAt = Date.now(); shotSnaps.end = snapTable(null, 'After the shot'); ev.snaps = shotSnaps; shotSnaps = {};
     const startP = ev.t && ev.ms != null ? ev.t - ev.ms : performance.now() - 5000;
     ev.pre = [...clearHist].reverse().find(r => r.t < startP - 150) || null;
+    ev.pockets = pocketStrips(); pocketCrops = [[], [], [], [], [], []]; ev.pathImg = pathImage(ev);
     // wait (up to 6 s) until the table is clear again, then read it
     const t0 = performance.now();
     const go = () => { if (!tableClear() && performance.now() - t0 < 6000) return setTimeout(go, 300);
@@ -2015,7 +2016,26 @@
   function refUI(){ $('tvRef').textContent = refOn ? '🤖 Ref on' : '🤖 Ref off'; $('tvRef').classList.toggle('refon', refOn); }
   $('tvRef').onclick = () => { refOn = !refOn; saveRefP(); refUI(); if (!refOn) closePop(); };
   refUI();
-  function refTick(v){ if (!smallW || !smallW.ok || !smallW.draw(v, feedFlipped())) return; const a = performance.now(); try { tracker.feed(smallW.read(), a); } catch {}
+  // While a shot is on: whenever a ball is near a pocket, keep a small crop of that pocket (for the breakdown page).
+  let pocketCrops = [[], [], [], [], [], []], lastCropT = 0;
+  function cropPockets(now){ try { const s = tracker.shot; if (!s || now - lastCropT < 140) return; lastCropT = now;
+    const W = smallC.width, H = smallC.height, cw = Math.round(W * .11), ch = Math.round(H * .22);
+    TableCV.POCKETS.forEach(([px, py], k) => { const near = tracker.tracks.filter(tr => tr.seen === now && Math.hypot(tr.x - px, (tr.y - py) * .5) < .16);
+      if (!near.length || pocketCrops[k].length >= 10) return;
+      const c = document.createElement('canvas'); c.width = cw; c.height = ch; const x = c.getContext('2d');
+      x.drawImage(smallC, Math.round(px * W - cw / 2), Math.round(py * H - ch / 2), cw, ch, 0, 0, cw, ch);
+      x.fillStyle = 'rgba(0,0,0,.6)'; x.fillRect(0, ch - 14, cw, 14); x.fillStyle = '#ffd23f'; x.font = '700 11px system-ui'; x.fillText(`${((now - s.t0) / 1000).toFixed(1)}s ${near.map(tr => tr.cls === 'cue' ? 'CUE' : (tr.num || tr.cls[0])).join(',')}`, 3, ch - 3);
+      pocketCrops[k].push(c); }); } catch {} }
+  function pocketStrips(){ return pocketCrops.map(list => { if (!list.length) return null; const cw = list[0].width, ch = list[0].height, c = document.createElement('canvas'); c.width = cw * list.length; c.height = ch;
+    const x = c.getContext('2d'); list.forEach((im, i) => x.drawImage(im, i * cw, 0)); return c.toDataURL('image/jpeg', .8); }); }
+  function pathImage(ev){ try { const c = document.createElement('canvas'); c.width = smallC.width; c.height = smallC.height; const x = c.getContext('2d'); x.drawImage(smallC, 0, 0);
+    const draw = (pts, col, lbl) => { if (!pts || pts.length < 2) return; x.strokeStyle = col; x.lineWidth = 3; x.beginPath(); pts.forEach(([px, py], i) => i ? x.lineTo(px * c.width, py * c.height) : x.moveTo(px * c.width, py * c.height)); x.stroke();
+      x.fillStyle = col; x.beginPath(); x.arc(pts[0][0] * c.width, pts[0][1] * c.height, 7, 0, 7); x.fill(); x.font = '800 13px system-ui'; x.fillText(lbl + ' start', pts[0][0] * c.width + 9, pts[0][1] * c.height - 8); };
+    draw(ev.path, '#ffffff', 'CUE'); draw(ev.firstPath, '#ffd23f', ev.first ? (ev.first.num ? 'the ' + ev.first.num : ev.first.cls) : 'hit ball');
+    if (ev.first && ev.first.x != null) { x.strokeStyle = '#ffd23f'; x.lineWidth = 4; x.beginPath(); x.arc(ev.first.x * c.width, ev.first.y * c.height, c.width * .03, 0, 7); x.stroke(); }
+    x.fillStyle = 'rgba(0,0,0,.7)'; x.fillRect(0, 0, c.width, 24); x.fillStyle = '#fff'; x.font = '800 15px system-ui'; x.fillText('Ball paths: white = cue ball · gold = first ball hit', 8, 17);
+    return c.toDataURL('image/jpeg', .8); } catch { return null; } }
+  function refTick(v){ if (!smallW || !smallW.ok || !smallW.draw(v, feedFlipped())) return; const a = performance.now(); try { tracker.feed(smallW.read(), a); cropPockets(a); } catch {}
     refCost = refCost * .9 + (performance.now() - a) * .1; if (HIFI) REFMS = Math.max(40, Math.min(110, refCost * 1.4)); paintRefStat(); }
   // What the ref sees right now, on the video, so it's obvious when it can't work.
   let refStatT = 0;
@@ -2180,7 +2200,21 @@
     });
   }
   let pop = null, popT = 0;
+  const PNAME6 = ['top-left', 'top side', 'top-right', 'bottom-left', 'bottom side', 'bottom-right'];
+  function reasonFor(sug){ const e = sug.ev; if (!e) return []; const r = [];
+    if (e.missed) r.push('The cue ball ended up somewhere new but no shot was detected (safety net).');
+    else { r.push(`Shot started when the cue ball left its resting spot; it lasted ${((e.ms || 0) / 1000).toFixed(1)} s until the balls stopped.`);
+      r.push(e.first ? `First contact: ${e.first.num ? 'the ' + e.first.num : e.first.cls} moved first, ${((e.first.at || 0) / 1000).toFixed(1)} s in (sure ${Math.round((e.first.conf || 0) * 100)}%).` : 'First contact: no ball was seen starting to move, so the hit ball is unknown.');
+      if (e.blocked) r.push('A person or cue was over the table when the balls stopped: the ball count was not trusted.');
+      const seen = (e.pocketed || []).filter(b => b.cls !== 'cue'); if (seen.length) r.push(`Balls that vanished near a pocket during the shot: ${seen.map(b => (b.num || b.cls) + (b.pocket >= 0 ? ' (' + PNAME6[b.pocket] + ')' : '') + (b.fromDiff ? ' [from before/after]' : '') + (b.counted ? ' [from the count]' : '')).join(', ')}.`);
+      if (e.pre && e.post) r.push(`Before/after: ${e.pre.count} balls${e.pre.cue ? ' + cue' : ''} → ${e.post.count} balls${e.post.cue ? ' + cue' : ' and NO cue ball'}${e.diff && e.diff.missing && e.diff.missing.length ? '; numbers missing after: ' + e.diff.missing.join(', ') : ''}${e.pre.clumps || e.post.clumps ? '; some balls were touching, so numbers there are unsure' : ''}.`);
+      else r.push('Before/after comparison not available: the table was never clear long enough to read it before or after.');
+      if (e.scratch) r.push(`Cue ball gone${e.cuePocket >= 0 ? ' at the ' + PNAME6[e.cuePocket] : ''}: scratch.`);
+      if (e.maybe && e.maybe.length) r.push(`The ${e.maybe.join(', ')} sat by a pocket and vanished without being seen moving: asked instead of guessing.`);
+      r.push(e.rail ? 'A ball reached a rail after contact.' : 'No ball was seen reaching a rail.'); }
+    r.push(`Rule applied → ${sug.title}${sug.noAuto ? ' (asked, not applied on its own)' : ''}.`); return r; }
   function showPop(sug){
+    try { sug.reason = reasonFor(sug); } catch {}
     // The next shot already happened with a call still unanswered: that call stands.
     if (pop && !pop.touched) finish('auto');
     closePop(); pop = sug; sug.choice = null;
@@ -2333,7 +2367,12 @@
     meta.snaps = Object.keys(sn).filter(k => typeof sn[k] === 'string');
     meta.diff = ev.diff || null; meta.pre = ev.pre ? { count: ev.pre.count, nums: ev.pre.nums, cue: ev.pre.cue, clumps: ev.pre.clumps } : null; meta.post = ev.post ? { count: ev.post.count, nums: ev.post.nums, cue: ev.post.cue, clumps: ev.post.clumps } : null;
     meta.unsure = (tracker && tracker.last ? tracker.last.balls.filter(b => b.cls === 'cluster').map(b => `clump of ~${b.n || 2} balls`) : []);
-    meta.snaps.forEach(k => fetch(sn[k]).then(r => r.blob()).then(b => fetch(`${R}/${{ start: 90, contact: 91, end: 92, pre: 93, post: 94 }[k]}`, { method: 'PUT', headers: { 'content-type': 'image/jpeg' }, body: b })).catch(() => {}));
+    meta.reason = sug.reason || []; meta.path = ev.path || []; meta.firstPath = ev.firstPath || [];
+    if (ev.pathImg) sn.paths = ev.pathImg; (ev.pockets || []).forEach((d, k) => { if (d) sn['pocket' + k] = d; });
+    meta.pocketsSeen = (ev.pockets || []).map((d, k) => d ? PNAME6[k] : null).filter(Boolean);
+    const SLOT = { start: 90, contact: 91, end: 92, pre: 93, post: 94, paths: 95, pocket0: 96, pocket1: 97, pocket2: 98, pocket3: 99, pocket4: 60, pocket5: 61 };
+    meta.snaps = Object.keys(sn).filter(k => typeof sn[k] === 'string' && SLOT[k] != null);
+    meta.snaps.forEach(k => fetch(sn[k]).then(r => r.blob()).then(b => fetch(`${R}/${SLOT[k]}`, { method: 'PUT', headers: { 'content-type': 'image/jpeg' }, body: b })).catch(() => {}));
     const pick = () => (typeof buf !== 'undefined' ? buf : []).filter(g => g.t1 >= startW - 1500 && g.t0 <= endW + 2500).slice(-6);
     if (sug.segs && sug.segs.length) up(sug.segs);
     else if (typeof rotate === 'function' && typeof bufRec !== 'undefined' && bufRec) rotate(() => up(pick())); else up(pick());
@@ -2950,5 +2989,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930230837"></script>
+<script src="build.js?v=20260930231151"></script>
 </body></html>
