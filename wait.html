@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="build" content="20260930054527"><script src="stream.js"></script>
+<meta charset="utf-8"><meta name="build" content="20260930063940"><script src="stream.js"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0a0f14">
 <title>Table Waitlist</title>
@@ -55,7 +55,8 @@
 
   <div class="card" id="joinCard">
     <p class="h">Get in line</p>
-    <form id="joinForm"><input id="name" placeholder="Your name" autocomplete="name" enterkeyhint="go" maxlength="24" required><button class="primary" type="submit">Join</button></form>
+    <form id="joinForm"><input id="name" placeholder="Your name" autocomplete="name" enterkeyhint="go" maxlength="24" required><select id="sl" aria-label="Skill level" style="width:auto"><option value="">Skill level</option><option value="1">SL 1</option><option value="2">SL 2</option><option value="3">SL 3</option><option value="4">SL 4</option><option value="5">SL 5</option><option value="6">SL 6</option><option value="7">SL 7</option><option value="8">SL 8</option><option value="9">SL 9</option></select><button class="primary" type="submit">Join</button></form>
+    <p class="sub" style="margin:4px 0 0;font-size:13px">Skill level only matters at APA-rules tables. Don't know yours? Pick 3.</p>
     <p>The players at the table see the line and call the next person up.</p>
   </div>
 
@@ -127,10 +128,11 @@
   $('joinForm').addEventListener('submit', async e => {
     e.preventDefault();
     const name = $('name').value.trim().slice(0, 24); if (!name) return;
-    me = { id: 'w' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name };
+    const sl = +$('sl').value || 0;   // only used at APA-rules tables (it sets the race)
+    me = { id: 'w' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name, sl };
     try { localStorage.setItem(MEKEY, JSON.stringify(me)); localStorage.setItem('poolar-my-name', name); } catch {}
     paint();
-    try { await post({ kind: 'join', id: me.id, name }); } catch { $('posNote').textContent = "Couldn't reach the table. Check your connection and try again."; }
+    try { await post({ kind: 'join', id: me.id, name, sl }); } catch { $('posNote').textContent = "Couldn't reach the table. Check your connection and try again."; }
   });
   $('leave').onclick = async () => {
     if (!me) return; const id = me.id; me = null;

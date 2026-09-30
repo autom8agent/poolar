@@ -1,145 +1,724 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="build" content="20260930054527"><script src="stream.js"></script>
+<meta charset="utf-8"><meta name="build" content="20260930063940"><script src="stream.js"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0a0f14">
-<title>Tournament Bracket</title>
+<title>Tournament</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <link rel="stylesheet" href="common.css">
 <style>
-  .bracket{display:flex;gap:14px;overflow-x:auto;padding-bottom:8px;scroll-snap-type:x mandatory}
-  .round{flex:0 0 min(78vw,240px);display:flex;flex-direction:column;justify-content:space-around;gap:10px;scroll-snap-align:start}
-  .round h2{text-align:center}
+  .wrap{max-width:760px}
+  .tabs{display:flex;gap:6px;overflow-x:auto;position:sticky;top:0;z-index:5;background:var(--bg);padding:6px 0;margin:0 -2px}
+  .tabs button{flex:1 0 auto;padding:11px 10px;font-size:14px;border-radius:999px;white-space:nowrap}
+  .tabs button[aria-selected="true"]{background:var(--felt);border-color:var(--felt);color:#04162b}
+  .pane{display:flex;flex-direction:column;gap:14px}
+  .sec h2{margin:6px 0 8px}
+  .bracket{display:flex;gap:14px;overflow-x:auto;padding-bottom:8px;scroll-snap-type:x proximity;align-items:stretch}
+  .round{flex:0 0 min(80vw,250px);display:flex;flex-direction:column;justify-content:space-around;gap:10px;scroll-snap-align:start}
+  .round > h3{margin:0;text-align:center;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
   .match{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
-  .match.live{border-color:var(--felt)}
-  .p{display:flex;align-items:center;gap:8px;width:100%;padding:9px 10px;background:none;border:0;border-radius:0;text-align:left;font:600 15px var(--ui);color:var(--text)}
+  .match.live{border-color:var(--felt);box-shadow:0 0 0 1px var(--felt)}
+  .match.mine{border-color:var(--gold)}
+  .match.bye{padding:8px 10px;font-size:13px;color:var(--muted);background:none;border-style:dashed}
+  .mh{display:flex;align-items:center;gap:6px;padding:6px 10px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--line)}
+  .mh b{color:var(--text)} .mh .tb{margin-left:auto;font-weight:800;color:var(--felt)} .mh .tb.wait{color:var(--muted);font-weight:600}
+  .p{display:flex;align-items:center;gap:8px;width:100%;min-height:44px;padding:8px 10px;background:none;border:0;border-radius:0;text-align:left;font:600 15px var(--ui);color:var(--text)}
   .p + .p{border-top:1px solid var(--line)}
   .p.win{background:#1c2a1f;color:var(--free);font-weight:800}
   .p.lose{color:var(--muted);text-decoration:line-through}
-  .p.tbd{color:var(--muted);font-style:italic}
-  .p span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .meta{display:flex;align-items:center;gap:6px;padding:6px 10px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
-  .meta select{padding:4px 6px;font-size:12px;width:auto}
-  .meta a{color:var(--felt);font-weight:700;text-decoration:none;margin-left:auto}
+  .p.tbd{color:var(--muted);font-style:italic;font-weight:500}
+  .p.me span.nm{color:var(--gold)}
+  .p .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .p .sl{font-size:11px;font-weight:800;padding:1px 6px;border-radius:6px;background:var(--bg);border:1px solid var(--line);color:var(--muted)}
+  .p .need{font-family:var(--num);font-weight:900;font-size:20px;min-width:22px;text-align:right}
+  .mf{display:flex;align-items:center;gap:6px;padding:6px 10px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+  .mf select{padding:6px;font-size:13px;width:auto}
+  .mf a{color:var(--felt);font-weight:800;text-decoration:none;margin-left:auto;padding:6px 0}
   .champ{text-align:center;background:linear-gradient(180deg,#3a2a08,#1a1305);border:1px solid var(--gold);border-radius:16px;padding:16px}
   .champ b{display:block;font-family:var(--num);font-weight:900;font-size:40px;color:var(--gold);text-transform:uppercase}
-  .edit-only{display:none} body.edit .edit-only{display:revert}
+  .go{background:linear-gradient(180deg,#0f3a52,#0b2433);border:1px solid var(--felt);border-radius:16px;padding:16px;text-align:center}
+  .go .big{font-family:var(--num);font-weight:900;font-size:clamp(40px,14vw,64px);line-height:1;color:#fff;text-transform:uppercase}
+  .go.wait{background:var(--panel);border-color:var(--line)} .go.wait .big{font-size:clamp(26px,8vw,36px);color:var(--text)}
+  .vs{font-size:18px;font-weight:700;color:var(--text)}
+  .path{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .path > div{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px}
+  .path .w{border-color:#2d6b45} .path .l{border-color:#6b2d2d}
+  .path b{display:block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px}
+  .path .w b{color:var(--free)} .path .l b{color:var(--bad)}
+  .hist{display:flex;flex-direction:column;gap:6px}
+  .hist div{display:flex;gap:8px;align-items:center;font-size:14px}
+  .wl{font-weight:900;width:22px;text-align:center;border-radius:6px;padding:2px 0;color:#08130c;background:var(--free)} .wl.L{background:var(--bad);color:#fff}
+  .ent{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .ent .nm{flex:1;min-width:120px;font-weight:700}
+  .ent .nm small{display:block;color:var(--muted);font-weight:500;font-size:12px}
+  .ent button{padding:8px 10px;font-size:13px;min-width:40px}
+  .ent .pend{color:var(--muted);font-style:italic}
+  .step{display:inline-flex;align-items:center;gap:2px}
+  .step span{min-width:44px;text-align:center;font-weight:800;font-size:13px}
+  .paid{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;padding:6px 10px;border-radius:10px;border:1px solid var(--line);cursor:pointer;text-transform:none;letter-spacing:0;color:var(--text)}
+  .paid input{width:20px;height:20px;accent-color:var(--free)}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chips button{min-width:48px;padding:10px 8px;font-family:var(--num);font-weight:900;font-size:20px}
+  .chips button[aria-pressed="true"]{background:var(--felt);border-color:var(--felt);color:#04162b}
+  .chips button.busy{box-shadow:inset 0 -3px 0 var(--gold)}
+  .fmt{display:grid;gap:8px}
+  .fmt label{flex-direction:row;align-items:flex-start;gap:10px;padding:12px;border:1px solid var(--line);border-radius:12px;text-transform:none;letter-spacing:0;font-size:14px;color:var(--text);cursor:pointer}
+  .fmt label:has(input:checked){border-color:var(--gold);background:#1d1a10}
+  .fmt input{width:20px;height:20px;margin-top:2px;accent-color:var(--gold)}
+  .fmt small{display:block;color:var(--muted);font-weight:500;margin-top:3px;line-height:1.4}
+  .chk{flex-direction:row;align-items:center;gap:10px;text-transform:none;letter-spacing:0;font-size:15px;color:var(--text)}
+  .chk input{width:22px;height:22px;accent-color:var(--gold)}
+  .qr{background:#fff;border-radius:12px;padding:12px;width:min(70vw,260px);margin:0 auto}
+  .qrfull{position:fixed;inset:0;z-index:50;background:rgba(5,8,11,.96);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:20px;text-align:center}
+  .qrfull .qr{width:min(80vw,70vh,520px)}
+  .qrfull h1{font-size:clamp(34px,8vw,60px)}
+  .link{word-break:break-all;font-size:13px;color:var(--felt)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .races{display:grid;grid-template-columns:1fr auto auto;gap:8px 10px;align-items:center}
+  .races input[type=number]{width:74px;padding:8px}
+  .races .chk{font-size:13px}
+  table.apa td,table.apa th{text-align:center;padding:5px 2px}
+  .qrow{display:flex;gap:8px;align-items:center;font-size:14px;padding:6px 0;border-bottom:1px solid var(--line)}
+  .qrow b{font-family:var(--num);font-size:22px;min-width:34px;text-align:center}
+  .banner{background:linear-gradient(90deg,#3a2a08,#2a1d06);border:1px solid var(--gold);border-radius:12px;padding:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .banner p{color:var(--text);flex:1;min-width:180px}
+  .banner .btn,.banner button{padding:12px 16px}
+  .danger{border-color:#6b2d2d}
+  .admin-only{display:none} body.admin .admin-only{display:revert}
+  .tag{font-size:11px;font-weight:800;padding:2px 7px;border-radius:999px;background:var(--bg);border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+  .tag.ok{color:var(--free);border-color:#2d6b45} .tag.gold{color:var(--gold);border-color:#6b5520}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="top"><a id="back" href="hall.html">← All tables</a><span class="pill" id="live">Offline</span></div>
+  <div class="top"><a id="back" href="hall.html">⌂ Tables</a><span class="pill" id="live">Offline</span></div>
   <h1 id="title">Tournament</h1>
-  <p id="sub">No tournament running yet.</p>
+  <p id="sub">Loading…</p>
+  <div id="banner"></div>
 
-  <div class="champ" id="champ" hidden><span class="muted">Champion</span><b id="champName"></b></div>
-  <div class="bracket" id="bracket"></div>
+  <nav class="tabs" role="tablist" id="tabs">
+    <button role="tab" data-tab="me">My match</button>
+    <button role="tab" data-tab="bracket">Bracket</button>
+    <button role="tab" data-tab="players">Players</button>
+    <button role="tab" data-tab="how">Rules</button>
+    <button role="tab" data-tab="run">Run</button>
+  </nav>
 
-  <form class="card" id="pinCard">
-    <h2>Run the tournament</h2>
-    <p>Organizers enter the admin PIN to create the bracket and record winners. Everyone else can watch this page live.</p>
-    <div class="row"><input id="pin" type="password" inputmode="numeric" autocomplete="off" placeholder="Admin PIN"><button class="primary" type="submit">Unlock</button></div>
-    <p id="pinMsg"></p>
-  </form>
+  <section class="pane" data-pane="me" id="mePane"></section>
+  <section class="pane" data-pane="bracket"><div class="champ" id="champ" hidden><span class="muted">Champion</span><b id="champName"></b></div><div id="bracketBox"></div></section>
+  <section class="pane" data-pane="players" id="playersPane"></section>
+  <section class="pane" data-pane="how" id="howPane"></section>
 
-  <form class="card edit-only" id="newCard">
-    <h2>New bracket</h2>
-    <label>Tournament name<input id="tName" maxlength="50" placeholder="Friday 8-ball"></label>
-    <div class="row3">
-      <label>Game<select id="tGame"><option value="8">8-ball</option><option value="9">9-ball</option><option value="10">10-ball</option></select></label>
-      <label>Race to<input id="tRace" type="number" min="1" max="21" value="3"></label>
-      <label>Players<select id="tDbl"><option value="0">Singles</option><option value="1">Doubles teams</option></select></label>
+  <section class="pane" data-pane="run">
+    <form class="card" id="pinCard">
+      <h2>Organiser</h2>
+      <p>Enter the hall's admin PIN to set up the tournament, take sign-ups and record winners. Everyone else can follow along live.</p>
+      <div class="row"><input id="pin" type="password" inputmode="numeric" autocomplete="off" placeholder="Admin PIN"><button class="primary" type="submit">Unlock</button></div>
+      <p id="pinMsg"></p>
+    </form>
+
+    <div class="admin-only" id="runBox" style="display:none;flex-direction:column;gap:14px">
+      <!-- Sign-up QR -->
+      <div class="card" id="qrCard">
+        <h2>Sign-up link</h2>
+        <div class="qr" id="qrSmall"></div>
+        <a class="link" id="joinLink" href="join.html"></a>
+        <div class="row"><button type="button" id="copyLink">Copy link</button><button type="button" class="primary" id="qrBig">Show QR full screen</button></div>
+        <label class="chk"><input type="checkbox" id="regOpen"> Sign-ups open (players can join from their phones)</label>
+      </div>
+
+      <!-- Entrants -->
+      <div class="card" id="entCard">
+        <h2 id="entH">Entrants</h2>
+        <div id="entList"></div>
+        <form id="walkin" class="grid2" autocomplete="off">
+          <input id="wName" placeholder="Walk-in name" maxlength="30" required>
+          <input id="wContact" placeholder="Phone or email (optional)" maxlength="60">
+          <select id="wSl"></select>
+          <button class="blue" type="submit">Add walk-in</button>
+        </form>
+        <button class="primary" type="button" id="startBtn">Draw the bracket &amp; start</button>
+        <p id="startNote"></p>
+      </div>
+
+      <!-- Tables -->
+      <div class="card" id="tabCard">
+        <h2>Tournament tables</h2>
+        <p>Tap to add or remove a table — any time. Matches that are ready go to a free table by themselves, and the table is set up for that match (game, race, names).</p>
+        <div class="chips" id="tblChips"></div>
+        <label class="chk"><input type="checkbox" id="autoAssign" checked> Call the next ready match to a table as soon as one frees up</label>
+        <div id="queue"></div>
+      </div>
+
+      <!-- Races -->
+      <div class="card" id="raceCard">
+        <h2>Races</h2>
+        <p id="raceHelp"></p>
+        <div class="races" id="raceGrid"></div>
+      </div>
+
+      <!-- Setup -->
+      <form class="card" id="setupForm">
+        <h2 id="setupH">New tournament</h2>
+        <label>Tournament name<input id="sTitle" maxlength="50" placeholder="Friday 8-ball" required></label>
+        <div class="grid2">
+          <label>Starts<input id="sWhen" type="datetime-local"></label>
+          <label>Entry fee<input id="sFee" maxlength="30" placeholder="$10 at the bar"></label>
+        </div>
+        <div class="row3">
+          <label>Game<select id="sGame"><option value="8">8-ball</option><option value="9">9-ball</option><option value="10">10-ball</option></select></label>
+          <label>Players<select id="sDbl"><option value="0">Singles</option><option value="1">Doubles teams</option></select></label>
+          <label>Rules<select id="sRules"><option value="apa">APA (skill levels)</option><option value="bca">BCA</option><option value="none">No skill levels</option></select></label>
+        </div>
+        <p id="rulesHelp"></p>
+        <label id="raceNWrap">Race to (every match unless you set rounds below)<input id="sRace" type="number" min="1" max="21" value="3"></label>
+        <h2>Format</h2>
+        <div class="fmt" id="fmtPick">
+          <label><input type="radio" name="fmt" value="single"><span><b>Single elimination</b><small>One loss and you're out.</small></span></label>
+          <label><input type="radio" name="fmt" value="double" checked><span><b>Double elimination</b><small>First loss drops you to the losers bracket; second loss and you're out.</small></span></label>
+          <label><input type="radio" name="fmt" value="modified"><span><b>Modified single elimination</b><small>Lose in round 1 and you get one second chance; after that, one loss and you're out.</small></span></label>
+        </div>
+        <div id="fmtDiagram"></div>
+        <p id="fmtExplain"></p>
+        <label class="chk" id="resetWrap"><input type="checkbox" id="sReset" checked> Second grand final if the losers-bracket player wins the first</label>
+        <label>Draw<select id="sSeed"><option value="random">Random draw</option><option value="order">Seeded in the order they're listed (byes to the top of the list)</option><option value="skill">Seeded by skill level (byes to the highest)</option></select></label>
+        <p class="muted" id="byeHelp"></p>
+        <button class="primary" type="submit" id="setupBtn">Open sign-ups</button>
+      </form>
+
+      <div class="card danger">
+        <h2>Start over</h2>
+        <div class="row"><button type="button" id="backToReg">Back to sign-ups</button><button type="button" id="clearT">End &amp; clear tournament</button></div>
+        <p>“Back to sign-ups” keeps the entrants and throws away the bracket and results. “End &amp; clear” removes the tournament from the hall and frees its tables.</p>
+      </div>
     </div>
-    <label>Players or teams, one per line<textarea id="tPlayers" placeholder="Shag&#10;Terry&#10;Dave&#10;Mike"></textarea></label>
-    <label class="chk" style="flex-direction:row;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:14px;color:var(--text)"><input type="checkbox" id="tShuffle" checked style="width:auto"> Random draw</label>
-    <button class="primary" type="submit">Create bracket</button>
-    <p>Byes go to the top of the draw when the field isn't a power of two. Creating a new bracket replaces the current one.</p>
-  </form>
+  </section>
+</div>
+<div class="qrfull" id="qrFull" hidden>
+  <h1 id="qrTitle">Scan to join</h1>
+  <div class="qr" id="qrLarge"></div>
+  <p class="link" id="qrLink"></p>
+  <button type="button" id="qrClose">Close</button>
 </div>
 <script src="halls.js"></script>
+<script src="auth.js"></script>
+<script src="tourney.js"></script>
+<script src="qrcode.js"></script>
 <script>
 (() => {
   const qs = new URLSearchParams(location.search);
   const HALL = (qs.get('hall') || 'surge-chicago').replace(/[^a-z0-9-]/gi, '');
-  const H = window.POOLAR_HALLS[HALL], P = window.POOLAR, RELAY = P.relay();
-  const TOPIC = 'poolar-tourney-' + HALL, HALL_TOPIC = 'poolar-hall-' + HALL, LS = 'poolar-tourney-' + HALL;
+  const H = window.POOLAR_HALLS[HALL] || window.POOLAR_HALLS['surge-chicago'], P = window.POOLAR, RELAY = P.relay(), TR = window.Tourney, A = window.PoolarAuth;
+  const TOPIC = 'poolar-tourney-' + HALL, HALL_TOPIC = 'poolar-hall-' + HALL, RESULTS = 'poolar-results-' + HALL, STALE = 30 * 60 * 1000;
+  const LS = 'poolar-tourney2-' + HALL, LS_CONTACTS = 'poolar-tourney-contacts-' + HALL;
   const $ = id => document.getElementById(id);
-  const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+  const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const keep = p => `${p}?hall=${HALL}` + (RELAY !== 'https://ntfy.sh' ? `&relay=${encodeURIComponent(RELAY)}` : '');
+  const ls = { get: (k, d) => { try { const v = JSON.parse(localStorage.getItem(k) || 'null'); return v == null ? d : v; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
+  const toast = t => { const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 2200); };
+  const post = (topic, body) => fetch(`${RELAY}/${topic}`, { method: 'POST', body: typeof body === 'string' ? body : JSON.stringify(body) }).catch(() => {});
   $('back').href = keep('hall.html');
-  let T = null; try { T = JSON.parse(localStorage.getItem(LS) || 'null'); } catch {}
-  let editing = false; try { editing = sessionStorage.getItem('poolar-admin-' + HALL) === '1'; } catch {}
+  const tableNums = [...H.tables].map(t => t.n).sort((a, b) => a - b);
+  const FMT_NAME = { single: 'Single elimination', double: 'Double elimination', modified: 'Modified single elimination' };
+  const RULES_NAME = { apa: 'APA', bca: 'BCA', none: 'No skill levels' };
 
-  const publish = () => { T.ts = Date.now(); try { localStorage.setItem(LS, JSON.stringify(T)); } catch {}
-    fetch(`${RELAY}/${TOPIC}`, { method: 'POST', body: JSON.stringify(T) }).catch(() => {}); paint(); };
+  // ------------------------------------------------------------ state
+  let T = ls.get(LS, null);                 // the tournament snapshot (see README "Tournaments" for the fields)
+  if (T && T.v !== 2) T = null;
+  if (T && Date.now() - T.ts > 18 * 3600 * 1000 && sessionStorage.getItem('poolar-admin-' + HALL) !== '1') T = null;   // yesterday's copy
+  let admin = false; try { admin = sessionStorage.getItem('poolar-admin-' + HALL) === '1'; } catch {}
+  const signups = {};                       // sid -> sign-up message from a player's phone
+  const hallStatus = {};                    // table -> latest kind:'table' status (admin only)
+  const contacts = ls.get(LS_CONTACTS, {}); // player/sign-up id -> phone or email; kept on the organiser's phone only
+  let snapTime = 0;                         // relay time (s) of the newest snapshot, for the 12-hour keep-alive
+  const collect = TR.Collector('tourney');
+  let tab = qs.get('tab') || ls.get('poolar-tourney-tab', '') || '';
 
-  // Single elimination. Round 1 is seeded so byes meet real players; winners move to the next round's slot.
-  function create(names, opts){
-    const size = 2 ** Math.ceil(Math.log2(Math.max(2, names.length)));
-    const seeds = [...names]; while (seeds.length < size) seeds.push(null);
-    // spread byes: pair player i with seed size-1-i so byes land against the top of the draw
-    const r1 = []; for (let i = 0; i < size / 2; i++) r1.push({ a: seeds[i], b: seeds[size - 1 - i], w: null, table: 0 });
-    const rounds = [r1]; for (let n = size / 4; n >= 1; n /= 2) rounds.push(Array.from({ length: n }, () => ({ a: null, b: null, w: null, table: 0 })));
-    T = { title: opts.title || 'Tournament', gtype: opts.gtype, race: opts.race, dbl: opts.dbl, rounds, ts: Date.now() };
-    for (const m of r1) if (!m.a || !m.b) m.w = m.a ? 'a' : m.b ? 'b' : null;   // byes advance
-    advanceAll();
+  const take = (raw, time) => {
+    let m; try { m = JSON.parse(raw); } catch { return false; }
+    if (!m) return false;
+    if (m.kind === 'signup' && m.sid) { signups[m.sid] = m; return true; }
+    const full = collect(m);
+    if (full && full.v === 2 && (!T || full.ts >= T.ts)) { if (T && full.tid !== T.tid) BKEY = ''; T = full; snapTime = Math.max(snapTime, time || 0); ls.set(LS, T); return true; }
+    if (full && T && full.tid === T.tid) snapTime = Math.max(snapTime, time || 0);
+    return false;
+  };
+  const takeHall = raw => { let m; try { m = JSON.parse(raw); } catch { return; } if (m && m.kind === 'table' && m.t && (!hallStatus[m.t] || m.ts >= hallStatus[m.t].ts)) hallStatus[m.t] = m; };
+
+  let BB = null, BKEY = '';
+  const bracket = () => {
+    if (!T || !T.seeds || !T.seeds.length) return null;
+    const key = `${T.tid}|${T.fmt}|${T.seeds.length}|${T.reset !== false}`;
+    if (key !== BKEY) { BB = TR.build(T.fmt, T.seeds.length, { reset: T.reset !== false }); BKEY = key; }
+    return BB;
+  };
+  const resolved = () => { const B = bracket(); return B ? TR.resolve(B, T.seeds, T.res || {}) : null; };
+  const pl = id => T && T.players.find(p => p.id === id);
+  const nm = id => id === TR.BYE ? 'Bye' : (pl(id) || {}).n || '?';
+  const skill = () => T && TR.usesSkill(T);
+  const raceOf = (m, s) => { const a = pl(s.pa), b = pl(s.pb); return TR.raceFor(T, m.stage, a && a.sl, b && b.sl); };
+  const real = id => id && id !== TR.BYE;
+
+  // Which player is "you": signed-in member, the sign-up made on this phone, a saved pick, or a unique name match.
+  function meId(){
+    if (!T) return null;
+    const m = A.current(); if (m) { const p = T.players.find(x => x.u && x.u === m.uid); if (p) return p.id; }
+    const sid = ls.get('poolar-joined-' + T.tid, null); if (sid) { const p = T.players.find(x => x.sid === sid); if (p) return p.id; }
+    const pick = ls.get('poolar-tourney-me-' + T.tid, null); if (pick && pl(pick)) return pick;
+    const prof = P.profile(); if (prof && prof.name) { const p = T.players.filter(x => x.n.toLowerCase() === prof.name.toLowerCase()); if (p.length === 1) return p[0].id; }
+    return null;
   }
-  function advanceAll(){
-    for (let r = 0; r < T.rounds.length - 1; r++) T.rounds[r].forEach((m, i) => {
-      const next = T.rounds[r + 1][Math.floor(i / 2)], slot = i % 2 ? 'b' : 'a';
-      const who = m.w ? m[m.w] : null; if (next[slot] !== who) { next[slot] = who; if (next.w) next.w = null; }
-    });
-  }
-  const roundName = (r, n) => n - r === 1 ? 'Final' : n - r === 2 ? 'Semifinals' : n - r === 3 ? 'Quarterfinals' : `Round ${r + 1}`;
 
+  // ------------------------------------------------------------ writing (organiser only)
+  let sendTimer = 0;
+  const sendNow = async () => { clearTimeout(sendTimer); if (!T) return; for (const part of TR.pack(T)) await post(TOPIC, part); snapTime = Date.now() / 1000; };
+  // Every change: fix up tables, save, repaint, and send one snapshot shortly after (edits in a burst go as one message).
+  function publish(){ reconcile(); T.ts = Date.now(); ls.set(LS, T); paint(); clearTimeout(sendTimer); sendTimer = setTimeout(sendNow, 800); }
+
+  const summary = () => {
+    const R = resolved(), top = R && R.complete ? T.seeds.map(id => [R.places[id], nm(id)]).sort((a, b) => a[0] - b[0]).slice(0, 4) : [];
+    return { kind: 'tsum', tid: T.tid, title: T.title, phase: T.phase, open: !!T.open, n: T.players.length, fmt: T.fmt, gtype: T.gtype, rules: T.rules, when: T.when || '', tables: T.tables,
+      champion: R && R.champion ? nm(R.champion) : '', top, ts: Date.now() };
+  };
+  const postSummary = () => post(HALL_TOPIC, summary());
+
+  const idleCfg = t => ({ sig: 'idle', cfg: { kind: 'config', t, gtype: T.gtype, dbl: !!T.dbl, fmt: 'race', rules: T.rules === 'none' ? 'custom' : T.rules, race: 0, note: `${T.title}: tournament table`.slice(0, 60), closed: true, tid: T.tid } });
+  const releaseCfg = t => ({ sig: 'free', cfg: { kind: 'config', t, gtype: 8, dbl: false, fmt: 'race', rules: 'bca', race: 0, note: '', closed: false } });
+  function matchCfg(m, s, t){
+    const r = raceOf(m, s), names = [nm(s.pa), nm(s.pb)], a = pl(s.pa), b = pl(s.pb);
+    return { sig: JSON.stringify([m.id, names, r.race]), cfg: { kind: 'config', t, gtype: T.gtype, dbl: !!T.dbl, fmt: 'race', rules: T.rules === 'none' ? 'custom' : T.rules,
+      race: Math.max(...r.race), races: r.race, names, sl: skill() ? [a.sl, b.sl] : null, note: `Tournament #${m.num}: ${names[0]} vs ${names[1]}`.slice(0, 70), closed: false, tid: T.tid, match: m.num } };
+  }
+
+  // Bring everything in line with the results: drop results that no longer fit, give ready matches tables,
+  // finish the tournament, and set up (or release) hall tables. Only runs on the organiser's phone.
+  function reconcile(){
+    if (!T) return;
+    T.sent = T.sent || {}; T.assign = T.assign || {}; T.called = T.called || {};
+    const B = bracket(), want = {};
+    if (B && (T.phase === 'live' || T.phase === 'done')) {
+      T.res = TR.prune(B, T.seeds, T.res || {});
+      const R = TR.resolve(B, T.seeds, T.res);
+      const live = {}; for (const id in T.assign) if (R.m[id] && R.m[id].status === 'ready') live[id] = T.assign[id];
+      const ready = B.matches.filter(m => R.m[m.id].status === 'ready').sort((x, y) => x.num - y.num).map(m => m.id);
+      if (T.phase === 'live' && T.auto !== false) { const q = TR.assignTables(ready, live, T.tables); T.assign = q.assign; for (const id of q.called) T.called[id] = Date.now(); }
+      else T.assign = live;
+      if (R.complete && T.phase === 'live') { T.phase = 'done'; T.assign = {}; finish(R); }
+      if (!R.complete && T.phase === 'done') { T.phase = 'live'; T.posted = 0; }   // a final result was cleared
+      if (T.phase === 'live') { for (const t of T.tables) want[t] = idleCfg(t); for (const id in T.assign) want[T.assign[id]] = matchCfg(B.byId[id], R.m[id], T.assign[id]); }
+    }
+    for (const k of new Set([...Object.keys(T.sent), ...Object.keys(want)])) {
+      const t = +k, w = want[t] || releaseCfg(t);
+      if (T.sent[t] === w.sig) continue;
+      post(HALL_TOPIC, { ...w.cfg, ts: Date.now() });
+      if (want[t]) T.sent[t] = w.sig; else delete T.sent[t];
+    }
+  }
+
+  // The tournament is over: post placings for the hall map, the results list and players' profiles.
+  function finish(R){
+    if (T.posted) return; T.posted = Date.now();
+    const places = T.seeds.map(id => ({ p: R.places[id], n: nm(id), u: (pl(id) || {}).u || '' })).sort((a, b) => a.p - b.p);
+    post(RESULTS, { id: `${T.tid}-final`, kind: 'placings', at: Date.now(), hall: HALL, tid: T.tid, title: T.title, fmt: T.fmt, gtype: T.gtype, dbl: !!T.dbl, places });
+    setTimeout(postSummary, 100);
+  }
+
+  function recordResult(mid, winner, score, fromDeck){
+    const B = bracket(), others = r => Object.keys(r).filter(k => k !== mid).length, R0 = TR.resolve(B, T.seeds, T.res || {}), s = R0.m[mid];
+    const before = others(T.res || {});
+    T.res = TR.setResult(B, T.seeds, T.res || {}, mid, winner);
+    T.sc = T.sc || {};
+    if (winner && score) T.sc[mid] = score; else delete T.sc[mid];
+    const lost = before - others(T.res);
+    if (lost > 0) toast(`${lost} later result${lost > 1 ? 's were' : ' was'} cleared because the players changed`);
+    if (winner && !fromDeck) {
+      const m = B.byId[mid], r = raceOf(m, s), loser = winner === s.pa ? s.pb : s.pa;
+      post(RESULTS, { id: `${T.tid}-${mid}-${winner}`, kind: 'tourney-match', at: Date.now(), hall: HALL, table: T.assign[mid] || 0, names: [nm(winner), nm(loser)], score: score || null,
+        race: winner === s.pa ? r.race : [r.race[1], r.race[0]], gtype: T.gtype, rules: T.rules, fmt: 'race', dbl: !!T.dbl, tourney: T.title, round: m.name, num: m.num });
+    }
+    publish();
+  }
+
+  // A scoring phone finished a match on a tournament table: record it if the names match the match on that table.
+  function takeResult(raw){
+    if (!admin || !T || T.phase !== 'live') return;
+    let r; try { r = JSON.parse(raw); } catch { return; }
+    if (!r || r.kind !== 'match' || !r.table || !Array.isArray(r.names) || !Array.isArray(r.score)) return;
+    const mid = Object.keys(T.assign || {}).find(id => T.assign[id] === r.table); if (!mid) return;
+    const Rr = resolved(), s = Rr.m[mid]; if (!s || s.status !== 'ready') return;
+    if (r.at < (T.called[mid] || 0) - 60000) return;
+    const key = x => String(x || '').trim().toLowerCase(), names = [nm(s.pa), nm(s.pb)].map(key), got = r.names.map(key);
+    if (!(names.includes(got[0]) && names.includes(got[1]) && got[0] !== got[1])) return;
+    const wi = r.score[0] > r.score[1] ? 0 : 1, winner = got[wi] === names[0] ? s.pa : s.pb;
+    recordResult(mid, winner, [Math.max(...r.score), Math.min(...r.score)], true);
+    toast(`Table ${r.table}: ${nm(winner)} won ${Math.max(...r.score)}–${Math.min(...r.score)}`);
+  }
+
+  // Sign-ups from players' phones join the entrant list while sign-ups are open (organiser's phone does the merge).
+  function mergeSignups(){
+    if (!admin || !T || T.phase !== 'reg' || !T.open) return;
+    T.seen = T.seen || []; let changed = false;
+    for (const s of Object.values(signups).sort((a, b) => a.ts - b.ts)) {
+      if (s.tid !== T.tid || T.seen.includes(s.sid)) continue;
+      T.seen.push(s.sid);
+      const ex = s.u && T.players.find(p => p.u === s.u);
+      if (ex) { ex.n = s.n; ex.sl = s.sl; }
+      else { const id = 'p' + (T.nid = (T.nid || 0) + 1); T.players.push({ id, n: String(s.n).slice(0, 30), sl: s.sl, paid: false, u: s.u || '', c: s.cm || '', sid: s.sid }); if (s.c) contacts[id] = s.c; }
+      changed = true;
+    }
+    if (changed) { ls.set(LS_CONTACTS, contacts); publish(); }
+  }
+  const pendingSignups = () => T ? Object.values(signups).filter(s => s.tid === T.tid && !(T.seen || []).includes(s.sid)) : [];
+
+  // ------------------------------------------------------------ painting
   function paint(){
-    document.body.classList.toggle('edit', editing); $('pinCard').hidden = editing;
-    if (!T) { $('bracket').innerHTML = ''; $('champ').hidden = true; return; }
-    $('title').textContent = T.title; document.title = `${T.title} Bracket`;
-    const players = T.rounds[0].flatMap(m => [m.a, m.b]).filter(Boolean).length;
-    $('sub').textContent = `${players} ${T.dbl ? 'teams' : 'players'} · ${T.gtype}-ball · race to ${T.race} · ${H.name}`;
-    const final = T.rounds[T.rounds.length - 1][0];
-    $('champ').hidden = !final.w; if (final.w) $('champName').textContent = final[final.w];
-    const tableOpts = t => `<option value="0">Table –</option>` + H.tables.map(x => x.n).sort((a, b) => a - b).map(n => `<option value="${n}"${n === t ? ' selected' : ''}>Table ${n}</option>`).join('');
-    $('bracket').innerHTML = T.rounds.map((round, r) => `<div class="round"><h2>${roundName(r, T.rounds.length)}</h2>${round.map((m, i) => {
-      const cls = s => !m[s] ? 'tbd' : m.w === s ? 'win' : m.w ? 'lose' : '';
-      const btn = s => `<button class="p ${cls(s)}" data-r="${r}" data-i="${i}" data-s="${s}" ${!editing || !m.a || !m.b ? 'disabled' : ''}>${P.peopleSvg(!!T.dbl, 14)}<span>${esc(m[s] || (r === 0 ? 'Bye' : 'Winner of previous'))}</span>${m.w === s ? '✓' : ''}</button>`;
-      const live = m.a && m.b && !m.w;
-      return `<div class="match${live ? ' live' : ''}">${btn('a')}${btn('b')}${live || m.table ? `<div class="meta">${editing && live ? `<select data-tr="${r}" data-ti="${i}">${tableOpts(m.table)}</select>` : m.table ? `Table ${m.table}` : ''}${m.table && live ? `<a href="${esc(keep('deck.html') + '&t=' + m.table)}">Score it</a>` : ''}</div>` : ''}</div>`;
-    }).join('')}</div>`).join('');
+    document.body.classList.toggle('admin', admin);
+    $('pinCard').hidden = admin; $('runBox').style.display = admin ? 'flex' : 'none';
+    const has = T && T.phase && T.phase !== 'none';
+    $('title').textContent = has ? T.title : 'Tournament'; document.title = has ? `${T.title} · Tournament` : 'Tournament';
+    if (!has) { $('sub').textContent = `No tournament at ${H.name} right now.`; }
+    else {
+      const n = T.players.length, bits = [`${n} ${T.dbl ? 'team' : 'player'}${n === 1 ? '' : 's'}`, `${T.gtype}-ball`, RULES_NAME[T.rules], FMT_NAME[T.fmt]];
+      if (T.when) bits.push(new Date(T.when).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }));
+      if (T.tables && T.tables.length && T.phase !== 'done') bits.push(`Table${T.tables.length > 1 ? 's' : ''} ${T.tables.join(', ')}`);
+      $('sub').textContent = bits.join(' · ');
+    }
+    paintBanner(); paintTabs();
+    const vis = currentTab();
+    if (vis === 'me') paintMe(); if (vis === 'bracket') paintBracket(); if (vis === 'players') paintPlayers(); if (vis === 'how') paintHow(); if (vis === 'run') paintRun();
   }
-  $('bracket').addEventListener('click', e => {
-    const b = e.target.closest('.p'); if (!b || !editing) return;
-    const m = T.rounds[+b.dataset.r][+b.dataset.i]; if (!m.a || !m.b) return;
-    m.w = m.w === b.dataset.s ? null : b.dataset.s; advanceAll(); publish();
-  });
-  $('bracket').addEventListener('change', e => {
-    const sel = e.target.closest('[data-tr]'); if (!sel || !editing) return;
-    const m = T.rounds[+sel.dataset.tr][+sel.dataset.ti]; m.table = +sel.value; publish();
-    // Set the table up for this match so whoever starts scoring gets the right game and race.
-    if (m.table) fetch(`${RELAY}/${HALL_TOPIC}`, { method: 'POST', body: JSON.stringify({ kind: 'config', t: m.table, gtype: T.gtype, dbl: !!T.dbl, fmt: 'race', rules: 'custom', race: T.race, note: `${T.title}: ${m.a} vs ${m.b}`, closed: false, ts: Date.now() }) }).catch(() => {});
-  });
-  $('pinCard').addEventListener('submit', e => { e.preventDefault();
-    if (P.hash(`${HALL}:${$('pin').value.trim()}`) === H.adminPin) { editing = true; try { sessionStorage.setItem('poolar-admin-' + HALL, '1'); } catch {} paint(); }
-    else $('pinMsg').textContent = "That PIN isn't right."; });
-  $('newCard').addEventListener('submit', e => { e.preventDefault();
-    let names = $('tPlayers').value.split('\n').map(x => x.trim()).filter(Boolean).slice(0, 64);
-    if (names.length < 2) return alert('Add at least two players.');
-    if ($('tShuffle').checked) for (let i = names.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [names[i], names[j]] = [names[j], names[i]]; }
-    create(names, { title: $('tName').value.trim(), gtype: +$('tGame').value, race: +$('tRace').value || 3, dbl: $('tDbl').value === '1' });
-    publish(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+  const currentTab = () => {
+    const has = T && T.phase && T.phase !== 'none';
+    if (!has) return 'run';
+    if (tab) return tab;
+    return T.phase === 'reg' ? 'players' : meId() ? 'me' : 'bracket';
+  };
+  function paintTabs(){
+    const v = currentTab();
+    for (const b of $('tabs').querySelectorAll('[data-tab]')) b.setAttribute('aria-selected', String(b.dataset.tab === v));
+    for (const s of document.querySelectorAll('[data-pane]')) s.hidden = s.dataset.pane !== v;
+  }
+  $('tabs').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (!b) return; tab = b.dataset.tab; ls.set('poolar-tourney-tab', tab); paint(); if (tab === 'run') fillSetup(); });
 
-  const take = raw => { let m; try { m = JSON.parse(raw); } catch { return; } if (m && m.rounds && (!T || m.ts >= T.ts)) T = m; };
+  function paintBanner(){
+    let h = '';
+    if (T && T.phase === 'reg' && T.open) {
+      const mine = ls.get('poolar-joined-' + T.tid, null);
+      h = `<div class="banner"><p><b>Sign-ups are open.</b> ${T.fee ? `Entry: ${esc(T.fee)}. ` : ''}${mine ? "You're on the list." : 'Scan the code or tap Join.'}</p>
+        <a class="btn primary" href="${esc(joinUrl())}">${mine ? 'My sign-up' : 'Join'}</a><button type="button" data-qr>Show QR</button></div>`;
+    } else if (T && T.phase === 'reg') h = `<div class="banner"><p><b>Sign-ups are closed.</b> The bracket will be drawn shortly. Late? Ask the organiser at the desk.</p></div>`;
+    $('banner').innerHTML = h;
+    const R = T && T.phase !== 'reg' ? resolved() : null;
+    $('champ').hidden = !(R && R.champion); if (R && R.champion) $('champName').textContent = nm(R.champion);
+  }
+  document.addEventListener('click', e => { if (e.target.closest('[data-qr]')) showQr(); });
+
+  const joinUrl = () => { const u = new URL('join.html', location.href); u.search = ''; u.searchParams.set('hall', HALL); if (RELAY !== 'https://ntfy.sh') u.searchParams.set('relay', RELAY); return u.toString(); };
+  const qrInto = (el, url) => { try { const q = qrcode(0, 'M'); q.addData(url); q.make(); el.innerHTML = q.createSvgTag({ cellSize: 4, margin: 0, scalable: true, alt: 'Sign-up QR code' }); } catch { el.textContent = url; } };
+  function showQr(){ $('qrFull').hidden = false; $('qrTitle').textContent = T ? `Join ${T.title}` : 'Scan to join'; qrInto($('qrLarge'), joinUrl()); $('qrLink').textContent = joinUrl(); }
+  $('qrClose').onclick = () => { $('qrFull').hidden = true; };
+
+  // ---- My match
+  const stageRace = (m, s, me) => { const r = raceOf(m, s), i = s.pa === me ? 0 : 1; return r.points ? `You need ${r.race[i]} points, they need ${r.race[1 - i]}` : skill() ? `Race ${r.race[i]}–${r.race[1 - i]} (you need ${r.race[i]})${r.reduced ? ' · reduced' : ''}` : `${r.label}${r.reduced ? ' (reduced)' : ''}`; };
+  const who = (id, text) => id ? `<b>${esc(nm(id))}</b>${skill() && pl(id) ? ` <span class="tag">SL ${pl(id).sl}</span>` : ''}` : `<span class="muted">${esc(text || 'to be decided')}</span>`;
+  function paintMe(){
+    const box = $('mePane');
+    if (!T || T.phase === 'none') { box.innerHTML = ''; return; }
+    const me = meId(), member = A.current();
+    const pickHtml = `<div class="card"><h2>Which one are you?</h2><p>Pick your name to see your next match and table. ${member ? '' : `Or <a href="${esc(keep('profile.html'))}" style="color:var(--felt)">sign in</a> so we know it's you.`}</p>
+      <select id="mePick"><option value="">Choose your name…</option>${T.players.map(p => `<option value="${p.id}"${p.id === me ? ' selected' : ''}>${esc(p.n)}</option>`).join('')}</select></div>`;
+    if (!me) {
+      const pend = pendingSignups().find(s => s.sid === ls.get('poolar-joined-' + T.tid, null));
+      box.innerHTML = (pend ? `<div class="card"><h2>You're signed up</h2><p><b style="color:var(--text)">${esc(pend.n)}</b> — waiting for the organiser's phone to add you to the list.</p></div>` : '') + pickHtml;
+      return;
+    }
+    const p = pl(me);
+    let h = `<div class="card"><h2>You</h2><div class="vs">${esc(p.n)} ${skill() ? `<span class="tag">SL ${p.sl}</span>` : ''} ${p.paid ? '<span class="tag ok">Paid</span>' : '<span class="tag gold">Not paid yet</span>'}</div></div>`;
+    if (T.phase === 'reg') { box.innerHTML = h + `<div class="go wait"><div class="big">You're in</div><p>The bracket is drawn when sign-ups close. Come back here to see who you play and which table to go to.</p></div>` + pickHtml; return; }
+    const B = bracket(), R = resolved(), path = TR.playerPath(B, R, me);
+    if (path.status === 'champion') h += `<div class="champ"><span class="muted">You won it</span><b>Champion</b></div>`;
+    else if (path.status === 'out') h += `<div class="go wait"><div class="big">${R.places ? `You finished ${ord(R.places[me])}` : "You're out"}</div><p>${R.places ? '' : 'Your final place shows here when the tournament ends. '}Thanks for playing!</p></div>`;
+    else if (path.status === 'alive') {
+      const m = path.match, s = R.m[m.id], t = T.assign[m.id];
+      if (t) h += `<div class="go"><p style="color:var(--text)">Match #${m.num} · ${esc(m.name)}</p><div class="big">Go to table ${t}</div><p class="vs">vs ${who(path.opp, path.oppText)}</p><p>${esc(stageRace(m, s, me))}</p><a class="btn primary" style="margin-top:10px;display:inline-block" href="${esc(keep('deck.html') + '&t=' + t)}">Score it on table ${t}</a></div>`;
+      else if (path.ready) { const q = B.matches.filter(x => R.m[x.id].status === 'ready' && !T.assign[x.id]).sort((a, b) => a.num - b.num).findIndex(x => x.id === m.id);
+        h += `<div class="go wait"><p>Match #${m.num} · ${esc(m.name)}</p><div class="big">Waiting for a table</div><p class="vs">vs ${who(path.opp)}</p><p>${esc(stageRace(m, s, me))}${q >= 0 ? ` · ${q === 0 ? "you're next" : `${q} match${q > 1 ? 'es' : ''} ahead of you`}` : ''}</p></div>`; }
+      else h += `<div class="go wait"><p>Match #${m.num} · ${esc(m.name)}</p><div class="big">Waiting for your opponent</div><p class="vs">vs ${who(path.opp, path.oppText)}</p></div>`;
+      const dest = (d, win) => !d ? '' : d.champion ? '<span style="color:var(--gold);font-weight:800">You win the tournament 🏆</span>' : d.out ? "You're out" :
+        `#${d.match.num} ${esc(d.match.name)}<br>vs ${who(d.opp, d.oppText)}`;
+      h += `<div class="path"><div class="w"><b>If you win</b>${dest(path.ifWin, true)}</div><div class="l"><b>If you lose</b>${dest(path.ifLose, false)}</div></div>`;
+    } else h += `<div class="go wait"><div class="big">Waiting</div></div>`;
+    if (path.played.length) h += `<div class="card"><h2>Your path so far</h2><div class="hist">${path.played.map(m => { const s = R.m[m.id], won = s.w === me, sc = (T.sc || {})[m.id];
+      return `<div><span class="wl ${won ? '' : 'L'}">${won ? 'W' : 'L'}</span><span>#${m.num} ${esc(m.name)} vs <b>${esc(nm(won ? s.l : s.w))}</b>${sc ? ` · ${won ? sc[0] : sc[1]}–${won ? sc[1] : sc[0]}` : ''}</span></div>`; }).join('')}</div></div>`;
+    box.innerHTML = h + pickHtml;
+    if (R.complete && R.places) { const hist = ls.get('poolar-tourney-history', []); if (!hist.some(x => x.tid === T.tid)) { hist.unshift({ tid: T.tid, title: T.title, at: Date.now(), place: R.places[me], n: T.players.length, fmt: T.fmt, gtype: T.gtype, hall: HALL }); ls.set('poolar-tourney-history', hist.slice(0, 100)); } }
+  }
+  const ord = n => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th');
+  $('mePane').addEventListener('change', e => { if (e.target.id === 'mePick') { ls.set('poolar-tourney-me-' + T.tid, e.target.value || null); paint(); } });
+
+  // ---- Bracket
+  const SECS = { single: [['W', '']], double: [['W', 'Winners bracket'], ['L', 'Losers bracket'], ['G', 'Grand final']], modified: [['W', 'Main draw'], ['C', 'Second chance'], ['M', 'Final stage']] };
+  function paintBracket(){
+    const box = $('bracketBox');
+    if (!T || T.phase === 'reg') { box.innerHTML = `<div class="card"><p>The bracket is drawn when sign-ups close. ${T ? `${T.players.length} signed up so far.` : ''}</p></div>`; return; }
+    const B = bracket(); if (!B) { box.innerHTML = ''; return; }
+    const R = resolved(), me = meId();
+    box.innerHTML = SECS[B.format].map(([sec, title]) => {
+      const ms = B.matches.filter(m => m.sec === sec); if (!ms.length) return '';
+      const rounds = [...new Set(ms.map(m => m.round))];
+      const cols = rounds.map(r => { const list = ms.filter(m => m.round === r);
+        const cards = list.map(m => card(B, R, m, me)).filter(Boolean); if (!cards.length) return '';
+        return `<div class="round"><h3>${esc(list[0].name)}</h3>${cards.join('')}</div>`; }).filter(Boolean);
+      if (!cols.length) return '';
+      return `<div class="sec">${title ? `<h2>${title}</h2>` : ''}<div class="bracket">${cols.join('')}</div></div>`;
+    }).join('');
+  }
+  function card(B, R, m, me){
+    const s = R.m[m.id];
+    if (m.dead || s.status === 'dead') return '';
+    if (m.bye) return m.sec === 'W' && m.round === 1 ? `<div class="match bye">${esc(nm(s.w))} · bye to the next round</div>` : '';
+    const both = real(s.pa) && real(s.pb), r = both ? raceOf(m, s) : null, t = T.assign && T.assign[m.id], sc = (T.sc || {})[m.id];
+    const row = slot => {
+      const id = s['p' + slot], other = slot === 'a' ? 'b' : 'a';
+      const cls = !real(id) ? 'tbd' : s.w === id ? 'win' : s.status === 'done' ? 'lose' : '';
+      const label = real(id) ? nm(id) : m.reset ? 'If needed' : TR.slotText(B, m[slot]) || 'To be decided';
+      const need = r && T.phase === 'live' && s.status === 'ready' && (skill() || r.points) ? r.race[slot === 'a' ? 0 : 1] : '';
+      const score = sc && s.status === 'done' ? (s.w === id ? sc[0] : sc[1]) : '';
+      return `<button class="p ${cls}${id === me ? ' me' : ''}" data-m="${m.id}" data-p="${real(id) ? id : ''}" ${admin && both && s.status !== 'pending' ? '' : 'disabled'} aria-label="${esc(label)}${admin && both ? ' — tap to record the winner' : ''}">
+        ${P.peopleSvg(!!T.dbl, 14)}<span class="nm">${esc(label)}</span>${skill() && real(id) ? `<span class="sl">SL ${pl(id).sl}</span>` : ''}<span class="need">${score !== '' ? score : need}</span>${s.w === id ? '✓' : ''}</button>`;
+    };
+    const head = `<div class="mh"><b>#${m.num}</b>${r ? `<span>${esc(r.label)}${r.reduced ? ' ↓' : ''}</span>` : ''}${s.status === 'ready' ? (t ? `<span class="tb">Table ${t}</span>` : `<span class="tb wait">Waiting for a table</span>`) : s.status === 'done' ? '<span class="tb wait">Done</span>' : ''}</div>`;
+    const tableSel = admin && s.status === 'ready' ? `<select data-tm="${m.id}" aria-label="Table for match ${m.num}"><option value="0">No table</option>${tableNums.map(n => `<option value="${n}"${n === t ? ' selected' : ''}>Table ${n}</option>`).join('')}</select>` : '';
+    const foot = tableSel || (t && s.status === 'ready') ? `<div class="mf">${tableSel}${t && s.status === 'ready' ? `<a href="${esc(keep('deck.html') + '&t=' + t)}">Score it →</a>` : ''}</div>` : '';
+    return `<div class="match${s.status === 'ready' && t ? ' live' : ''}${(s.pa === me || s.pb === me) && me ? ' mine' : ''}" id="m-${m.id}">${head}${row('a')}${row('b')}${foot}</div>`;
+  }
+  $('bracketBox').addEventListener('click', e => {
+    const b = e.target.closest('.p'); if (!b || !admin || !b.dataset.p) return;
+    const mid = b.dataset.m, pid = b.dataset.p, s = resolved().m[mid];
+    if (s.status === 'done' && s.w === pid) { if (confirm(`Clear the result of match #${bracket().byId[mid].num}?`)) recordResult(mid, null); return; }
+    if (s.status === 'done' && !confirm(`Change the result: ${nm(pid)} won match #${bracket().byId[mid].num}?`)) return;
+    recordResult(mid, pid);
+  });
+  $('bracketBox').addEventListener('change', e => {
+    const sel = e.target.closest('[data-tm]'); if (!sel || !admin) return;
+    const mid = sel.dataset.tm, t = +sel.value;
+    // Hand-picked table: take it off whatever else was on it, and turn auto-calling off so it sticks.
+    for (const id in T.assign) if (T.assign[id] === t) delete T.assign[id];
+    if (t) { T.assign[mid] = t; T.called[mid] = Date.now(); } else delete T.assign[mid];
+    if (T.auto !== false) { T.auto = false; toast('Auto-calling is off while you place matches by hand'); }
+    publish();
+  });
+
+  // ---- Players
+  function paintPlayers(){
+    const box = $('playersPane'); if (!T || T.phase === 'none') { box.innerHTML = ''; return; }
+    const R = T.phase !== 'reg' ? resolved() : null, me = meId();
+    const status = id => { if (!R) return ''; if (R.champion === id) return '<span class="tag gold">Champion</span>'; if (R.places) return `<span class="tag">${ord(R.places[id])}</span>`;
+      if (R.out[id] != null) return '<span class="tag">Out</span>'; const t = Object.keys(T.assign || {}).find(k => { const s = R.m[k]; return s && (s.pa === id || s.pb === id); });
+      return t ? `<span class="tag ok">Table ${T.assign[t]}</span>` : `<span class="tag ok">${(R.losses[id] || 0) ? '1 loss' : 'Unbeaten'}</span>`; };
+    let list = [...T.players];
+    if (R && R.places) list.sort((a, b) => R.places[a.id] - R.places[b.id]);
+    const pend = pendingSignups();
+    box.innerHTML = `<div class="card"><h2>${T.players.length} ${T.dbl ? 'teams' : 'players'}${pend.length ? ` · ${pend.length} just joined` : ''}</h2>
+      ${list.map(p => `<div class="ent"><span class="nm"${p.id === me ? ' style="color:var(--gold)"' : ''}>${esc(p.n)}${p.id === me ? ' (you)' : ''}</span>${skill() ? `<span class="tag">SL ${p.sl}</span>` : ''}${admin ? (p.paid ? '<span class="tag ok">Paid</span>' : '<span class="tag gold">Unpaid</span>') : ''}${status(p.id)}</div>`).join('')}
+      ${pend.map(s => `<div class="ent"><span class="nm pend">${esc(s.n)}<small>Waiting for the organiser's phone to confirm</small></span></div>`).join('')}
+      ${!T.players.length && !pend.length ? '<p>Nobody yet.</p>' : ''}</div>`;
+  }
+
+  // ---- How it works
+  function paintHow(){
+    const box = $('howPane'); if (!T || T.phase === 'none') { box.innerHTML = ''; return; }
+    let h = `<div class="card"><h2>${FMT_NAME[T.fmt]}</h2>${TR.diagram(T.fmt, T.reset !== false)}<p style="color:var(--text)">${esc(TR.EXPLAIN[T.fmt])}</p>${T.fmt === 'double' ? `<p>${esc(T.reset !== false ? TR.EXPLAIN.reset : 'The grand final is one match: whoever wins it is champion, even if the winners-bracket player then has only one loss.')}</p>` : ''}<p>${esc(TR.EXPLAIN.byes)}</p></div>`;
+    h += `<div class="card"><h2>Races</h2>${raceSummary()}</div>`;
+    if (skill() && T.gtype === 8) h += `<div class="card"><h2>APA 8-ball race chart</h2><p>Games each player needs. Find your skill level down the side and your opponent's across the top.</p>
+      <table class="t apa"><thead><tr><th>You \\ Them</th>${[2, 3, 4, 5, 6, 7].map(x => `<th>SL${x}</th>`).join('')}</tr></thead><tbody>${[2, 3, 4, 5, 6, 7].map(a => `<tr><th>SL${a}</th>${[2, 3, 4, 5, 6, 7].map(b => `<td>${TR.apa8Race(a, b)}–${TR.apa8Race(b, a)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+    h += `<div class="card"><h2>Tables</h2><p>When your match is ready and a tournament table is free, you're called to it: your “My match” tab says <b style="color:var(--text)">Go to table 6</b>, and the table is already set up with your names and race. Tap “Score it” to keep score.</p></div>`;
+    box.innerHTML = h;
+  }
+  function raceSummary(){
+    const stages = T.fmt === 'double' ? ['wb', 'lb', 'semi', 'final'] : T.fmt === 'modified' ? ['wb', 'lb', 'semi', 'final'] : ['wb', 'semi', 'final'];
+    const label = st => T.fmt === 'double' ? { wb: 'Winners bracket', lb: 'Losers bracket', semi: "Winners' & losers' finals", final: 'Grand final' }[st]
+      : T.fmt === 'modified' ? { wb: 'Main draw', lb: 'Second chance', semi: 'Semifinals', final: 'Final' }[st] : { wb: 'Early rounds', semi: 'Semifinals', final: 'Final' }[st];
+    if (skill()) {
+      if (T.gtype === 9) return `<p>APA 9-ball: points, not games. Each ball is 1 point, the 9 is 2. You need: ${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(s => `SL${s} ${TR.APA9[s]}`).join(' · ')}.</p>`;
+      const red = stages.filter(s => T.reduce && T.reduce[s]);
+      return `<p>${esc(TR.EXPLAIN.races)}</p><p style="color:var(--text)">${red.length ? `Reduced races in: ${red.map(label).join(', ')}.` : 'Full races in every round.'}</p>`;
+    }
+    return `<table class="t"><tbody>${stages.map(s => { const r = TR.raceFor(T, s); return `<tr><td>${label(s)}</td><td>${r.label}${r.reduced ? ' (reduced)' : ''}</td></tr>`; }).join('')}</tbody></table>`;
+  }
+
+  // ---- Organiser
+  let lastPhase = null;
+  function paintRun(){
+    if (!admin) return;
+    const has = T && T.phase && T.phase !== 'none';
+    for (const id of ['qrCard', 'entCard', 'tabCard', 'raceCard']) $(id).hidden = !has;
+    if ((T && T.tid + T.phase) !== lastPhase) { lastPhase = T && T.tid + T.phase; fillSetup(); }
+    const editing = has && T.phase === 'reg';   // once a tournament is over, this form starts the next one
+    $('setupForm').hidden = has && T.phase === 'live';
+    $('setupH').textContent = editing ? 'Tournament settings' : 'New tournament'; $('setupBtn').textContent = editing ? 'Save settings' : 'Open sign-ups';
+    document.querySelector('.danger').hidden = !has;
+    if (!has) return;
+    // QR
+    const url = joinUrl(); if ($('joinLink').textContent !== url) { $('joinLink').textContent = url; $('joinLink').href = url; qrInto($('qrSmall'), url); }
+    $('qrCard').hidden = T.phase !== 'reg';
+    $('regOpen').checked = !!T.open;
+    // Entrants
+    const reg = T.phase === 'reg', paid = T.players.filter(p => p.paid).length;
+    $('entH').textContent = `Entrants · ${T.players.length} · ${paid} paid`;
+    const slOpts = TR.slRange(T.gtype);
+    $('entList').innerHTML = T.players.map(p => `<div class="ent" data-id="${p.id}">
+        <span class="nm">${esc(p.n)}<small>${esc(contacts[p.id] || p.c || (p.sid ? 'Signed up by phone' : 'Walk-in'))}</small></span>
+        ${skill() ? `<span class="step"><button type="button" data-sl="-1" aria-label="Lower skill level">−</button><span>SL ${p.sl}</span><button type="button" data-sl="1" aria-label="Raise skill level">+</button></span>` : ''}
+        <label class="paid"><input type="checkbox" data-paid ${p.paid ? 'checked' : ''}> Paid</label>
+        <button type="button" data-edit aria-label="Edit name">Edit</button>
+        ${reg ? '<button type="button" data-rm aria-label="Remove">✕</button>' : ''}</div>`).join('')
+      + (reg && !T.open ? pendingSignups().map(s => `<div class="ent"><span class="nm pend">${esc(s.n)}<small>Late sign-up · ${esc(s.c || '')}</small></span><button type="button" data-addlate="${esc(s.sid)}">Add</button></div>`).join('') : '')
+      || '<p>No entrants yet. Share the QR code or add walk-ins.</p>';
+    $('walkin').hidden = !reg;
+    $('wSl').hidden = !skill();
+    if ($('wSl').dataset.g !== String(T.gtype)) { $('wSl').dataset.g = T.gtype; $('wSl').innerHTML = Array.from({ length: slOpts[1] - slOpts[0] + 1 }, (_, i) => slOpts[0] + i).map(v => `<option value="${v}"${v === TR.DEFAULT_SL ? ' selected' : ''}>SL ${v}${v === TR.DEFAULT_SL ? ' (default)' : ''}</option>`).join(''); }
+    $('startBtn').hidden = !reg; $('startBtn').disabled = T.players.length < 2;
+    $('startNote').textContent = reg ? (T.players.length < 2 ? 'Add at least two entrants to draw the bracket.' : `Drawing closes sign-ups. ${T.players.length - paid ? `${T.players.length - paid} entrant${T.players.length - paid > 1 ? 's haven\'t' : ' hasn\'t'} paid yet.` : 'Everyone has paid.'}`) : 'After the draw you can still change skill levels, names and paid status. To add or remove players, go back to sign-ups (this clears the bracket).';
+    $('backToReg').hidden = reg;
+    // Tables
+    const busy = t => { const s = hallStatus[t]; return s && s.state === 'busy' && Date.now() - s.ts < STALE; };
+    $('tblChips').innerHTML = tableNums.map(n => `<button type="button" data-t="${n}" aria-pressed="${T.tables.includes(n)}" class="${busy(n) ? 'busy' : ''}" title="${busy(n) ? 'Someone is playing on it right now' : ''}">${n}</button>`).join('');
+    $('autoAssign').checked = T.auto !== false;
+    const B = bracket(), R = B ? resolved() : null;
+    if (R && T.phase === 'live') {
+      const on = Object.entries(T.assign).sort((a, b) => a[1] - b[1]), wait = B.matches.filter(m => R.m[m.id].status === 'ready' && !T.assign[m.id]).sort((a, b) => a.num - b.num);
+      const free = T.tables.filter(t => !Object.values(T.assign).includes(t));
+      $('queue').innerHTML = `<h2 style="margin-top:6px">On tables</h2>${on.map(([id, t]) => { const s = R.m[id]; return `<div class="qrow"><b>${t}</b><span>#${B.byId[id].num} ${esc(nm(s.pa))} vs ${esc(nm(s.pb))}</span></div>`; }).join('') || '<p>None.</p>'}
+        <h2 style="margin-top:6px">Waiting for a table</h2>${wait.map(m => { const s = R.m[m.id]; return `<div class="qrow"><b>#${m.num}</b><span>${esc(nm(s.pa))} vs ${esc(nm(s.pb))}</span></div>`; }).join('') || '<p>None.</p>'}
+        ${free.length ? `<p>Free: table${free.length > 1 ? 's' : ''} ${free.join(', ')}</p>` : ''}${busy && T.tables.some(busy) ? '<p>A gold underline means the hall map shows someone still scoring on that table. Ask them to tap Free table, or free it on the admin page.</p>' : ''}`;
+    } else $('queue').innerHTML = T.phase === 'reg' ? '<p>Tables are set up for matches once the bracket is drawn.</p>' : '';
+    paintRaces();
+  }
+  function paintRaces(){
+    const grid = $('raceGrid'), stages = ['wb', 'lb', 'semi', 'final'].filter(s => T.fmt !== 'single' || s !== 'lb');
+    const lbl = { wb: T.fmt === 'double' ? 'Winners bracket' : 'Main draw', lb: T.fmt === 'double' ? 'Losers bracket' : 'Second chance', semi: T.fmt === 'double' ? "Winners' & losers' finals" : 'Semifinals', final: T.fmt === 'double' ? 'Grand final' : 'Final' };
+    const pts = skill() && T.gtype === 9;
+    $('raceHelp').textContent = skill() ? (pts ? 'APA 9-ball points targets come from each skill level and are not reduced.' : 'Races come from the APA chart and each player\'s skill level. Tick “reduced” to take one game off both players in that stage (only when both still need 2 or more). Change it any time — matches not yet finished pick it up.') : 'Set the race for each stage. Blank uses the main race. Tick “reduced” to take one game off (never below 2). Change it any time.';
+    if (grid.contains(document.activeElement)) return;
+    grid.innerHTML = `<b>Stage</b><b>${skill() ? '' : 'Race to'}</b><b>${pts ? '' : 'Reduced'}</b>` + stages.map(s => `<span>${lbl[s]}</span>
+      <span>${skill() ? '' : `<input type="number" min="1" max="21" data-race="${s}" value="${(T.races || {})[s] || ''}" placeholder="${T.raceN}">`}</span>
+      <span>${pts ? '' : `<label class="chk"><input type="checkbox" data-red="${s}" ${(T.reduce || {})[s] ? 'checked' : ''}></label>`}</span>`).join('')
+      + (pts ? '' : `<span>All stages</span><span></span><span><button type="button" id="redAll">${stages.every(s => (T.reduce || {})[s]) ? 'Full races' : 'Reduce all'}</button></span>`);
+  }
+  $('raceGrid').addEventListener('change', e => {
+    const r = e.target.closest('[data-race]'), d = e.target.closest('[data-red]');
+    T.races = T.races || {}; T.reduce = T.reduce || {};
+    if (r) { const v = parseInt(r.value, 10); if (v > 0) T.races[r.dataset.race] = Math.min(21, v); else delete T.races[r.dataset.race]; }
+    if (d) T.reduce[d.dataset.red] = d.checked;
+    publish(); toast('Races updated');
+  });
+  $('raceGrid').addEventListener('click', e => { if (e.target.id !== 'redAll') return; const st = ['wb', 'lb', 'semi', 'final'], all = st.every(s => (T.reduce || {})[s]);
+    T.reduce = Object.fromEntries(st.map(s => [s, !all])); publish(); toast(all ? 'Full races' : 'Races reduced'); });
+
+  $('entList').addEventListener('click', e => {
+    const row = e.target.closest('[data-id]'), late = e.target.closest('[data-addlate]');
+    if (late) { const s = signups[late.dataset.addlate]; if (s) { T.seen = T.seen || []; T.seen.push(s.sid); const id = 'p' + (T.nid = (T.nid || 0) + 1); T.players.push({ id, n: s.n, sl: s.sl, paid: false, u: s.u || '', c: s.cm || '', sid: s.sid }); if (s.c) { contacts[id] = s.c; ls.set(LS_CONTACTS, contacts); } publish(); } return; }
+    if (!row) return; const p = pl(row.dataset.id); if (!p) return;
+    const sl = e.target.closest('[data-sl]');
+    if (sl) { const [lo, hi] = TR.slRange(T.gtype); p.sl = Math.max(lo, Math.min(hi, (+p.sl || TR.DEFAULT_SL) + +sl.dataset.sl)); publish(); return; }
+    if (e.target.closest('[data-edit]')) { const n = prompt('Name', p.n); if (n && n.trim()) { p.n = n.trim().slice(0, 30); publish(); } return; }
+    if (e.target.closest('[data-rm]') && T.phase === 'reg' && confirm(`Remove ${p.n}?`)) { T.players = T.players.filter(x => x !== p); T.seen = T.seen || []; if (p.sid && !T.seen.includes(p.sid)) T.seen.push(p.sid); publish(); }
+  });
+  $('entList').addEventListener('change', e => { const c = e.target.closest('[data-paid]'); if (!c) return; const p = pl(e.target.closest('[data-id]').dataset.id); p.paid = c.checked; publish(); });
+  $('walkin').addEventListener('submit', e => { e.preventDefault();
+    const n = $('wName').value.trim(); if (!n) return;
+    const c = $('wContact').value.trim(), norm = A.normalize(c);
+    const id = 'p' + (T.nid = (T.nid || 0) + 1);
+    T.players.push({ id, n: n.slice(0, 30), sl: skill() ? +$('wSl').value : TR.DEFAULT_SL, paid: false, u: norm ? A.uid(c) : '', c: norm ? A.mask(norm) : '', sid: '' });
+    if (c) { contacts[id] = c; ls.set(LS_CONTACTS, contacts); }
+    $('wName').value = ''; $('wContact').value = ''; publish(); $('wName').focus(); });
+  $('regOpen').onchange = () => { T.open = $('regOpen').checked; publish(); postSummary(); mergeSignups(); };
+  $('copyLink').onclick = async () => { try { await navigator.clipboard.writeText(joinUrl()); toast('Link copied'); } catch { prompt('Copy this link', joinUrl()); } };
+  $('qrBig').onclick = showQr;
+  $('tblChips').addEventListener('click', e => { const b = e.target.closest('[data-t]'); if (!b) return; const t = +b.dataset.t;
+    T.tables = T.tables.includes(t) ? T.tables.filter(x => x !== t) : [...T.tables, t]; publish(); postSummary(); });
+  $('autoAssign').onchange = () => { T.auto = $('autoAssign').checked; publish(); };
+  $('startBtn').onclick = () => {
+    if (T.players.length < 2) return;
+    if (!confirm(`Draw the bracket for ${T.players.length} ${T.dbl ? 'teams' : 'players'} and start? Sign-ups close.`)) return;
+    T.seeds = TR.seedPlayers(T.players, T.seeding || 'random'); T.res = {}; T.sc = {}; T.assign = {}; T.called = {}; T.phase = 'live'; T.open = false; T.posted = 0; BKEY = '';
+    publish(); postSummary(); tab = 'bracket'; paint();
+  };
+  $('backToReg').onclick = () => { if (!confirm('Throw away the bracket and all results, and go back to sign-ups?')) return;
+    T.phase = 'reg'; T.seeds = null; T.res = {}; T.sc = {}; T.assign = {}; T.called = {}; T.posted = 0; BKEY = ''; publish(); postSummary(); };
+  $('clearT').onclick = () => { if (!confirm('End and clear this tournament? Its tables are released.')) return;
+    const tid = T.tid; T.phase = 'none'; T.tables = []; T.assign = {}; publish(); post(HALL_TOPIC, { kind: 'tsum', tid, phase: 'none', ts: Date.now() }); };
+
+  // Setup form
+  const fmtVal = () => (document.querySelector('[name=fmt]:checked') || {}).value || 'double';
+  function paintSetupHelp(){
+    const rules = $('sRules').value, g = +$('sGame').value, sk = rules === 'apa' && g !== 10, f = fmtVal();
+    $('raceNWrap').hidden = sk;
+    $('rulesHelp').textContent = rules === 'apa' ? (g === 8 ? 'Each player enters their APA 8-ball skill level (3 if they don\'t know it). Races come from the APA chart, e.g. SL3 vs SL6 plays 2 games to 5.' : g === 9 ? 'APA 9-ball: each player needs a points total from their skill level (SL3 needs 25). 3 is used if they don\'t know it.' : 'APA has no 10-ball chart, so every match is a fixed race.')
+      : rules === 'bca' ? 'BCA rules, no handicap: everyone plays the same race.' : 'No skill levels: everyone plays the same race.';
+    $('fmtDiagram').innerHTML = TR.diagram(f, $('sReset').checked);
+    $('fmtExplain').textContent = TR.EXPLAIN[f] + (f === 'double' ? ' ' + TR.EXPLAIN.reset : '');
+    $('resetWrap').hidden = f !== 'double';
+    $('byeHelp').textContent = TR.EXPLAIN.byes;
+  }
+  function fillSetup(){
+    const now = new Date(); now.setMinutes(0, 0, 0); now.setHours(now.getHours() + 1);
+    const d = T && T.phase === 'reg' ? T : T && T.phase === 'done' ? { ...T, title: '', when: '' } : { title: '', gtype: 8, dbl: false, rules: 'apa', fmt: 'double', reset: true, seeding: 'random', raceN: 3, fee: '', when: '' };
+    $('sTitle').value = d.title; $('sGame').value = d.gtype; $('sDbl').value = d.dbl ? '1' : '0'; $('sRules').value = d.rules; $('sRace').value = d.raceN || 3;
+    $('sFee').value = d.fee || ''; $('sWhen').value = d.when || new Date(now - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    $('sReset').checked = d.reset !== false; $('sSeed').value = d.seeding || 'random';
+    for (const r of document.querySelectorAll('[name=fmt]')) r.checked = r.value === d.fmt;
+    paintSetupHelp();
+  }
+  $('setupForm').addEventListener('change', paintSetupHelp);
+  $('setupForm').addEventListener('submit', e => { e.preventDefault();
+    const s = { title: $('sTitle').value.trim() || 'Tournament', gtype: +$('sGame').value, dbl: $('sDbl').value === '1', rules: $('sRules').value, fmt: fmtVal(), reset: $('sReset').checked,
+      seeding: $('sSeed').value, raceN: Math.max(1, Math.min(21, +$('sRace').value || 3)), fee: $('sFee').value.trim(), when: $('sWhen').value };
+    if (T && T.phase === 'reg') {
+      Object.assign(T, s);
+      if (TR.usesSkill(T)) for (const p of T.players) p.sl = TR.cleanSl(p.sl, T.gtype);
+      publish(); postSummary(); toast('Settings saved');
+    } else {
+      if (T && T.phase === 'done' && !confirm(`Start a new tournament? ${T.title} stays in the results.`)) return;
+      if (T && T.phase === 'done') { T.phase = 'none'; reconcile(); }
+      T = { kind: 'tourney', v: 2, tid: Date.now().toString(36) + Math.random().toString(36).slice(2, 5), ...s, races: {}, reduce: {}, phase: 'reg', open: true, players: [], seeds: null,
+        res: {}, sc: {}, tables: [], assign: {}, called: {}, sent: {}, seen: [], nid: 0, auto: true, posted: 0, ts: Date.now() };
+      BKEY = ''; publish(); postSummary(); toast('Sign-ups are open'); window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  });
+
+  $('pinCard').addEventListener('submit', e => { e.preventDefault();
+    if (P.hash(`${HALL}:${$('pin').value.trim()}`) === H.adminPin) { admin = true; try { sessionStorage.setItem('poolar-admin-' + HALL, '1'); } catch {} fillSetup(); startAdmin(); mergeSignups(); paint(); }
+    else $('pinMsg').textContent = "That PIN isn't right."; });
+
+  // ------------------------------------------------------------ relay
   const setLive = on => { $('live').textContent = on ? 'Live' : 'Offline'; $('live').style.color = on ? 'var(--free)' : ''; };
+  const poll = async (topic, fn) => { const txt = await (await fetch(`${RELAY}/${topic}/json?poll=1&since=12h`)).text();
+    for (const l of txt.split('\n')) { try { const e = JSON.parse(l); if (e.event === 'message') fn(e.message, e.time); } catch {} } };
+  const subscribe = (topic, fn, onopen) => { try { const es = new PoolarStream(`${RELAY}/${topic}/sse`); if (onopen) es.onopen = onopen;
+    es.onmessage = e => { try { const d = JSON.parse(e.data); if (d.event === 'message') fn(d.message, d.time); } catch {} }; } catch {} };
+  let adminStarted = false;
+  function startAdmin(){
+    if (adminStarted) return; adminStarted = true;
+    // The organiser's phone also watches the scoring phones (to fill in winners) and the hall (to see busy tables).
+    poll(HALL_TOPIC, takeHall).then(paint).catch(() => {});
+    subscribe(HALL_TOPIC, m => { takeHall(m); if (currentTab() === 'run') paintRun(); });
+    subscribe(RESULTS, m => takeResult(m));
+    // The free relay forgets messages after 12 hours: re-post the tournament if its latest copy is getting old.
+    if (T && T.phase !== 'none' && Date.now() / 1000 - snapTime > 8 * 3600) sendNow();
+    setInterval(() => { if (T && T.phase !== 'none' && Date.now() / 1000 - snapTime > 8 * 3600) sendNow(); }, 30 * 60 * 1000);
+  }
   (async () => {
-    try { const txt = await (await fetch(`${RELAY}/${TOPIC}/json?poll=1&since=12h`)).text();
-      for (const l of txt.split('\n')) { try { const e = JSON.parse(l); if (e.event === 'message') take(e.message); } catch {} } setLive(true); } catch { setLive(false); }
+    try { await poll(TOPIC, take); setLive(true); } catch { setLive(false); }
+    if (admin) { startAdmin(); mergeSignups(); fillSetup(); }
     paint();
   })();
-  try { const es = new PoolarStream(`${RELAY}/${TOPIC}/sse`); es.onopen = () => setLive(true);
-    es.onmessage = e => { try { const d = JSON.parse(e.data); if (d.event === 'message') { take(d.message); paint(); } } catch {} }; } catch {}
+  subscribe(TOPIC, (m, time) => { const changed = take(m, time); if (changed) { mergeSignups(); paint(); } }, () => setLive(true));
+  A.onChange(paint);
   paint();
+  setInterval(() => { if (currentTab() === 'me') paintMe(); }, 60000);
 })();
 </script>
 <script src="build.js"></script>

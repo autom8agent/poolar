@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="build" content="20260930063940"><script src="stream.js"></script>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0f14">
+<title>Join the Tournament</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="common.css">
+<style>
+  .facts{display:flex;flex-wrap:wrap;gap:6px}
+  .big{font-family:var(--num);font-weight:900;font-size:clamp(34px,11vw,52px);line-height:1;color:var(--gold);text-transform:uppercase}
+  .done{border-color:var(--free)}
+  .chk{flex-direction:row;align-items:center;gap:10px;text-transform:none;letter-spacing:0;font-size:15px;color:var(--text)}
+  .chk input{width:22px;height:22px;accent-color:var(--gold)}
+  .me{display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap}
+  .me b{color:var(--text)}
+  .me button{padding:8px 12px;font-size:13px}
+  button.primary{padding:14px;font-size:17px}
+  .err{color:var(--bad);font-weight:700}
+  details summary{cursor:pointer;color:var(--felt);font-weight:700}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a id="back" href="hall.html">⌂ Tables</a><span class="pill" id="live">Offline</span></div>
+  <h1 id="title">Tournament sign-up</h1>
+  <div class="facts" id="facts"></div>
+  <p id="lead">Loading…</p>
+
+  <div class="card done" id="doneCard" hidden>
+    <div class="big" id="doneBig">You're in</div>
+    <p id="doneMsg"></p>
+    <a class="btn primary" id="toBracket" href="tournament.html">See the players &amp; bracket</a>
+    <button type="button" id="again">Sign up someone else</button>
+  </div>
+
+  <form class="card" id="form" hidden autocomplete="on">
+    <div class="me" id="meRow" hidden><span>Signed in as <b id="meName"></b> <span class="muted" id="meContact"></span></span><button type="button" id="signOut">Not you?</button></div>
+    <label><span id="nameLbl">Your name</span><input id="name" autocomplete="name" maxlength="30" required placeholder="Name on the bracket"></label>
+    <label id="partnerWrap" hidden>Partner's name<input id="partner" maxlength="30" placeholder="Your doubles partner"></label>
+    <label>Phone or email<input id="contact" autocomplete="tel email" inputmode="email" maxlength="60" required placeholder="So the organiser can reach you"></label>
+    <label id="slWrap" hidden><span id="slLbl">APA skill level</span><select id="sl"></select></label>
+    <p id="slHelp" hidden></p>
+    <div id="acctBox">
+      <label class="chk"><input type="checkbox" id="save" checked> Remember me on this phone (creates a member profile)</label>
+      <label id="pinWrap">PIN to protect your profile on this phone (optional)<input id="pin" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" placeholder="Leave blank for none"></label>
+    </div>
+    <p class="err" id="err" hidden></p>
+    <button class="primary" type="submit" id="go">Sign me up</button>
+    <p>Your name and skill level appear on the bracket. Your phone or email goes to the organiser only.</p>
+  </form>
+
+  <div class="card" id="howCard" hidden>
+    <details><summary>How this tournament works</summary><div id="how" style="display:flex;flex-direction:column;gap:10px;margin-top:10px"></div></details>
+  </div>
+  <p class="muted" style="font-size:12px">Member profiles are saved on this phone for now. Online accounts (sign in on any phone with a code by text or email) are coming.</p>
+</div>
+<script src="halls.js"></script>
+<script src="auth.js"></script>
+<script src="tourney.js"></script>
+<script>
+(() => {
+  const qs = new URLSearchParams(location.search);
+  const HALL = (qs.get('hall') || 'surge-chicago').replace(/[^a-z0-9-]/gi, '');
+  const H = window.POOLAR_HALLS[HALL] || window.POOLAR_HALLS['surge-chicago'], P = window.POOLAR, RELAY = P.relay(), TR = window.Tourney, A = window.PoolarAuth;
+  const TOPIC = 'poolar-tourney-' + HALL;
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const keep = p => `${p}?hall=${HALL}` + (RELAY !== 'https://ntfy.sh' ? `&relay=${encodeURIComponent(RELAY)}` : '');
+  const ls = { get: (k, d) => { try { const v = JSON.parse(localStorage.getItem(k) || 'null'); return v == null ? d : v; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
+  $('back').href = keep('hall.html'); $('toBracket').href = keep('tournament.html') + '&tab=me';
+  const FMT = { single: 'Single elimination', double: 'Double elimination', modified: 'Modified single elimination' };
+  let T = null, loaded = false, doneSid = null, again = false; const mine = {};
+  const collect = TR.Collector('tourney');
+  const take = raw => { let m; try { m = JSON.parse(raw); } catch { return; } if (!m) return;
+    if (m.kind === 'signup') { mine[m.sid] = m; return; }
+    const full = collect(m); if (full && full.v === 2 && (!T || full.ts >= T.ts)) T = full; };
+
+  function paint(){
+    const open = T && T.phase === 'reg' && T.open;
+    $('title').textContent = T && T.phase !== 'none' ? T.title : 'Tournament sign-up';
+    document.title = T && T.phase !== 'none' ? `Join ${T.title}` : 'Join the Tournament';
+    if (!T || T.phase === 'none') { $('facts').innerHTML = ''; $('lead').textContent = loaded ? `There's no tournament taking sign-ups at ${H.name} right now.` : 'Loading…'; $('form').hidden = true; $('howCard').hidden = true; return; }
+    const sk = TR.usesSkill(T);
+    $('facts').innerHTML = [T.when ? new Date(T.when).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '', `${T.gtype}-ball`, T.dbl ? 'Doubles' : 'Singles', { apa: 'APA', bca: 'BCA', none: 'No skill levels' }[T.rules], FMT[T.fmt], T.fee ? `Entry ${T.fee}` : '', `${T.players.length} signed up`]
+      .filter(Boolean).map(x => `<span class="pill">${esc(x)}</span>`).join('');
+    if (!doneSid && !again) doneSid = ls.get('poolar-joined-' + T.tid, null);
+    const p = doneSid && T.players.find(x => x.sid === doneSid);
+    if (doneSid && !again) showDone(p ? p.n : (mine[doneSid] || {}).n, !!p, p && p.paid);
+    $('lead').textContent = open ? `Sign up for ${T.title} at ${H.name}.` : T.phase === 'reg' ? 'Sign-ups are closed. Late? Ask the organiser at the desk.' : 'This tournament has started — sign-ups are closed. You can still follow it live.';
+    $('form').hidden = !open || (!!doneSid && !again);
+    $('howCard').hidden = false;
+    $('how').innerHTML = `${TR.diagram(T.fmt, T.reset !== false)}<p>${esc(TR.EXPLAIN[T.fmt])}</p>${T.fmt === 'double' && T.reset !== false ? `<p>${esc(TR.EXPLAIN.reset)}</p>` : ''}${sk ? `<p>${esc(TR.EXPLAIN.races)}</p>` : `<p>Every match is a race to ${T.raceN} unless the organiser changes it for later rounds.</p>`}`;
+    // Form details for this tournament
+    $('nameLbl').textContent = T.dbl ? 'Your name' : 'Your name';
+    $('partnerWrap').hidden = !T.dbl;
+    $('slWrap').hidden = $('slHelp').hidden = !sk;
+    if (sk && $('sl').dataset.g !== String(T.gtype)) {
+      const [lo, hi] = TR.slRange(T.gtype), m = A.current() || P.profile() || {}, known = T.gtype === 9 ? m.sl9 : m.sl8;
+      $('sl').dataset.g = T.gtype; $('slLbl').textContent = `APA ${T.gtype}-ball skill level${T.dbl ? ' (team)' : ''}`;
+      $('sl').innerHTML = `<option value="">I don't know (use ${TR.DEFAULT_SL})</option>` + Array.from({ length: hi - lo + 1 }, (_, i) => lo + i).map(v => `<option value="${v}"${String(v) === String(known) ? ' selected' : ''}>SL ${v}</option>`).join('');
+      $('slHelp').textContent = 'Your race depends on your skill level and your opponent\'s. The organiser can adjust it.';
+    }
+  }
+  function fillMe(){
+    const m = A.current(), prof = P.profile() || {};
+    $('meRow').hidden = !m; $('acctBox').hidden = !!m;
+    if (m) { $('meName').textContent = m.name; $('meContact').textContent = m.masked; $('contact').value = m.contact; }
+    if (!$('name').value) $('name').value = (m && m.name) || prof.name || '';
+  }
+  function showDone(name, confirmed, paid){
+    $('doneCard').hidden = false;
+    $('doneBig').textContent = "You're in";
+    $('doneMsg').innerHTML = `<b style="color:var(--text)">${esc(name || 'You')}</b> ${confirmed ? 'is on the entrant list' : 'is signed up — the organiser\'s phone adds you to the list shortly'}.${T && T.fee && !paid ? ` Entry is ${esc(T.fee)}: pay at the desk.` : paid ? ' Paid — thanks!' : ''} When the bracket is drawn, “My match” shows who you play and which table to go to.`;
+  }
+  $('again').onclick = () => { again = true; doneSid = null; $('doneCard').hidden = true; $('name').value = ''; $('contact').value = ''; $('partner').value = ''; $('meRow').hidden = true; $('acctBox').hidden = true; $('save').checked = false; paint(); };
+  $('signOut').onclick = async () => { await A.signOut(); $('name').value = ''; $('contact').value = ''; fillMe(); };
+  $('save').onchange = () => { $('pinWrap').hidden = !$('save').checked; };
+
+  $('form').addEventListener('submit', async e => {
+    e.preventDefault(); $('err').hidden = true;
+    const name = $('name').value.trim(), contact = $('contact').value.trim(), norm = A.normalize(contact);
+    if (!name) return;
+    if (!norm) { $('err').textContent = 'Enter a phone number (e.g. 312 555 0100) or an email address.'; $('err').hidden = false; return; }
+    const full = T.dbl && $('partner').value.trim() ? `${name} & ${$('partner').value.trim()}` : name;
+    const sl = TR.usesSkill(T) ? TR.cleanSl($('sl').value || TR.DEFAULT_SL, T.gtype) : TR.DEFAULT_SL;
+    // Save the member profile first so the sign-up carries the member id (how the bracket recognises "you").
+    if (!A.current() && $('save').checked && !again) {
+      try { await A.signUp({ name, contact, pin: $('pin').value.trim(), [T.gtype === 9 ? 'sl9' : 'sl8']: $('sl').value || '' }); }
+      catch (err) { $('err').textContent = err.message; $('err').hidden = false; return; }
+    }
+    const sid = Math.random().toString(36).slice(2, 9);
+    const msg = { kind: 'signup', tid: T.tid, sid, n: full.slice(0, 40), c: norm.value, cm: A.mask(norm), u: A.uid(contact), sl, ts: Date.now() };
+    $('go').disabled = true; $('go').textContent = 'Signing you up…';
+    try { const r = await fetch(`${RELAY}/${TOPIC}`, { method: 'POST', body: JSON.stringify(msg) }); if (!r.ok) throw new Error(r.status); }
+    catch { $('go').disabled = false; $('go').textContent = 'Sign me up'; $('err').textContent = "Couldn't reach the sign-up list. Check your signal and try again, or sign up at the desk."; $('err').hidden = false; return; }
+    if (!again) ls.set('poolar-joined-' + T.tid, sid);
+    mine[sid] = msg; doneSid = sid; again = false;
+    $('go').disabled = false; $('go').textContent = 'Sign me up';
+    showDone(full, false, false);
+  });
+
+  const setLive = on => { $('live').textContent = on ? 'Live' : 'Offline'; $('live').style.color = on ? 'var(--free)' : ''; };
+  (async () => {
+    try { const txt = await (await fetch(`${RELAY}/${TOPIC}/json?poll=1&since=12h`)).text();
+      for (const l of txt.split('\n')) { try { const e = JSON.parse(l); if (e.event === 'message') take(e.message); } catch {} } setLive(true); } catch { setLive(false); }
+    loaded = true; fillMe(); paint();
+  })();
+  try { const es = new PoolarStream(`${RELAY}/${TOPIC}/sse`); es.onopen = () => setLive(true);
+    es.onmessage = e => { try { const d = JSON.parse(e.data); if (d.event === 'message') { take(d.message); paint(); } } catch {} }; } catch {}
+  fillMe(); paint();
+})();
+</script>
+<script src="build.js"></script>
+</body>
+</html>

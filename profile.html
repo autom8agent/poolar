@@ -1,18 +1,42 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="build" content="20260930054527">
+<meta charset="utf-8"><meta name="build" content="20260930063940">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0a0f14">
 <title>Player Profile</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <link rel="stylesheet" href="common.css">
+<style>
+  .seg{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .seg button[aria-pressed="true"]{background:var(--felt);border-color:var(--felt);color:#04162b}
+  .err{color:var(--bad);font-weight:700}
+  .acct{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .acct b{font-size:18px;color:var(--text)}
+</style>
 </head>
 <body>
 <div class="wrap">
-  <div class="top"><a id="back" href="hall.html">← All tables</a><span class="pill" id="state">Not set up</span></div>
+  <div class="top"><a id="back" href="hall.html">⌂ Tables</a><span class="pill" id="state">Not set up</span></div>
   <h1>My profile</h1>
-  <p>Save your name once. It fills in by itself when you start a game, join someone's table or get in line.</p>
+  <p>Save your name once. It fills in by itself when you start a game, join someone's table, get in line or sign up for a tournament.</p>
+
+  <div class="card" id="acctIn" hidden>
+    <h2>Member</h2>
+    <div class="acct"><span><b id="acctName"></b><br><span class="muted" id="acctContact"></span></span><button type="button" id="signOut">Sign out</button></div>
+    <p>Tournament brackets recognise you by this account, so your next match and table show up by themselves.</p>
+  </div>
+
+  <form class="card" id="signInForm" hidden autocomplete="on">
+    <h2>Sign in / create account</h2>
+    <div class="seg" role="group"><button type="button" data-mode="up" aria-pressed="true">Create account</button><button type="button" data-mode="in" aria-pressed="false">Sign in</button></div>
+    <label id="aNameWrap">Name players see<input id="aName" autocomplete="name" maxlength="24" placeholder="e.g. Terry"></label>
+    <label>Phone or email<input id="aContact" autocomplete="tel email" inputmode="email" maxlength="60" required placeholder="312 555 0100 or you@example.com"></label>
+    <label><span id="aPinLbl">PIN (optional)</span><input id="aPin" type="password" inputmode="numeric" maxlength="8" autocomplete="current-password" placeholder="Protects your account on this phone"></label>
+    <p class="err" id="aErr" hidden></p>
+    <button class="primary" type="submit" id="aGo">Create account</button>
+  </form>
+
   <form class="card" id="form">
     <label>Name players see<input id="name" autocomplete="name" maxlength="24" required placeholder="e.g. Terry"></label>
     <div class="row">
@@ -25,7 +49,12 @@
     </div>
     <div class="row"><button type="button" id="clear">Remove profile</button><button class="primary" type="submit">Save profile</button></div>
   </form>
-  <p id="acctNote">Your profile is saved on this phone only. Signing in to use it on other phones needs an account system, which this site doesn't have yet.</p>
+  <p id="acctNote">Accounts and profiles are saved on this phone only for now — nothing is sent to a server and no codes are texted. Signing in on other phones (with a code by text or email) comes when online accounts are added.</p>
+
+  <div class="card">
+    <h2>My tournaments</h2>
+    <div id="tHist"><p>No tournament results yet.</p></div>
+  </div>
 
   <div class="card">
     <h2>My matches on this phone</h2>
@@ -33,6 +62,7 @@
   </div>
 </div>
 <script src="halls.js"></script>
+<script src="auth.js"></script>
 <script>
 (() => {
   const $ = id => document.getElementById(id);
@@ -40,16 +70,47 @@
   const qs = new URLSearchParams(location.search);
   $('back').href = `hall.html?hall=${(qs.get('hall') || 'surge-chicago').replace(/[^a-z0-9-]/gi, '')}`;
   const fields = ['name', 'apa', 'fargo', 'sl8', 'sl9'];
-  const load = () => { const p = POOLAR.profile() || {}; for (const f of fields) $(f).value = p[f] || ''; $('state').textContent = p.name ? `Signed in as ${p.name}` : 'Not set up'; };
+  const A = window.PoolarAuth, HALL = (qs.get('hall') || 'surge-chicago').replace(/[^a-z0-9-]/gi, ''), RELAY = POOLAR.relay();
+  if (RELAY !== 'https://ntfy.sh') $('back').href += `&relay=${encodeURIComponent(RELAY)}`;
+  const load = () => { const p = POOLAR.profile() || {}, m = A.current(); for (const f of fields) $(f).value = (m && m[f]) || p[f] || '';
+    $('state').textContent = m ? `Signed in as ${m.name}` : p.name ? `Profile: ${p.name}` : 'Not set up';
+    $('acctIn').hidden = !m; $('signInForm').hidden = !!m;
+    if (m) { $('acctName').textContent = m.name; $('acctContact').textContent = `${m.masked} · saved on this phone`; } };
+  // Sign in / create account. TODO(auth backend): when auth.js gets a real provider, add the "enter the code" step here.
+  let mode = 'up';
+  $('signInForm').addEventListener('click', e => { const b = e.target.closest('[data-mode]'); if (!b) return; mode = b.dataset.mode;
+    for (const x of document.querySelectorAll('[data-mode]')) x.setAttribute('aria-pressed', String(x === b));
+    $('aNameWrap').hidden = mode === 'in'; $('aGo').textContent = mode === 'in' ? 'Sign in' : 'Create account'; $('aPinLbl').textContent = mode === 'in' ? 'PIN (if you set one)' : 'PIN (optional)'; $('aErr').hidden = true; });
+  $('signInForm').addEventListener('submit', async e => { e.preventDefault(); $('aErr').hidden = true;
+    const o = { name: $('aName').value.trim() || $('name').value.trim(), contact: $('aContact').value.trim(), pin: $('aPin').value.trim(), sl8: $('sl8').value, sl9: $('sl9').value };
+    try { const m = mode === 'in' ? await A.signIn(o) : await A.signUp(o); $('aPin').value = ''; load(); toast(mode === 'in' ? `Welcome back, ${m.name}` : 'Account created'); }
+    catch (err) { $('aErr').textContent = err.message; $('aErr').hidden = false; } });
+  $('signOut').onclick = async () => { await A.signOut(); load(); toast('Signed out'); };
   const toast = t => { const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 1800); };
   $('form').addEventListener('submit', e => {
     e.preventDefault();
     const p = Object.fromEntries(fields.map(f => [f, $(f).value.trim()]));
-    try { localStorage.setItem('poolar-profile', JSON.stringify(p)); localStorage.setItem('poolar-my-name', p.name); } catch {}
+    const old = POOLAR.profile() || {};
+    try { localStorage.setItem('poolar-profile', JSON.stringify({ ...old, ...p })); localStorage.setItem('poolar-my-name', p.name); } catch {}
+    if (A.current()) A.update(p).catch(() => {});
     load(); toast('Profile saved');
   });
   $('clear').onclick = () => { try { localStorage.removeItem('poolar-profile'); } catch {} load(); toast('Profile removed'); };
   load();
+
+  // Tournament placings: the ones this phone saw, plus any posted to the hall's results feed for this member.
+  const ord = n => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th');
+  let th = []; try { th = JSON.parse(localStorage.getItem('poolar-tourney-history') || '[]'); } catch {}
+  const paintT = () => { if (th.length) $('tHist').innerHTML = `<table class="t"><thead><tr><th>When</th><th>Tournament</th><th>Place</th></tr></thead><tbody>${th.map(r =>
+    `<tr><td>${new Date(r.at).toLocaleDateString([], { month: 'short', day: 'numeric' })}</td><td>${esc(r.title)}<br><span class="muted">${r.n} players · ${r.gtype}-ball</span></td><td><b>${ord(r.place)}</b></td></tr>`).join('')}</tbody></table>`; };
+  paintT();
+  (async () => { const me = POOLAR.me(); if (!me.uid && !me.name) return;
+    try { const txt = await (await fetch(`${RELAY}/poolar-results-${HALL}/json?poll=1&since=12h`)).text();
+      for (const l of txt.split('\n')) { try { const e = JSON.parse(l); if (e.event !== 'message') continue; const r = JSON.parse(e.message);
+        if (r.kind !== 'placings' || th.some(x => x.tid === r.tid)) continue;
+        const p = r.places.find(x => (me.uid && x.u === me.uid) || (!x.u && me.name && x.n.toLowerCase() === me.name.toLowerCase())); if (!p) continue;
+        th.unshift({ tid: r.tid, title: r.title, at: r.at, place: p.p, n: r.places.length, fmt: r.fmt, gtype: r.gtype, hall: r.hall }); } catch {} }
+      localStorage.setItem('poolar-tourney-history', JSON.stringify(th.slice(0, 100))); paintT(); } catch {} })();
 
   let h = []; try { h = JSON.parse(localStorage.getItem('poolar-history') || '[]'); } catch {}
   const dur = ms => { const m = Math.round(ms / 60000); return m >= 60 ? `${Math.floor(m/60)}h ${m%60}m` : `${m}m`; };
