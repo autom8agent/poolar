@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930212441"><script src="stream.js?v=20260930212441"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930212727"><script src="stream.js?v=20260930212727"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -216,6 +216,11 @@
   .reflog .it small{color:#8ea69a;display:block} .reflog .it .a{font-weight:800;font-size:12px}
   .reflog .it .a.yes{color:#57d98a} .reflog .it .a.no{color:#ff6b5e} .reflog .it .a.wait{color:var(--gold)}
   .refpop{position:absolute;right:8px;bottom:60px;z-index:6;width:min(460px,calc(100% - 16px));font-size:16px;background:rgba(12,20,17,.96);border:2px solid var(--gold);border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:8px;box-shadow:0 8px 30px rgba(0,0,0,.5);overflow:hidden}
+  .rfix{display:flex;flex-direction:column;gap:6px;border-top:1px solid #26372f;padding-top:6px}
+  .rfix small{color:#8ea69a;font-size:13px}
+  .rfixb{display:flex;flex-wrap:wrap;gap:6px}
+  .rfixb button{font-size:14px!important;padding:8px 10px!important}
+  .rfixb .ball{width:34px}
   .refpop .rtop{display:flex;align-items:center;gap:8px;font-size:19px}
   .refpop button{font-size:16px!important;padding:11px 14px!important}
   .refpop #refS{font-size:15px;line-height:1.35}
@@ -426,6 +431,7 @@
         <div class="rtop"><b id="refT"></b><span class="rballs" id="refBalls"></span></div>
         <p id="refS"></p>
         <div class="rbtn"><button data-c="yes">Yes</button><button data-c="no">No</button><button data-c="other">Other</button></div>
+        <div class="rfix" id="refFix" hidden><small>Fix the game (applies now):</small><div class="rfixb" id="refFixB"></div></div>
         <textarea id="refC" rows="2" placeholder="Comment (optional) — tell it what really happened"></textarea>
         <div class="rfoot"><span id="refAuto"></span><button id="refStop">⏸ Stop timer</button><button class="primary" id="refSubmit">Submit</button></div>
         <i class="rbar" id="refBar"></i>
@@ -797,10 +803,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930212441"></script>
-<script src="halls.js?v=20260930212441"></script>
-<script src="qrcode.js?v=20260930212441"></script>
-<script src="tablecv.js?v=20260930212441"></script>
+<script src="hallday.js?v=20260930212727"></script>
+<script src="halls.js?v=20260930212727"></script>
+<script src="qrcode.js?v=20260930212727"></script>
+<script src="tablecv.js?v=20260930212727"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -2091,7 +2097,7 @@
     closePop(); pop = sug; sug.choice = null;
     $('refT').textContent = sug.title; $('refS').textContent = sug.text;
     $('refBalls').innerHTML = sug.balls.map(ballEl).join('');
-    $('refC').value = st.lastTag || ''; if (st.lastTag) { st.lastTag = ''; save(); } document.querySelectorAll('#refPop .rbtn button').forEach(b => b.classList.remove('sel'));
+    $('refFix').hidden = true; $('refC').value = st.lastTag || ''; if (st.lastTag) { st.lastTag = ''; save(); } document.querySelectorAll('#refPop .rbtn button').forEach(b => b.classList.remove('sel'));
     // What the camera understood, so a wrong call is easy to spot.
     if (sug.ev) { const e = sug.ev, bits = [];
       if (e.kick) bits.push('kick (cue ball hit a cushion first)');
@@ -2125,7 +2131,21 @@
   { const x = document.createElement('button'); x.type = 'button'; x.className = 'xclose'; x.setAttribute('aria-label', 'Close'); x.textContent = '×'; x.onclick = () => closePop(); $('refPop').prepend(x); }
   function closePop(){ clearTimeout(popT); pop = null; $('refPop').hidden = true; }
   const touch2 = () => { if (pop) pop.touched = true; };
-  document.querySelectorAll('#refPop .rbtn button').forEach(b => b.onclick = () => { if (!pop) return; touch2(); pop.choice = b.dataset.c; document.querySelectorAll('#refPop .rbtn button').forEach(x => x.classList.toggle('sel', x === b)); if (b.dataset.c === 'other') $('refC').focus(); });
+  // No / Other: show one-tap fixes that change the game right away (and are logged with the answer).
+  function showFix(){
+    const up = (st.gtype === 8 ? [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15] : Array.from({ length: st.gtype }, (_, k) => k + 1)).filter(n => !st.down.includes(n));
+    $('refFixB').innerHTML = `<button type="button" data-fx="turn">Turn over</button><button type="button" data-fx="foul">Foul</button><button type="button" data-fx="w0">${esc(short(side(0)))} won rack</button><button type="button" data-fx="w1">${esc(short(side(1)))} won rack</button>`
+      + up.map(n => `<button type="button" data-fx="b${n}" title="The ${n} went in">${ballEl(n)}</button>`).join('');
+    $('refFix').hidden = false;
+  }
+  $('refFixB').onclick = e => { const b = e.target.closest('[data-fx]'); if (!b || !pop) return; touch2(); const f = b.dataset.fx; let what = '';
+    if (f === 'turn') { passTable(false); what = 'turn over'; }
+    else if (f === 'foul') { passTable(true); what = 'foul'; }
+    else if (f === 'w0' || f === 'w1') { $(f === 'w0' ? 'w0' : 'w1').click(); what = `${side(f === 'w0' ? 0 : 1)} won the rack`; }
+    else if (f[0] === 'b') { const n = +f.slice(1); markMade([n]); what = `the ${n} went in`; b.remove(); }
+    pop.key = stateKey(); pop.fixed = true; $('refC').value = ($('refC').value + (($('refC').value ? '; ' : '') + 'fixed: ' + what)).trim(); flash('✓ ' + what); };
+  document.querySelectorAll('#refPop .rbtn button').forEach(b => b.onclick = () => { if (!pop) return; touch2(); pop.choice = b.dataset.c; document.querySelectorAll('#refPop .rbtn button').forEach(x => x.classList.toggle('sel', x === b));
+    if (b.dataset.c === 'no' || b.dataset.c === 'other') showFix(); else $('refFix').hidden = true; if (b.dataset.c === 'other') $('refC').focus(); });
   $('refStop').onclick = () => { touch2(); $('refStop').hidden = true; $('refAuto').textContent = 'Timer stopped. Pick an answer, comment, Submit.'; $('refBar').style.width = '0'; };
   $('refC').addEventListener('focus', touch2); $('refC').addEventListener('input', touch2);
   $('refSubmit').onclick = () => { if (!pop) return; if (!pop.choice && !$('refC').value.trim()) { $('refAuto').textContent = 'Pick Yes, No or Other first'; return; } finish(pop.choice || 'other'); };
@@ -2148,7 +2168,7 @@
     if ((choice === 'yes' || (choice === 'auto' && !sug.noAuto)) && stateKey() === sug.key) sug.apply();
     // "No" to a made-ball call means nothing of the shooter's went in: the turn is over.
     const denies = choice === 'no' || (choice === 'other' && /\b(no|not|didn'?t|didnt|missed|still on|wrong|never)\b/i.test(comment));
-    if (denies && (sug.type === 'made' || sug.type === 'eight') && !sug.remote && stateKey() === sug.key && winner(scores()) < 0) {
+    if (denies && !sug.fixed && (sug.type === 'made' || sug.type === 'eight') && !sug.remote && stateKey() === sug.key && winner(scores()) < 0) {
       passTable(false); setTimeout(() => flash(`Turn over → ${side(st.shooter)} · tap Undo if that's wrong`), 60); }
     // Learn: a "No" makes the ref more cautious about that kind of call, a "Yes" slightly bolder.
     const g = refP.gates;
@@ -2751,5 +2771,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930212441"></script>
+<script src="build.js?v=20260930212727"></script>
 </body></html>
