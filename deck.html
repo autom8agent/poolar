@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930213143"><script src="stream.js?v=20260930213143"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930213347"><script src="stream.js?v=20260930213347"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -803,10 +803,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930213143"></script>
-<script src="halls.js?v=20260930213143"></script>
-<script src="qrcode.js?v=20260930213143"></script>
-<script src="tablecv.js?v=20260930213143"></script>
+<script src="hallday.js?v=20260930213347"></script>
+<script src="halls.js?v=20260930213347"></script>
+<script src="qrcode.js?v=20260930213347"></script>
+<script src="tablecv.js?v=20260930213347"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -1717,7 +1717,7 @@
   // No code: Pool Cam's shared channel is "1". An old ?cam=K7QX2P link still picks that camera.
   // Every table has its own camera channels (top-down, and behind the table), so opening a table
   // shows its camera by itself. The page listens quietly; the feed box appears once a camera is live.
-  const watchSrc = code => { const u = new URL('phonecam.html', location.href); u.search = ''; u.searchParams.set('watch', code); u.searchParams.set('embed', '1'); if (RELAY !== 'https://ntfy.sh') u.searchParams.set('relay', RELAY); return String(u); };
+  const watchSrc = code => { const u = new URL('phonecam.html', location.href); u.search = ''; u.searchParams.set('watch', code); u.searchParams.set('embed', '1'); u.searchParams.set('relay', RELAY !== 'https://ntfy.sh' ? RELAY : 'https://poolar-relay.poolar-relay.workers.dev'); return String(u); };   // video handshake on Terry's own relay: the free one blocks some networks (the laptop sat at 'Connecting…')
   let lastLive = 0, behindLive = false;
   function showFeed(code){
     code = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12) || camChan('top');
@@ -1993,6 +1993,9 @@
   //  own ball down (or any ball on an open table) -> keep shooting; else -> turn over
   function judge(ev){
     if (!refOn || winner(scores()) >= 0) return;
+    // Waiting for the break: racking and placing the cue ball move balls by hand. Only a real break counts
+    // (the cue ball hit something, a ball dropped, or a scratch).
+    if (st.turns === 0 && !st.down.length && !ev.first && !ev.scratch && !ev.pocketed.some(b => b.cls !== 'cue') && !(ev.maybe && ev.maybe.length)) return;
     if (ev.maybe && ev.maybe.length && !ev.scratch && !ev.pocketed.some(b => b.cls !== 'cue')) {   // a ball by a pocket is gone from view: ask
       const n = ev.maybe[0];
       return showPop({ type: 'made', conf: .5, balls: [n], title: `Did the ${n} go in?`, text: `The ${n} was by a pocket and is gone from view, but I didn't see it move. Yes = it went in.`,
@@ -2774,5 +2777,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930213143"></script>
+<script src="build.js?v=20260930213347"></script>
 </body></html>
