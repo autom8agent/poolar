@@ -19,3 +19,7 @@ HALLS = "surge-chicago"
 
 [ai]
 binding = "AI"
+
+[[kv_namespaces]]
+binding = "CLIPS"
+id = "1d3ec80ef93e485dace18337c7d5c909"
