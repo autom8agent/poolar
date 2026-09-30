@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930185442"><script src="stream.js?v=20260930185442"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930185952"><script src="stream.js?v=20260930185952"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -766,10 +766,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930185442"></script>
-<script src="halls.js?v=20260930185442"></script>
-<script src="qrcode.js?v=20260930185442"></script>
-<script src="tablecv.js?v=20260930185442"></script>
+<script src="hallday.js?v=20260930185952"></script>
+<script src="halls.js?v=20260930185952"></script>
+<script src="qrcode.js?v=20260930185952"></script>
+<script src="tablecv.js?v=20260930185952"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -1778,7 +1778,7 @@
   const smallC = document.createElement('canvas'), smallW = window.TableCV ? new TableCV.Warper(smallC, [480, 240]) : null;
   const grabC = document.createElement('canvas'); grabC.width = 320; grabC.height = 180;
   function setCorners(q, save){
-    corners = q; const use = rawView ? null : q;
+    corners = q; const use = rawView ? null : (q && TableCV.withRails ? TableCV.withRails(q) : q);   // show rails + pockets, not just the cloth
     if (warper && warper.ok) warper.setQuad(use); if (smallW && smallW.ok) smallW.setQuad(q);
     if (save) try { localStorage.setItem(CKEY(), JSON.stringify(q)); } catch {}
   }
@@ -2622,5 +2622,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930185442"></script>
+<script src="build.js?v=20260930185952"></script>
 </body></html>
