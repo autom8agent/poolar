@@ -218,7 +218,7 @@
       const thr = Math.max(55, md + 6 * mad);
       const m = Math.round(this.ballPx * .25), mask = new Uint8Array(w * h);
       for (let y = m; y < h - m; y++) for (let x = m; x < w - m; x++) { const p = y * w + x; if (dist[p] > thr) mask[p] = 1; }
-      const lab = new Int32Array(w * h), blobs = [];
+      const comps = mask => { const lab = new Int32Array(w * h), blobs = [];
       for (let s = 0; s < w * h; s++) {
         if (!mask[s] || lab[s]) continue;
         const b = { n: 0, sx: 0, sy: 0, x0: w, x1: 0, y0: h, y1: 0, wh: 0, dk: 0, hue: new Array(36).fill(0), vs: 0, ss: 0, cn: 0, cc: 0, vall: 0 };
@@ -244,6 +244,25 @@
         }
         blobs.push(b);
       }
+      return { lab, blobs }; };
+      const { lab, blobs } = comps(mask);
+      // Read a ball-sized blob: cue / 8 / solid or stripe with its number, from white, dark and colour shares.
+      const classify = (b, x, y) => {
+          const wf = b.wh / b.n, df = b.dk / b.n, cf = b.cn / b.n;
+          let cls, num = 0;
+          const cfBall = (b.cn - b.cc) / b.n;
+          if (wf > .5 && (cf < .08 || cfBall < .1)) cls = 'cue';
+          else if (df > .45 && wf < .2) { cls = 'eight'; num = 8; }
+          else {
+            cls = wf > .13 ? 'stripe' : 'solid';
+            const clothy = i => hueDist(i * 10 + 5, fhsv[0]) < 32;
+            let hb = -1, best = 0, other = 0;
+            b.hue.forEach((v, i) => { if (!clothy(i)) { other += v; if (v > best) { best = v; hb = i; } } });
+            if (hb < 0 || other < Math.max(2, b.cn * .2)) hb = b.hue.indexOf(Math.max(...b.hue));
+            num = b.cn ? ballNumber(hb * 10 + 5, b.vs / b.cn) + (cls === 'stripe' ? 8 : 0) : 0;
+          }
+          return { x, y, cls, num, wf, df, cf, vmean: b.vall / b.n, cfBall, sat: b.cn ? b.ss / b.cn : 0, cc: b.cc / b.n, fh: fhsv[0], hue: b.cn ? b.hue.indexOf(Math.max(...b.hue)) * 10 + 5 : -1 };
+      };
       const balls = [], occ = [];   // (relative cue / 8 pick happens after classification, below)
       for (const b of blobs) {
         if (b.n < A * .55) continue;   // coins, chalk, diamonds: smaller than half a ball
@@ -256,26 +275,7 @@
         const nearEdge = x < EM / w || x > 1 - EM / w || y < EM / h || y > 1 - EM / h;
         if (nearEdge && b.n <= A * 1.9) continue;
         if (b.n <= A * 1.9 && fill > .45 && Math.max(bw, bh) < this.ballPx * 2) {
-          const wf = b.wh / b.n, df = b.dk / b.n, cf = b.cn / b.n;
-          let cls, num = 0;
-          // Seen from above, a stripe with its cap up is almost all white; only a coloured ring at the
-          // edge shows. White with a colour ring = stripe; white with none = the cue ball.
-          // Cue ball: white with no ball colour. The blue cloth showing at its edge doesn't count as colour
-          // (on Terry's table it made the cue ball read as a cap-up stripe, so the ref never saw a cue ball).
-          const cfBall = (b.cn - b.cc) / b.n;
-          if (wf > .5 && (cf < .08 || cfBall < .1)) cls = 'cue';
-          else if (df > .45 && wf < .2) { cls = 'eight'; num = 8; }
-          else {
-            cls = wf > .13 ? 'stripe' : 'solid';
-            // Pick the ball's colour. Cloth-coloured hues (the blue bleeding into a ball's edge) only win when
-            // nothing else is there, so a stripe's thin ring isn't mistaken for the blue 10.
-            const clothy = i => hueDist(i * 10 + 5, fhsv[0]) < 32;
-            let hb = -1, best = 0, other = 0;
-            b.hue.forEach((v, i) => { if (!clothy(i)) { other += v; if (v > best) { best = v; hb = i; } } });
-            if (hb < 0 || other < Math.max(2, b.cn * .2)) hb = b.hue.indexOf(Math.max(...b.hue));
-            num = b.cn ? ballNumber(hb * 10 + 5, b.vs / b.cn) + (cls === 'stripe' ? 8 : 0) : 0;
-          }
-          balls.push({ x, y, cls, num, wf, df, cf, vmean: b.vall / b.n, cfBall: (b.cn - b.cc) / b.n, sat: b.cn ? b.ss / b.cn : 0, cc: b.cc / b.n, fh: fhsv[0], hue: b.cn ? b.hue.indexOf(Math.max(...b.hue)) * 10 + 5 : -1 });
+          balls.push(classify(b, x, y));
         } else if (b.n <= A * 7 && fill > .4 && Math.max(bw, bh) < this.ballPx * 5) balls.push({ x, y, cls: 'cluster', num: 0, n: Math.max(2, Math.round(b.n / (A * 1.3))) });   // shadows make touching balls look bigger: count cautiously
         else {
           // Something that isn't a ball: a cue shaft is long and thin (about a ball wide); a hand, glove
@@ -301,6 +301,24 @@
           occ.push({ x0: b.x0 / w, x1: b.x1 / w, y0: b.y0 / h, y1: b.y1 / h, area: b.n / (w * h), ring, dark: b.dk / b.n > .45 && b.n > A * 6, thick, id: blobs.indexOf(b) + 1 });
         }
       }
+      // Second pass: balls swallowed by a bigger shape. On Terry's table 4 the 15 touching the pocket jaw and the 6 in the
+      // lamp glare each merged into a large non-cloth blob and were dropped. Stricter mask (strongly non-cloth AND
+      // ball-like: white, black, or a saturated non-cloth colour), then ball-sized pieces that aren't already found.
+      { const mask2 = new Uint8Array(w * h);
+        for (let y = m; y < h - m; y++) for (let x = m; x < w - m; x++) { const p = y * w + x; if (dist[p] < 110) continue;
+          const i = p * 4, r = d[i], g = d[i+1], bl = d[i+2], mx = Math.max(r, g, bl), mn = Math.min(r, g, bl), c = hsv(r, g, bl);
+          const white = (mn > 145 && mx - mn < 60) || (c[2] > .6 && c[1] < .28), black = mx < 70, colour = c[1] > .35 && hueDist(c[0], fhsv[0]) > 30;
+          if (white || black || colour) mask2[p] = 1; }
+        const EM2 = this.ballPx * .3;
+        for (const b of comps(mask2).blobs) {
+          if (b.n < A * .45 || b.n > A * 1.9) continue;
+          const bw = b.x1 - b.x0 + 1, bh = b.y1 - b.y0 + 1, fill = b.n / (bw * bh), x = b.sx / b.n / w, y = b.sy / b.n / h;
+          if (fill < .4 || Math.max(bw, bh) > this.ballPx * 2) continue;
+          if (x < EM2 / w || x > 1 - EM2 / w || y < EM2 / h || y > 1 - EM2 / h) continue;
+          if (balls.some(o => Math.hypot(o.x - x, (o.y - y) * .5) < this.ballPx * .9 / w)) continue;   // already found
+          if (b.dk / b.n > .45 && POCKETS.some(([px, py]) => Math.hypot(x - px, (y - py) * .5) < .07)) continue;   // a piece of the pocket jaw, not the 8
+          balls.push({ ...classify(b, x, y), rescued: true });
+        } }
       // Lighting varies table to table, so fixed colour cut-offs can miss the two balls that matter most.
       // There's exactly one cue ball and one 8: if none was found, take the brightest ball with little ball colour
       // as the cue ball, and the darkest ball as the 8.
