@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930223106"><script src="stream.js?v=20260930223106"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930223227"><script src="stream.js?v=20260930223227"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -803,10 +803,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930223106"></script>
-<script src="halls.js?v=20260930223106"></script>
-<script src="qrcode.js?v=20260930223106"></script>
-<script src="tablecv.js?v=20260930223106"></script>
+<script src="hallday.js?v=20260930223227"></script>
+<script src="halls.js?v=20260930223227"></script>
+<script src="qrcode.js?v=20260930223227"></script>
+<script src="tablecv.js?v=20260930223227"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -2064,7 +2064,7 @@
       sug = foul('foul', 'No ball hit', `${me}'s cue ball didn't touch a ball.`, .5, []);
     } else if (badFirst) {
       sug = foul('foul', 'Bad hit', `${me} is on ${onEight ? 'the 8' : g} but hit ${clsName(ev.first)} first.`, ev.first.conf, [ev.first.num || 0]);
-    } else if (!isBreak && ev.first && !made.length && !ev.rail) {
+    } else if (!isBreak && ev.first && !made.length && !ev.rail && !(ev.n0 > ev.n1) && !ev.blocked) {
       sug = foul('foul', 'No rail', `${me} hit ${clsName(ev.first)} but nothing reached a rail and nothing dropped.`, .4, [ev.first.num || 0]);
     } else if (!isBreak && g && !ev.first && made.length && !made.some(ownOf)) {
       // Only the opponent's ball(s) dropped and the first contact wasn't seen: almost always the
@@ -2105,7 +2105,7 @@
     if (ev.scratch) sug = foulSug('Scratch', `Cue ball went in${isBreak ? ' on the break (ball in hand anywhere)' : ''}.`, .7);
     else if (ev.noHit && !isBreak) sug = foulSug('No ball hit', `${me}'s cue ball didn't touch a ball.`, .5, []);
     else if (badFirst) sug = foulSug('Bad hit', `${me} had to hit the ${low} first but hit the ${f.num}.`, f.conf, [f.num]);
-    else if (!isBreak && f && !made.length && !ev.rail) sug = foulSug('No rail', 'Nothing reached a rail and nothing dropped.', .4, [f.num || 0]);
+    else if (!isBreak && f && !made.length && !ev.rail && !(ev.n0 > ev.n1) && !ev.blocked) sug = foulSug('No rail', 'Nothing reached a rail and nothing dropped.', .4, [f.num || 0]);
     else if (lastIn) sug = { type: 'eight', conf: .7, balls: nums, title: isBreak ? `${last} on the snap!` : `${last} made`,
         text: `${me} made the ${last}${isBreak ? ' on the break' : ''}. ${side(i)} wins the rack?`,
         apply: () => { markMade(nums.filter(n => n !== last)); $('w' + i).click(); }, auto: 'Rack to ' + short(side(i)) };
@@ -2870,5 +2870,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930223106"></script>
+<script src="build.js?v=20260930223227"></script>
 </body></html>
