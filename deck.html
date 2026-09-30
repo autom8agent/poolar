@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930210937"><script src="stream.js?v=20260930210937"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930211224"><script src="stream.js?v=20260930211224"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -797,10 +797,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930210937"></script>
-<script src="halls.js?v=20260930210937"></script>
-<script src="qrcode.js?v=20260930210937"></script>
-<script src="tablecv.js?v=20260930210937"></script>
+<script src="hallday.js?v=20260930211224"></script>
+<script src="halls.js?v=20260930211224"></script>
+<script src="qrcode.js?v=20260930211224"></script>
+<script src="tablecv.js?v=20260930211224"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -2141,6 +2141,9 @@
     if (sug.log) { sug.log.ans = choice === 'yes' ? 'Yes' : choice === 'no' ? 'No' : choice === 'other' ? 'Other' : sug.noAuto ? 'Skipped' : 'Applied'; sug.log.c = $('refC').value.trim(); saveLog(); paintRefLog(); }
     const comment = $('refC').value.trim();
     if ((choice === 'yes' || (choice === 'auto' && !sug.noAuto)) && stateKey() === sug.key) sug.apply();
+    // "No" to a made-ball call means nothing of the shooter's went in: the turn is over.
+    if (choice === 'no' && (sug.type === 'made' || sug.type === 'eight') && !sug.remote && stateKey() === sug.key && winner(scores()) < 0) {
+      passTable(false); setTimeout(() => flash(`Turn over → ${side(st.shooter)} · tap Undo if that's wrong`), 60); }
     // Learn: a "No" makes the ref more cautious about that kind of call, a "Yes" slightly bolder.
     const g = refP.gates;
     if (choice === 'no') g[sug.type] = Math.min(.95, (g[sug.type] || .5) + .1);
@@ -2742,5 +2745,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930210937"></script>
+<script src="build.js?v=20260930211224"></script>
 </body></html>
