@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930061609"><script src="stream.js"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930061857"><script src="stream.js"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -258,6 +258,8 @@
   .rstep button{border:0;border-radius:0;font-size:20px;padding:6px 0;background:var(--bg)}
   .rstep b{text-align:center;font-family:var(--num);font-weight:900;font-size:22px}
   .dock .addrow input{font-size:15px;padding:9px 10px}
+  .slpick{flex:none;width:auto;padding:8px 6px;font-size:14px}
+  .slpick.need{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold)}
   .hlrow{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:4px}
   .hlc{flex:none;width:150px;scroll-snap-align:start;background:var(--bg);border:1px solid var(--line);border-radius:12px;overflow:hidden;padding:0;text-align:left;display:flex;flex-direction:column}
   .hlc .th{position:relative;aspect-ratio:2/1;background:#0a1210 center/cover no-repeat;display:grid;place-items:center;font-size:22px;color:#fff}
@@ -285,6 +287,8 @@
     body.scroll.hastv .players{grid-template-rows:minmax(170px,30vh) 1fr 1fr}
   }
   .viewtag{font-size:11px;font-weight:800;letter-spacing:.08em;color:#1d1606;background:var(--gold);border-radius:6px;padding:2px 7px}
+  .flashmsg{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translate(-50%,-20px);z-index:30;background:var(--gold);color:#1d1606;font-weight:800;padding:10px 16px;border-radius:12px;opacity:0;transition:all .25s;pointer-events:none;max-width:90vw;text-align:center}
+  .flashmsg.show{opacity:1;transform:translate(-50%,0)}
   .endg{font:800 12px var(--ui);letter-spacing:.06em;text-transform:uppercase;padding:5px 10px;border-radius:8px;border:1px solid #d9463b;background:#3a1512;color:#ffd3cc}
   button.danger{background:#d9463b;border-color:#d9463b;color:#fff}
   .over h2{color:var(--gold)}
@@ -480,7 +484,7 @@
     <button class="switch" role="switch" id="lockSw2" hidden><span><b id="lockT2">Table open</b><small id="lockS2"></small></span><span class="knob" aria-hidden="true"></span></button>
     <p class="sub-h">Waitlist</p>
     <div class="line" id="lineList2"></div>
-    <form class="addrow" id="addForm2"><input id="addName2" placeholder="Add a name to the line" autocomplete="off" enterkeyhint="done"><button type="submit">Add</button></form>
+    <form class="addrow" id="addForm2"><input id="addName2" placeholder="Add a name to the line" autocomplete="off" enterkeyhint="done"><select class="slpick" id="addSl2" aria-label="Skill level" required><option value="">SL</option><option value="1">SL 1</option><option value="2">SL 2</option><option value="3">SL 3</option><option value="4">SL 4</option><option value="5">SL 5</option><option value="6">SL 6</option><option value="7">SL 7</option><option value="8">SL 8</option><option value="9">SL 9</option></select><button type="submit">Add</button></form>
     <div class="two3"><button class="primary" id="waitShare">Share waitlist</button><button id="qrOpen">Show QR code</button></div>
     <div id="board"></div>
   </section>
@@ -494,7 +498,7 @@
         <div class="dopt"><span>Format</span><div class="seg seg3" role="radiogroup"><button type="button" role="radio" data-q="fo:race">Race</button><button type="button" role="radio" data-q="fo:wso">Winner stays</button><button type="button" role="radio" data-q="fo:rot">Rotate</button></div></div>
         <div class="dopt" id="dRaceRow"><span>Race to</span><div class="rstep"><button type="button" data-q="race:-1" aria-label="Shorter race">−</button><b id="dRace">5</b><button type="button" data-q="race:1" aria-label="Longer race">+</button></div></div>
       </div>
-      <form class="addrow" id="dAdd"><input id="dAddName" placeholder="Add a player to the line" autocomplete="off" enterkeyhint="done"><button type="submit" class="primary">Add player</button></form>
+      <form class="addrow" id="dAdd"><input id="dAddName" placeholder="Add a player to the line" autocomplete="off" enterkeyhint="done"><select class="slpick" id="dAddSl" aria-label="Skill level" required><option value="">SL</option><option value="1">SL 1</option><option value="2">SL 2</option><option value="3">SL 3</option><option value="4">SL 4</option><option value="5">SL 5</option><option value="6">SL 6</option><option value="7">SL 7</option><option value="8">SL 8</option><option value="9">SL 9</option></select><button type="submit" class="primary">Add player</button></form>
       <div class="two"><button type="button" id="dMore">All settings</button><button type="button" id="dNew">New match 0–0</button></div>
     </div>
     <div class="dcard">
@@ -529,6 +533,14 @@
   </div>
 </div>
 
+<div class="sheet" id="lagSheet" hidden style="z-index:14">
+  <div class="card">
+    <h2>Who won the lag?</h2>
+    <p>Both players shoot a ball to the far rail and back; closest to the head rail wins and breaks.</p>
+    <div class="two"><button class="primary" id="lag0"></button><button class="primary" id="lag1"></button></div>
+    <button id="lagRand">🎲 Skip the lag — random draw</button>
+  </div>
+</div>
 <div class="sheet" id="endSheet" hidden style="z-index:14">
   <div class="card">
     <h2>End this game?</h2>
@@ -606,7 +618,7 @@
       </fieldset>
     </div>
     <div class="two">
-      <label>First break<select id="fb"><option value="0">Side 1</option><option value="1">Side 2</option></select></label>
+      <label>First break<select id="fb"><option value="0">Side 1</option><option value="1">Side 2</option><option value="rand">🎲 Random</option><option value="lag">🎱 Lag (pick who won)</option></select></label>
       <label>Break after<select id="fm"><option value="alt">Alternate</option><option value="win">Winner breaks</option><option value="lose">Loser breaks</option></select></label>
     </div>
     <p>Save keeps the match going with these settings. In doubles, teammates take turns at the table. APA races and points follow the standard APA charts; check them against your league's.</p>
@@ -651,7 +663,7 @@
     <div class="qr" id="qr"></div>
     <div class="share-row"><input id="waitUrl" readonly aria-label="Waitlist link"><button id="waitCopy">Copy</button></div>
     <div class="line" id="lineList"></div>
-    <form class="addrow" id="addForm"><input id="addName" placeholder="Add a name to the line" autocomplete="off" enterkeyhint="done"><button type="submit">Add</button></form>
+    <form class="addrow" id="addForm"><input id="addName" placeholder="Add a name to the line" autocomplete="off" enterkeyhint="done"><select class="slpick" id="addSl" aria-label="Skill level" required><option value="">SL</option><option value="1">SL 1</option><option value="2">SL 2</option><option value="3">SL 3</option><option value="4">SL 4</option><option value="5">SL 5</option><option value="6">SL 6</option><option value="7">SL 7</option><option value="8">SL 8</option><option value="9">SL 9</option></select><button type="submit">Add</button></form>
     <p class="sub-h">Scoring links</p>
     <p>Anyone with one of these sees every tap as it happens, and can score too.</p>
     <label><span id="sl0">Player 1's link</span><div class="share-row"><input id="su0" readonly><button id="sc0">Copy</button></div></label>
@@ -1126,20 +1138,25 @@
   // Winner stays / rotate: each rack is a game. Record it, then bring in the next people from the line.
   const wins = n => st.games.filter(g => g.w === n).length;
   const qid = () => 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-  const toLine = n => { if (n && !st.queue.some(q => q.name === n)) st.queue.push({ id: qid(), name: n }); };
+  const toLine = (n, sl) => { if (n && !st.queue.some(q => q.name === n)) st.queue.push({ id: qid(), name: n, sl: sl || 0 }); };
+  // A player comes off the line: seat them with their skill level; APA races follow the chart.
+  const applySl = () => { if (st.rules !== 'apa' || !st.sl[0] || !st.sl[1]) return;
+    if (st.gtype === 8) { const a = Math.min(7, Math.max(2, st.sl[0])), b = Math.min(7, Math.max(2, st.sl[1])); st.race = [apa8Race(a, b), apa8Race(b, a)]; }
+    else if (st.gtype === 9) st.race = [APA9[st.sl[0]] || 25, APA9[st.sl[1]] || 25]; };
   function nextUp(w){
     const l = 1 - w, wn = side(w), ln = side(l);
     st.games.push({ w: wn, l: ln, t: Date.now() });
     st.streak = st.lastW === wn ? st.streak + 1 : 1; st.lastW = wn;
-    const seat = (i, name) => { st.names[i] = name; st.partners[i] = ''; };
+    const seat = (i, name, sl) => { st.names[i] = name; st.partners[i] = ''; if (sl) st.sl[i] = sl; };
     let changed = false;
     if (st.fmtMode === 'wso') {
-      if (st.queue.length) { const nx = st.queue.shift(); toLine(ln); seat(l, nx.name); changed = true; }
+      if (st.queue.length) { const nx = st.queue.shift(); toLine(ln, st.sl[l]); seat(l, nx.name, nx.sl); applySl(); changed = true; }
       st.firstBreak = st.mode === 'win' ? w : l;
     } else if (st.queue.length) {
       const a = st.queue.shift(), b = st.queue.shift();
-      toLine(wn); if (b) toLine(ln);
-      if (b) { seat(0, a.name); seat(1, b.name); } else seat(w, a.name);   // winner doesn't stay on
+      toLine(wn, st.sl[w]); if (b) toLine(ln, st.sl[l]);
+      if (b) { seat(0, a.name, a.sl); seat(1, b.name, b.sl); } else seat(w, a.name, a.sl);   // winner doesn't stay on
+      applySl();
       changed = true; st.firstBreak = 0;
     }
     if (changed) { st.pairStart = st.racks.length + 1; st.fix = null; st.dbl = false; st.adj = [0,0]; }
@@ -1302,7 +1319,12 @@
       }
       if (fmtDbl !== st.dbl) st.rot = [0,0];
       st.dbl = fmtDbl;
-      st.firstBreak=+$('fb').value; st.mode=$('fm').value;
+      // First break: a side, a random draw, or the lag (asked right after saving).
+      const fbv = $('fb').value;
+      if (fbv === 'rand') { st.firstBreak = Math.random() < .5 ? 0 : 1; st.lagWinner = st.firstBreak; breakNote = `${side(st.firstBreak)} breaks (random draw)`; }
+      else if (fbv === 'lag') askLag = true;
+      else st.firstBreak = +fbv;
+      st.mode=$('fm').value;
       if (form.gt !== st.gtype) { st.down = []; st.groups = [null,null]; }
       st.gtype = form.gt; st.rules = form.ru; st.fmtMode = form.fo;
       st.bs = form.ru === 'custom' ? $('fbs').value : '';
@@ -1325,8 +1347,17 @@
       if (st.turns === 0) st.shooter = breaker();
     });
     newMatch = false; $('setup').hidden=true;
+    if (askLag) { askLag = false; openLag(); }
+    if (breakNote) { flash(breakNote); breakNote = ''; }
   });
-  let newMatch = false;
+  let newMatch = false, askLag = false, breakNote = '';
+  // Lag: who won it breaks. (The camera will call the lag once it has learned it from footage;
+  // for now tap the winner.) The lag winner is kept so APA innings can be counted.
+  function openLag(){ $('lag0').textContent = side(0); $('lag1').textContent = side(1); $('lagSheet').hidden = false; }
+  for (const i of [0, 1]) $('lag' + i).onclick = () => { act(() => { st.firstBreak = i; st.lagWinner = i; if (!st.racks.length && !st.turns) st.shooter = i; }); $('lagSheet').hidden = true; flash(`${side(i)} won the lag and breaks`); };
+  $('lagRand').onclick = () => { const i = Math.random() < .5 ? 0 : 1; $('lag' + i).click(); };
+  // Small message at the top of the screen.
+  function flash(t){ let el = $('flashMsg'); if (!el) { el = document.createElement('div'); el.id = 'flashMsg'; el.className = 'flashmsg'; document.body.appendChild(el); } el.textContent = t; el.classList.add('show'); clearTimeout(flash.t); flash.t = setTimeout(() => el.classList.remove('show'), 2800); }
   $('setNew').onclick = () => { newMatch = true; $('setupForm').dispatchEvent(new Event('submit', { cancelable: true })); };
 
   // Table mode: show the table, keep the hall's status board current, and let the group free the table.
@@ -1367,7 +1398,7 @@
     if (!m || !m.id || (m.ts || 0) < (st.qSince || 0)) return;
     if (m.kind === 'join' && !st.seen.includes(m.id)) quiet(() => {
       st.seen.push(m.id); if (st.seen.length > 300) st.seen.shift();
-      st.queue.push({ id: m.id, name: String(m.name || 'Guest').trim().slice(0, 24) || 'Guest' }); });
+      st.queue.push({ id: m.id, name: String(m.name || 'Guest').trim().slice(0, 24) || 'Guest', sl: Math.min(9, Math.max(0, parseInt(m.sl, 10) || 0)) }); });
     if (m.kind === 'leave') quiet(() => { if (!st.seen.includes(m.id)) st.seen.push(m.id); st.queue = st.queue.filter(q => q.id !== m.id); });
   }
   async function listenWait(){
@@ -1386,7 +1417,7 @@
     lineT = setTimeout(() => fetch(`${RELAY}/${WAIT_TOPIC}`, { method: 'POST', body: JSON.stringify({ kind: 'line', q, now: [side(0), side(1)], score: scores(), fmt: st.fmtMode, table: tableMode ? TNUM : 0, ts: Date.now() }) }).catch(() => {}), 1500);
   }
   function paintLine(){
-    $('lineList').innerHTML = $('lineList2').innerHTML = st.queue.length ? st.queue.map((q, k) => `<div><b>${k+1}</b><span>${esc(q.name)}</span>${k ? `<button data-up="${esc(q.id)}" aria-label="Move ${esc(q.name)} up">↑</button>` : ''}<button data-rm="${esc(q.id)}" aria-label="Remove ${esc(q.name)}">✕</button></div>`).join('')
+    $('lineList').innerHTML = $('lineList2').innerHTML = st.queue.length ? st.queue.map((q, k) => `<div><b>${k+1}</b><span>${esc(q.name)}${q.sl ? ` <small style="color:var(--muted)">SL ${q.sl}</small>` : ''}</span>${k ? `<button data-up="${esc(q.id)}" aria-label="Move ${esc(q.name)} up">↑</button>` : ''}<button data-rm="${esc(q.id)}" aria-label="Remove ${esc(q.name)}">✕</button></div>`).join('')
       : '<p>Nobody in line yet.</p>';
     paintLock();
   }
@@ -1397,8 +1428,10 @@
     paintLine();
   };
   $('lineList').addEventListener('click', lineClick); $('lineList2').addEventListener('click', lineClick);
-  for (const [f, inp] of [['addForm','addName'], ['addForm2','addName2']]) $(f).addEventListener('submit', e => { e.preventDefault(); const n = $(inp).value.trim(); if (!n) return;
-    act(() => st.queue.push({ id: qid(), name: n.slice(0, 24) })); $(inp).value = ''; paintLine(); });
+  // Joining the line needs a skill level (it sets the race when they come up).
+  const needSl = sel => { if (sel.value) return false; sel.classList.add('need'); sel.focus(); setTimeout(() => sel.classList.remove('need'), 1600); return true; };
+  for (const [f, inp, sl] of [['addForm','addName','addSl'], ['addForm2','addName2','addSl2']]) $(f).addEventListener('submit', e => { e.preventDefault(); const n = $(inp).value.trim(); if (!n || needSl($(sl))) return;
+    act(() => st.queue.push({ id: qid(), name: n.slice(0, 24), sl: +$(sl).value })); $(inp).value = ''; $(sl).value = ''; paintLine(); });
   function paintLock(){
     const t = st.locked ? `Table ${TNUM} locked` : `Table ${TNUM} open`;
     const d = st.locked ? 'Only people with a scoring link can join and score. Slide to open it.' : `Anyone who taps table ${TNUM} can join and score. Slide to lock it.`;
@@ -2160,8 +2193,8 @@
     if (k === 'fo') { if (v === st.fmtMode) return; act(() => { st.fmtMode = v; if (st.turns === 0) st.shooter = breaker(); }); }
     if (k === 'race') act(() => { st.race = st.race.map(r => Math.max(1, Math.min(99, r + +v))); });
   });
-  $('dAdd').addEventListener('submit', e => { e.preventDefault(); const n = $('dAddName').value.trim(); if (!n) return;
-    act(() => st.queue.push({ id: qid(), name: n.slice(0, 24) })); $('dAddName').value = ''; try { paintLine(); } catch {} });
+  $('dAdd').addEventListener('submit', e => { e.preventDefault(); const n = $('dAddName').value.trim(); if (!n || needSl($('dAddSl'))) return;
+    act(() => st.queue.push({ id: qid(), name: n.slice(0, 24), sl: +$('dAddSl').value })); $('dAddName').value = ''; $('dAddSl').value = ''; try { paintLine(); } catch {} });
   $('dMore').onclick = openSetup;
   $('dNew').onclick = () => { if (!confirm('Start a new match at 0–0?')) return; openSetup(); $('setNew').click(); };
   // Small QR codes: watch this game on a phone (viewer mode), and join the waitlist.
