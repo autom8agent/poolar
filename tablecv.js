@@ -418,6 +418,9 @@
       }
       const s = this.shot;
       s.seenMoving = s.seenMoving || new Set();
+      // Paths for the breakdown page: where the cue ball went, and where the first ball it hit went.
+      { const c0 = this.tracks.find(x => x.id === s.cueId); if (c0 && c0.seen === t) (s.path = s.path || []).push([+c0.x.toFixed(3), +c0.y.toFixed(3), Math.round(t - s.t0)]);
+        if (s.first && s.first.id != null) { const f0 = this.tracks.find(x => x.id === s.first.id); if (f0 && f0.seen === t) (s.firstPath = s.firstPath || []).push([+f0.x.toFixed(3), +f0.y.toFixed(3), Math.round(t - s.t0)]); } }
       for (const tr of this.tracks) if (tr.seen === t && tr.v > this.o.move) s.seenMoving.add(tr.id);
       for (const tr of this.tracks) {
         if (tr.id === s.cueId || tr.cls === 'cue' || s.moved.has(tr.id) || !s.stillAtStart.has(tr.id)) continue;
@@ -429,7 +432,7 @@
           if (!s.first) {
             const c = this.tracks.find(x => x.id === s.cueId);
             const near = c ? Math.hypot(c.x - tr.x, (c.y - tr.y) * .5) / R : 99;
-            s.first = { cls: tr.cls, num: tr.num, conf: near < 3.5 ? .8 : near < 6 ? .55 : .3, x: tr.x, y: tr.y };
+            s.first = { cls: tr.cls, num: tr.num, conf: near < 3.5 ? .8 : near < 6 ? .55 : .3, x: tr.x, y: tr.y, id: tr.id, at: Math.round(t - s.t0) };
             if (this.onContact) try { this.onContact(s.first, c); } catch {}
           }
         }
@@ -506,7 +509,7 @@
           if (tr) tr.pocketed = true; }
         this.tracks = this.tracks.filter(tr => !tr.pocketed);
         this.shot = null;
-        const ev = { type: 'shot', first: s.first, pocketed, scratch, cuePocket, rail: !!s.rail, kick: !!s.kick, maybe: s.maybe || [], noHit: !s.first && !pocketed.length && !(s.spawned > 1) && s.moved.size === 0 && ![...(s.seenMoving || [])].some(id => id !== s.cueId) && !blocked && (s.n0 || 0) <= nNow, n0: s.n0 || 0, n1: nNow, blocked, ms: t - s.t0, t };
+        const ev = { type: 'shot', first: s.first, pocketed, scratch, cuePocket, rail: !!s.rail, kick: !!s.kick, maybe: s.maybe || [], path: s.path || [], firstPath: s.firstPath || [], noHit: !s.first && !pocketed.length && !(s.spawned > 1) && s.moved.size === 0 && ![...(s.seenMoving || [])].some(id => id !== s.cueId) && !blocked && (s.n0 || 0) <= nNow, n0: s.n0 || 0, n1: nNow, blocked, ms: t - s.t0, t };
         this.lastShotT = t; { const c2 = this.tracks.find(x => x.id === s.cueId); this.settled = c2 && !scratch ? { x: c2.x, y: c2.y, t, n: nNow } : null; }
         if (this.onShot) this.onShot(ev);
       }
