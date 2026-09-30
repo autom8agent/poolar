@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="build" content="20260930031552">
+<meta charset="utf-8"><meta name="build" content="20260930042534"><script src="stream.js"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#000000">
 <!-- iPhone: Safari can't hide its toolbars for a page, but "Add to Home Screen" opens it full screen. -->
@@ -111,7 +111,7 @@
   let st = null;
   function listenGame(){
     if (!game) { $('who').textContent = 'Open this from the scoreboard\'s glasses link'; return; }
-    const es = new EventSource(`${RELAY}/poolar-${game}/sse?since=all`);
+    const es = new PoolarStream(`${RELAY}/poolar-${game}/sse?since=all`);
     es.onmessage = e => { let d; try { d = JSON.parse(e.data); } catch { return; } if (d.event !== 'message') return;
       let m; try { m = JSON.parse(d.message); } catch { return; } if (!m || !m.st) return;
       if (st && (m.ts || 0) < (st.ts || 0)) return;

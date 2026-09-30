@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="build" content="20260930031552">
+<meta charset="utf-8"><meta name="build" content="20260930042534"><script src="stream.js"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0a0f14">
 <title>Tournament Bracket</title>
@@ -137,7 +137,7 @@
       for (const l of txt.split('\n')) { try { const e = JSON.parse(l); if (e.event === 'message') take(e.message); } catch {} } setLive(true); } catch { setLive(false); }
     paint();
   })();
-  try { const es = new EventSource(`${RELAY}/${TOPIC}/sse`); es.onopen = () => setLive(true);
+  try { const es = new PoolarStream(`${RELAY}/${TOPIC}/sse`); es.onopen = () => setLive(true);
     es.onmessage = e => { try { const d = JSON.parse(e.data); if (d.event === 'message') { take(d.message); paint(); } } catch {} }; } catch {}
   paint();
 })();

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930034029"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930044327"><script src="stream.js"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -202,7 +202,9 @@
   .refpop .rfoot{display:flex;align-items:center;gap:8px}
   .refpop .rfoot span{flex:1;font-size:12px;color:var(--muted)}
   .refpop .rbar{position:absolute;left:0;bottom:0;height:3px;background:var(--gold);transition:width .25s linear}
-  .tvbar button.refon{border-color:#57d98a;color:#57d98a} /* taps reach the tv, so they bring the controls back */
+  .tvbar button.refon{border-color:#57d98a;color:#57d98a}
+  .refstat{position:absolute;right:8px;top:36px;z-index:4;font-size:12px;font-weight:700;padding:3px 8px;border-radius:6px;background:rgba(0,0,0,.65);color:#57d98a;max-width:60%;text-align:right}
+  .refstat.warn{color:var(--gold)} /* taps reach the tv, so they bring the controls back */
   .tvadd{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:rgba(10,16,14,.92);border:2px dashed var(--line);border-radius:12px}
   .tvadd button{font-size:17px;padding:14px 22px}
   .tvadd small{color:var(--muted);font-size:13px}
@@ -406,6 +408,7 @@
       <video id="replayVid" playsinline muted hidden></video>
       <span class="tvtag" id="tvRecTag" hidden>● REC <b id="tvRecT">0:00</b></span>
       <span class="tvtag" id="tvReplayTag" hidden>REPLAY</span>
+      <span class="refstat hostonly" id="refStat" hidden></span>
       <div class="tvnote" id="tvNote" hidden><span id="tvNoteT"></span><button id="tvNoteW">▶ Watch</button><button id="tvNoteS" disabled>Share</button><button id="tvNoteX" aria-label="Dismiss">✕</button></div>
       <div class="tvover" id="tvWait" hidden>
         <b>Waiting for the camera…</b>
@@ -916,7 +919,7 @@
     // A phone that slept may have missed updates: catch up when it wakes.
     document.addEventListener('visibilitychange', async () => { if (document.visibilityState === 'visible') { const l = await pollLatest(); if (l) applyRemote(l); } });
     try {
-      const es = new EventSource(`${RELAY}/${TOPIC}/sse`);
+      const es = new PoolarStream(`${RELAY}/${TOPIC}/sse`);
       es.onopen = () => setLive(true);
       es.onerror = () => setLive(false);
       es.onmessage = e => { try { const d = JSON.parse(e.data); if (d.event === 'message') applyRemote(d.message); } catch {} };
@@ -1397,7 +1400,7 @@
       const txt = await (await fetch(`${RELAY}/${WAIT_TOPIC}/json?poll=1&since=12h`)).text();
       for (const line of txt.split('\n')) { try { const e = JSON.parse(line); if (e.event === 'message') takeWait(e.message); } catch {} }
     } catch {}
-    try { const es = new EventSource(`${RELAY}/${WAIT_TOPIC}/sse`);
+    try { const es = new PoolarStream(`${RELAY}/${WAIT_TOPIC}/sse`);
       es.onmessage = e => { try { const d = JSON.parse(e.data); if (d.event === 'message') takeWait(d.message); } catch {} }; } catch {}
   }
   let lastLine = '', lineT;
@@ -1561,9 +1564,21 @@
   let dimT = 0;
   function wakeBar(){ $('tvBar').classList.remove('dim'); clearTimeout(dimT); dimT = setTimeout(() => { if (!replaying) $('tvBar').classList.add('dim'); }, 5000); }
   $('tv').addEventListener('pointerdown', wakeBar);
-  // Always listen for this table's cameras (an old ?cam=CODE link still picks that camera).
-  showFeed(qs.get('cam') || camChan('top'));
-  $('behindFrame').src = watchSrc(camChan('behind'));
+  // Open a camera connection only when this table's camera is actually live: each open connection
+  // counts against the free relay's per-address limit, shared by every device on the hall's Wi-Fi.
+  // Cameras announce themselves on the hall topic (on start, every 4 min, and when they stop).
+  if (!tableMode || qs.get('cam')) { showFeed(qs.get('cam') || camChan('top')); $('behindFrame').src = watchSrc(camChan('behind')); }
+  else {
+    const camSeen = { top: 0, behind: 0 };
+    const hallCams = new PoolarStream(`${RELAY}/${HALL_TOPIC}/sse?since=10m`);
+    hallCams.onmessage = e => { try { const d = JSON.parse(e.data); if (d.event !== 'message') return; const m = JSON.parse(d.message);
+      if (m.kind !== 'cam' || m.t !== TNUM) return; const k = m.loc === 'behind' ? 'behind' : 'top';
+      camSeen[k] = m.on ? m.ts : 0;
+      if (m.on && Date.now() - m.ts < 6 * 60 * 1000) {
+        if (k === 'top' && !$('feedFrame').getAttribute('src')) showFeed(camChan('top'));
+        if (k === 'behind' && !$('behindFrame').getAttribute('src')) $('behindFrame').src = watchSrc(camChan('behind'));
+      } } catch {} };
+  }
 
   // ---------- Straightened table view + automatic referee ----------
   // The camera is never exactly square to the table. tablecv.js finds the felt, fits the four rails
@@ -1585,8 +1600,13 @@
     if (!warper.draw(v, feedFlipped())) return false;
     const now = performance.now();
     if (!corners && !rawView && now - cornerT > 1500) { cornerT = now; autoCorners(v); }
-    if (lagLive) { if (now - viewLast > 100) { viewLast = now; lagTick(v); } }
-    else if (refOn && corners && now - viewLast > 110) { viewLast = now; refTick(v); }
+    if (!viewTick.t0) viewTick.t0 = now;
+    // Table edges not found yet: after 15 s run the ref on the whole picture rather than stay quiet.
+    const fallback = !corners && now - viewTick.t0 > 15000;
+    if (fallback && !viewTick.fb) { viewTick.fb = true; smallW.setQuad(null); note('Ref is on. For best calls: ⊞ Table → Adjust corners.'); }
+    if (lagLive) { if (now - viewLast > 100) { viewLast = now; lagTick(v); } }   // lag / coin flip sheet: the ref waits
+    else if (refOn && (corners || fallback) && now - viewLast > 110) { viewLast = now; refTick(v); }
+    else paintRefStat();
     return true;
   }
   // Automatic corners: a few frames in a row must agree before the view switches over.
@@ -1635,8 +1655,9 @@
   // pop-up; with no answer it applies itself after a countdown. Every answer (and comment) is sent to
   // Claude with a picture of the shot, and nudges how sure the ref must be before it speaks up.
   const REFKEY = 'poolar-ref-params', FBTOPIC = 'poolar-ref-fb';
-  let refOn = true, refP = { gates: { scratch: .4, foul: .5, made: .4, turn: .3, eight: .5 }, autoSec: 12 };
-  try { const p = JSON.parse(localStorage.getItem(REFKEY)); if (p && p.gates) refP = { ...refP, ...p, gates: { ...refP.gates, ...p.gates } }; if (p && p.off) refOn = false; } catch {}
+  // Eager defaults (v2): speak up often while it learns; "No" answers raise a call's bar again.
+  let refOn = true, refP = { v: 2, gates: { scratch: .25, foul: .2, made: .25, turn: .2, eight: .3 }, autoSec: 12 };
+  try { const p = JSON.parse(localStorage.getItem(REFKEY)); if (p && p.v === 2 && p.gates) refP = { ...refP, ...p, gates: { ...refP.gates, ...p.gates } }; if (p && p.off) refOn = false; } catch {}
   if (VIEW) refOn = false;
   const saveRefP = () => { try { localStorage.setItem(REFKEY, JSON.stringify({ ...refP, off: !refOn })); } catch {} };
   const tracker = window.TableCV ? new TableCV.Tracker() : null;
@@ -1644,7 +1665,24 @@
   function refUI(){ $('tvRef').textContent = refOn ? '🤖 Ref on' : '🤖 Ref off'; $('tvRef').classList.toggle('refon', refOn); }
   $('tvRef').onclick = () => { refOn = !refOn; saveRefP(); refUI(); if (!refOn) closePop(); };
   refUI();
-  function refTick(v){ if (!smallW || !smallW.ok || !smallW.draw(v, feedFlipped())) return; try { tracker.feed(smallW.read(), performance.now()); } catch {} }
+  function refTick(v){ if (!smallW || !smallW.ok || !smallW.draw(v, feedFlipped())) return; try { tracker.feed(smallW.read(), performance.now()); } catch {} paintRefStat(); }
+  // What the ref sees right now, on the video, so it's obvious when it can't work.
+  let refStatT = 0;
+  function paintRefStat(force){
+    const now = Date.now(); if (!force && now - refStatT < 700) return; refStatT = now;
+    const el = $('refStat'); if (!el) return;
+    if (!refOn || !feedLive) { el.hidden = true; return; }
+    const L = tracker && tracker.last, n = L ? L.balls.filter(b => b.cls !== 'cluster').length + L.balls.filter(b => b.cls === 'cluster').reduce((a, b) => a + (b.n || 2), 0) : 0;
+    const cue = L && L.balls.some(b => b.cls === 'cue');
+    let t, warn = false;
+    if (!corners && !viewTick.fb) t = '🤖 Ref: finding the table…';
+    else if (!L) t = '🤖 Ref: starting…';
+    else if (!n) { t = "🤖 Ref: can't see any balls: point the camera straight down at the lit table"; warn = true; }
+    else { t = `🤖 Ref: ${corners ? 'sees the table' : 'whole picture (⊞ Table → Adjust corners)'} · ${n} ball${n === 1 ? '' : 's'}${cue ? ' · cue ✓' : ' · no cue ball'}`; warn = !corners || !cue; }
+    if (L && !st.groups[0] && n) t += ' · tap who has solids for foul calls';
+    if (tracker && tracker.shot) t = '🤖 Ref: watching the shot…';
+    el.textContent = t; el.classList.toggle('warn', warn); el.hidden = false;
+  }
   const GROUP = { solids: [1, 2, 3, 4, 5, 6, 7], stripes: [9, 10, 11, 12, 13, 14, 15] };
   const PNAME = ['top-left corner', 'top side', 'top-right corner', 'bottom-left corner', 'bottom side', 'bottom-right corner'];
   const ballEl = n => n ? `<span class="ball${n > 8 ? ' st' : ''}" style="--c:${BC[(n - 1) % 8]}"><span>${n}</span></span>` : '<span class="ball" style="--c:#777"><span>?</span></span>';
@@ -1674,9 +1712,8 @@
         text: `${made.map(clsName).join(', ')} in. ${keep ? `${me} keeps shooting?` : `Not ${me}'s group → turn over to ${them}?`}`,
         apply: () => { markMade(nums); if (!keep) passTable(false); }, auto: keep ? 'Mark ball' : 'Turn over' };
     }
-    // Only call a turn over when the tracker saw the cue ball actually hit something: a shaky read
-    // must never end someone's turn by itself.
-    if (!sug && !ev.first) return;
+    // No hit seen: still ask, but never apply it by itself (a shaky read must not end a turn).
+    if (!sug && !ev.first) sug = { type: 'turn', conf: .45, balls: [], title: 'Turn over?', text: `Shot over, nothing of ${me}'s went in. ${them} to shoot?`, apply: () => passTable(false), auto: '', noAuto: true };
     if (!sug) sug = { type: 'turn', conf: .6, balls: [], title: 'Turn over?', text: `No ball made. ${them} to shoot.`, apply: () => passTable(false), auto: 'Turn over' };
     if (sug.conf < (refP.gates[sug.type] || .5)) return;       // not sure enough yet: stay quiet
     sug.ev = ev; sug.key = stateKey(); sug.shooter = i; sug.group = g || null;
@@ -1708,6 +1745,7 @@
       if (!pop || pop !== sug) return;
       $('refStop').hidden = !!sug.touched;
       if (sug.touched) { $('refAuto').textContent = 'Timer stopped. Pick an answer, comment, Submit.'; $('refBar').style.width = '0'; return; }
+      if (sug.noAuto) { $('refStop').hidden = true; $('refAuto').textContent = 'Not sure — tap Yes to apply, or No'; $('refBar').style.width = '0'; if (stateKey() !== sug.key) return closePop(); popT = setTimeout(tick, 500); return; }
       const left = T - (Date.now() - t0);
       if (stateKey() !== sug.key) return closePop();            // someone already tapped on the scoreboard
       if (left <= 0) { finish('auto'); return; }
@@ -1726,7 +1764,7 @@
   function finish(choice){
     const sug = pop; if (!sug) return; closePop();
     const comment = $('refC').value.trim();
-    if ((choice === 'yes' || choice === 'auto') && stateKey() === sug.key) sug.apply();
+    if ((choice === 'yes' || (choice === 'auto' && !sug.noAuto)) && stateKey() === sug.key) sug.apply();
     // Learn: a "No" makes the ref more cautious about that kind of call, a "Yes" slightly bolder.
     const g = refP.gates;
     if (choice === 'no') g[sug.type] = Math.min(.95, (g[sug.type] || .5) + .1);
