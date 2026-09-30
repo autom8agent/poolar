@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930035322"><script src="stream.js"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930042534"><script src="stream.js"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -202,7 +202,9 @@
   .refpop .rfoot{display:flex;align-items:center;gap:8px}
   .refpop .rfoot span{flex:1;font-size:12px;color:var(--muted)}
   .refpop .rbar{position:absolute;left:0;bottom:0;height:3px;background:var(--gold);transition:width .25s linear}
-  .tvbar button.refon{border-color:#57d98a;color:#57d98a} /* taps reach the tv, so they bring the controls back */
+  .tvbar button.refon{border-color:#57d98a;color:#57d98a}
+  .refstat{position:absolute;right:8px;top:36px;z-index:4;font-size:12px;font-weight:700;padding:3px 8px;border-radius:6px;background:rgba(0,0,0,.65);color:#57d98a;max-width:60%;text-align:right}
+  .refstat.warn{color:var(--gold)} /* taps reach the tv, so they bring the controls back */
   .tvadd{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:rgba(10,16,14,.92);border:2px dashed var(--line);border-radius:12px}
   .tvadd button{font-size:17px;padding:14px 22px}
   .tvadd small{color:var(--muted);font-size:13px}
@@ -387,6 +389,7 @@
       <video id="replayVid" playsinline muted hidden></video>
       <span class="tvtag" id="tvRecTag" hidden>● REC <b id="tvRecT">0:00</b></span>
       <span class="tvtag" id="tvReplayTag" hidden>REPLAY</span>
+      <span class="refstat hostonly" id="refStat" hidden></span>
       <div class="tvnote" id="tvNote" hidden><span id="tvNoteT"></span><button id="tvNoteW">▶ Watch</button><button id="tvNoteS" disabled>Share</button><button id="tvNoteX" aria-label="Dismiss">✕</button></div>
       <div class="tvover" id="tvWait" hidden>
         <b>Waiting for the camera…</b>
@@ -1545,6 +1548,7 @@
     const fallback = !corners && now - viewTick.t0 > 15000;
     if (fallback && !viewTick.fb) { viewTick.fb = true; smallW.setQuad(null); note('Ref is on. For best calls: ⊞ Table → Adjust corners.'); }
     if (refOn && (corners || fallback) && now - viewLast > 110) { viewLast = now; refTick(v); }
+    else paintRefStat();
     return true;
   }
   // Automatic corners: a few frames in a row must agree before the view switches over.
@@ -1603,7 +1607,24 @@
   function refUI(){ $('tvRef').textContent = refOn ? '🤖 Ref on' : '🤖 Ref off'; $('tvRef').classList.toggle('refon', refOn); }
   $('tvRef').onclick = () => { refOn = !refOn; saveRefP(); refUI(); if (!refOn) closePop(); };
   refUI();
-  function refTick(v){ if (!smallW || !smallW.ok || !smallW.draw(v, feedFlipped())) return; try { tracker.feed(smallW.read(), performance.now()); } catch {} }
+  function refTick(v){ if (!smallW || !smallW.ok || !smallW.draw(v, feedFlipped())) return; try { tracker.feed(smallW.read(), performance.now()); } catch {} paintRefStat(); }
+  // What the ref sees right now, on the video, so it's obvious when it can't work.
+  let refStatT = 0;
+  function paintRefStat(force){
+    const now = Date.now(); if (!force && now - refStatT < 700) return; refStatT = now;
+    const el = $('refStat'); if (!el) return;
+    if (!refOn || !feedLive) { el.hidden = true; return; }
+    const L = tracker && tracker.last, n = L ? L.balls.filter(b => b.cls !== 'cluster').length + L.balls.filter(b => b.cls === 'cluster').reduce((a, b) => a + (b.n || 2), 0) : 0;
+    const cue = L && L.balls.some(b => b.cls === 'cue');
+    let t, warn = false;
+    if (!corners && !viewTick.fb) t = '🤖 Ref: finding the table…';
+    else if (!L) t = '🤖 Ref: starting…';
+    else if (!n) { t = "🤖 Ref: can't see any balls: point the camera straight down at the lit table"; warn = true; }
+    else { t = `🤖 Ref: ${corners ? 'sees the table' : 'whole picture (⊞ Table → Adjust corners)'} · ${n} ball${n === 1 ? '' : 's'}${cue ? ' · cue ✓' : ' · no cue ball'}`; warn = !corners || !cue; }
+    if (L && !st.groups[0] && n) t += ' · tap who has solids for foul calls';
+    if (tracker && tracker.shot) t = '🤖 Ref: watching the shot…';
+    el.textContent = t; el.classList.toggle('warn', warn); el.hidden = false;
+  }
   const GROUP = { solids: [1, 2, 3, 4, 5, 6, 7], stripes: [9, 10, 11, 12, 13, 14, 15] };
   const PNAME = ['top-left corner', 'top side', 'top-right corner', 'bottom-left corner', 'bottom side', 'bottom-right corner'];
   const ballEl = n => n ? `<span class="ball${n > 8 ? ' st' : ''}" style="--c:${BC[(n - 1) % 8]}"><span>${n}</span></span>` : '<span class="ball" style="--c:#777"><span>?</span></span>';
