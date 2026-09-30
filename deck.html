@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930042534"><script src="stream.js"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930050636"><script src="stream.js"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -281,6 +281,9 @@
     body.scroll.hastv .players{grid-template-rows:minmax(170px,30vh) 1fr 1fr}
   }
   .viewtag{font-size:11px;font-weight:800;letter-spacing:.08em;color:#1d1606;background:var(--gold);border-radius:6px;padding:2px 7px}
+  .endg{font:800 12px var(--ui);letter-spacing:.06em;text-transform:uppercase;padding:5px 10px;border-radius:8px;border:1px solid #d9463b;background:#3a1512;color:#ffd3cc}
+  button.danger{background:#d9463b;border-color:#d9463b;color:#fff}
+  .over h2{color:var(--gold)}
   .reclist{display:flex;flex-direction:column;gap:6px}
   .reclist div{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:6px 6px 6px 10px}
   .reclist span{flex:1;min-width:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -361,7 +364,7 @@
  <div class="board">
   <header>
     <div class="hdr-l"><a class="tchip home" id="tchip" href="hall.html" aria-label="All tables"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 12h3v8h5v-5h4v5h5v-8h3z"/></svg><span id="tchipN"></span></a><button class="lockic" id="lockIc" hidden aria-label="Lock or unlock the table"></button><button class="lockic camb" id="camBtn" aria-label="Add camera"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h3l2-2h6l2 2h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></svg><b>+</b></button><button class="lockic hostonly" id="clipBtn" aria-label="Clips"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18M3 15h18M8 5v4M16 5v4M8 15v4M16 15v4"/></svg></button><button class="modeb" id="modeBtn" aria-label="Change players: singles or doubles">1v1</button><div class="race" id="raceLbl" role="button" tabindex="0">Race 5–5</div></div>
-    <div class="hdr-r"><span class="live" id="live">Offline</span><div class="rackno" id="rackNo">Rack 1</div></div>
+    <div class="hdr-r"><button class="endg hostonly" id="endBtn">End game</button><span class="live" id="live">Offline</span><div class="rackno" id="rackNo">Rack 1</div></div>
   </header>
 
   <div class="players">
@@ -514,6 +517,23 @@
     <div hidden><button id="feedGo"></button><button id="clipsOpen"></button><p id="camMsg"></p>
       <div class="camwrap"><video id="camVid" playsinline muted></video><canvas id="camCan"></canvas><span class="recdot" id="recDot" hidden>● REC <b id="recTime">0:00</b></span></div>
       <button id="camStart"></button><button id="camRec" disabled></button><div id="camSaveRow"><a id="camSave" download></a><button id="camShare"></button></div></div>
+  </div>
+</div>
+
+<div class="sheet" id="endSheet" hidden style="z-index:14">
+  <div class="card">
+    <h2>End this game?</h2>
+    <p id="endMsg">The table resets for the next players. Clips and stats from this game stay on this device.</p>
+    <div class="two"><button id="endNo">Cancel</button><button class="danger" id="endYes">End game</button></div>
+  </div>
+</div>
+<div class="sheet" id="overSheet" hidden style="z-index:13">
+  <div class="card over">
+    <h2 id="overTitle">Game over</h2>
+    <p id="overSub"></p>
+    <div id="overStats"></div>
+    <div class="two"><button class="primary" id="overClips">🎬 Watch &amp; share clips</button><button id="overShare">Share result</button></div>
+    <div class="two"><button id="overNew">New game</button><a class="btnlink" id="overHome" href="hall.html">⌂ Tables</a></div>
   </div>
 </div>
 
@@ -2191,6 +2211,27 @@
   $('clipPost').onclick = async () => { if (!clipFile) return; $('clipPost').disabled = true; if (await postHL(clipFile, 'Replay', `${side(0)} vs ${side(1)}`, 30)) $('clipPost').textContent = '✓ Posted'; $('clipPost').disabled = false; };
   $('hlAll').onclick = openClips;
   paintHL(); if (VIEW) setInterval(paintHL, 60000);
+
+  // ---------- End game ----------
+  // Red button in the header -> confirm -> the table is freed for the next players, recording stops,
+  // and a game-over card offers clips, stats and sharing.
+  $('endBtn').onclick = () => { $('endMsg').textContent = tableMode ? `Table ${TNUM} resets for the next players. Clips and stats from this game stay on this device.` : 'The scoreboard resets to 0–0. Clips and stats from this game stay on this device.'; $('endSheet').hidden = false; };
+  $('endNo').onclick = () => $('endSheet').hidden = true;
+  $('endYes').onclick = async () => {
+    $('endSheet').hidden = true;
+    const s = scores(), w = s[0] === s[1] ? -1 : s[0] > s[1] ? 0 : 1;
+    const title = w < 0 ? `${side(0)} ${s[0]} – ${s[1]} ${side(1)}` : `${side(w)} wins ${Math.max(...s)}–${Math.min(...s)}`;
+    const stats = (() => { try { return statsHTML(); } catch { return ''; } })();
+    if (splitOn) stopSplit();
+    try { if (st.racks.length && winner(s) < 0) saveResult('session'); } catch {}
+    if (tableMode) { freed = true; setMine(`${HALL}-${TNUM}`, null); try { await Promise.race([postStatus({ state: 'free' }), new Promise(r => setTimeout(r, 2500))]); } catch {} }
+    $('overTitle').textContent = title; $('overSub').textContent = `${st.racks.length} rack${st.racks.length === 1 ? '' : 's'} played${tableMode ? ` · table ${TNUM} is free again` : ''}.`;
+    $('overStats').innerHTML = stats; $('overHome').href = tableMode ? hallUrl() : 'hall.html';
+    $('overSheet').hidden = false;
+    $('overShare').onclick = () => { const t = `${title} · ${st.gtype}-ball${tableMode ? ` · table ${TNUM}` : ''}`; navigator.share ? navigator.share({ title: 'Pool result', text: t }).catch(() => {}) : navigator.clipboard.writeText(t); };
+  };
+  $('overClips').onclick = () => { $('overSheet').hidden = true; openClips(); };
+  $('overNew').onclick = () => { if (tableMode) location.href = `deck.html?hall=${HALL}&t=${TNUM}` + (q0.get('relay') ? `&relay=${encodeURIComponent(q0.get('relay'))}` : ''); else { act(() => resetMatch()); $('overSheet').hidden = true; } };
 
   const renderBase = render;
   render = function(){ renderBase(); try { lineTick(); paintLineCard(); if (!$('shareSheet').hidden) paintLine(); } catch {} try { onScoreChange(); } catch {} try { paintDock(); } catch {} };
