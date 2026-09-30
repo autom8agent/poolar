@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930182827"><script src="stream.js?v=20260930182827"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930193232"><script src="stream.js?v=20260930193232"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -419,7 +419,7 @@
         <b>Table view</b>
         <p id="tvTableS"></p>
         <div class="row"><button class="primary" id="tAuto">Straighten automatically</button><button id="tAdjust">Adjust corners</button></div>
-        <div class="row"><button id="tRaw">Show camera as-is</button><button id="tClose">Close</button></div>
+        <div class="row"><button id="tRaw">Straighten to the table</button><button id="tClose">Close</button></div>
       </div>
       <div class="refpop" id="refPop" hidden>
         <div class="rtop"><b id="refT"></b><span class="rballs" id="refBalls"></span></div>
@@ -813,10 +813,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930182827"></script>
-<script src="halls.js?v=20260930182827"></script>
-<script src="qrcode.js?v=20260930182827"></script>
-<script src="tablecv.js?v=20260930182827"></script>
+<script src="hallday.js?v=20260930193232"></script>
+<script src="halls.js?v=20260930193232"></script>
+<script src="qrcode.js?v=20260930193232"></script>
+<script src="tablecv.js?v=20260930193232"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -1706,7 +1706,7 @@
   // ---------- Pool Cam feed in the middle of the scoreboard ("tv") ----------
   // phonecam.html in watch mode, embedded. Same origin, so its video can be recorded and replayed here.
   const FEEDKEY = 'poolar-feed';
-  let camKey = '1', corners = null, cornerTry = [], cornerT = 0, rawView = false, viewLast = 0;   // straightened view state (see tablecv)
+  let camKey = '1', corners = null, cornerTry = [], cornerT = 0, rawView = (() => { try { return localStorage.getItem('poolar-rawview') !== '0'; } catch { return true; } })(), viewLast = 0;   // default: the phone's own picture, uncropped   // straightened view state (see tablecv)
   const fdoc = () => { try { return $('feedFrame').contentDocument; } catch { return null; } };
   const feedVideo = () => { const d = fdoc(), v = d && d.getElementById('remote'); return v && v.videoWidth ? v : null; };
   const feedFlipped = () => { const d = fdoc(), w = d && d.getElementById('wstage'); return !!(w && w.classList.contains('flip')); };
@@ -1823,7 +1823,7 @@
   const smallC = document.createElement('canvas'), smallW = window.TableCV ? new TableCV.Warper(smallC, [480, 240]) : null;
   const grabC = document.createElement('canvas'); grabC.width = 320; grabC.height = 180;
   function setCorners(q, save){
-    corners = q; const use = rawView ? null : q;
+    corners = q; const use = rawView ? null : (q && TableCV.withRails ? TableCV.withRails(q) : q);   // show rails + pockets, not just the cloth
     if (warper && warper.ok) warper.setQuad(use); if (smallW && smallW.ok) smallW.setQuad(q);
     if (save) try { localStorage.setItem(CKEY(), JSON.stringify(q)); } catch {}
   }
@@ -1833,7 +1833,7 @@
     const v = feedVideo(); if (!v || !warper || !warper.ok) return !!v && false;
     if (!warper.draw(v, feedFlipped())) return false;
     const now = performance.now();
-    if (!corners && !rawView && now - cornerT > 1500) { cornerT = now; autoCorners(v); }
+    if (!corners && now - cornerT > 1500) { cornerT = now; autoCorners(v); }   // the ref always needs the table corners, whatever the view shows
     if (!viewTick.t0) viewTick.t0 = now;
     // Table edges not found yet: after 15 s run the ref on the whole picture rather than stay quiet.
     const fallback = !corners && now - viewTick.t0 > 15000;
@@ -1852,7 +1852,7 @@
     if (cornerTry.length === 3 && TableCV.cornerDiff(cornerTry[0], cornerTry[2]) < .02) {
       const avg = {}; ['tl', 'tr', 'br', 'bl'].forEach(k => avg[k] = { x: cornerTry.reduce((a, c) => a + c[k].x, 0) / 3, y: cornerTry.reduce((a, c) => a + c[k].y, 0) / 3 });
       setCorners(avg, true); cornerTry = [];
-      note('Table straightened automatically. ⊞ Table to adjust.');
+      note(rawView ? 'Ref found the table. Showing the camera as-is (⊞ Table to straighten).' : 'Table straightened automatically. ⊞ Table to adjust.');
     }
   }
   let noteEl = null;
@@ -1861,7 +1861,9 @@
   $('tvTableBtn').onclick = () => { $('tvTableS').textContent = corners ? (rawView ? 'Showing the camera as-is.' : 'Straightened to the table corners.') : 'Looking for the table edges…'; $('tvTable').hidden = false; };
   $('tClose').onclick = () => $('tvTable').hidden = true;
   $('tAuto').onclick = () => { rawView = false; cornerTry = []; cornerT = 0; setCorners(null); try { localStorage.removeItem(CKEY()); } catch {} $('tvTable').hidden = true; note('Looking for the table edges…'); };
-  $('tRaw').onclick = () => { rawView = !rawView; setCorners(corners); $('tRaw').textContent = rawView ? 'Straighten again' : 'Show camera as-is'; $('tvTable').hidden = true; };
+  const rawLbl = () => { $('tRaw').textContent = rawView ? 'Straighten to the table' : 'Show camera as-is'; };
+  $('tRaw').onclick = () => { rawView = !rawView; try { localStorage.setItem('poolar-rawview', rawView ? '1' : '0'); } catch {} setCorners(corners); rawLbl(); $('tvTable').hidden = true; };
+  rawLbl();
   // Adjust corners by hand: show the plain camera picture with four draggable dots.
   let adj = null;
   $('tAdjust').onclick = () => {
@@ -2579,7 +2581,7 @@
   let lagCfg = { headLeft: true, topIs: 0 }, lagLive = false, lag = null, lagWin = -1, lagHow = 'lag';
   try { const c = JSON.parse(localStorage.getItem('poolar-lag')); if (c) lagCfg = { ...lagCfg, ...c }; } catch {}
   const saveLagCfg = () => { try { localStorage.setItem('poolar-lag', JSON.stringify(lagCfg)); } catch {} };
-  const lagCamOk = () => !!(feedLive && corners && !rawView && smallW && smallW.ok && lagTracker);
+  const lagCamOk = () => !!(feedLive && corners && smallW && smallW.ok && lagTracker);   // reads the cloth corners, whatever the view shows
   const lagWho = k => k === 0 ? lagCfg.topIs : 1 - lagCfg.topIs;                  // track (0 top half, 1 bottom) -> player
   function setBreak(b){
     act(() => {
@@ -2603,7 +2605,7 @@
     $('lgCam').hidden = !cam; $('lagSheet').classList.toggle('see', cam);
     $('lgNoCam').hidden = cam;
     $('lgNoCam').textContent = !feedLive ? 'Add the top-down camera and it can judge the lag for you. Or watch it and tap the winner.'
-      : 'The camera needs the straightened table view to judge the lag (⊞ Table → Straighten automatically). Or tap the winner.';
+      : 'The camera hasn\'t found the table corners yet (⊞ Table → Straighten automatically, or Adjust corners). Or tap the winner.';
     $('lgPickH').textContent = cam ? 'Confirm who won the lag' : 'Who won the lag?';
     if (cam) { lagLive = true; $('lagCan').hidden = false; closePop(); lagReset(); } else lagStop();
   }
@@ -2702,31 +2704,41 @@
     $('lgHead').textContent = `Head rail: ${lagCfg.headLeft ? '◀ left' : 'right ▶'}`;
     for (const i of [0, 1]) $('lgW' + i).classList.toggle('primary', !!res && res.w >= 0 && lagWho(res.w) === i);
   }
+  // Lag coordinates are the straightened cloth as the tracker sees it (0..1). On screen that's either the
+  // straightened picture with rails around the cloth (TableCV.withRails: .05 along, .1 across) or the
+  // camera as-is, reached through the corner homography (the warper flips before mapping, hence f).
+  function lagToView(x, y){
+    if (!rawView) return [(x + .05) / 1.1, (y + .1) / 1.2];
+    const f = feedFlipped(), c = TableCV.apply(TableCV.toCam(corners), f ? 1 - x : x, f ? 1 - y : y);
+    return f ? [1 - c.x, 1 - c.y] : [c.x, c.y];
+  }
   function lagDraw(){
-    const c = $('lagCan'); if (c.hidden || !lag) return;
+    const c = $('lagCan'); if (c.hidden || !lag || !corners) return;
     const r = viewRect(), k = devicePixelRatio || 1;
     c.width = Math.round(r.b.width * k); c.height = Math.round(r.b.height * k);
     const x = c.getContext('2d'); x.setTransform(k, 0, 0, k, 0, 0); x.clearRect(0, 0, r.b.width, r.b.height);
-    const U = u => (CUSH + u * LAGLEN) / LTOT, V = v => (CUSH + v * LAGLEN / 2) / WTOT;   // playing surface -> straightened
-    const P = (u, v) => [r.x + (lagCfg.headLeft ? U(u) : 1 - U(u)) * r.w, r.y + V(v) * r.h];   // u: 0 head cushion .. 1 foot cushion
-    x.lineWidth = 4; x.strokeStyle = '#f2c14e'; x.beginPath(); x.moveTo(...P(0, 0)); x.lineTo(...P(0, 1)); x.stroke();
+    const S = (sx, sy) => { const [u, v] = lagToView(sx, sy); return [r.x + u * r.w, r.y + v * r.h]; };   // straightened -> screen px
+    const U = u => (CUSH + u * LAGLEN) / LTOT, V = v => (CUSH + v * LAGLEN / 2) / WTOT;                   // playing surface -> straightened
+    const P = (u, v) => S(lagCfg.headLeft ? U(u) : 1 - U(u), V(v));                                      // u: 0 head cushion .. 1 foot cushion
+    const line = (a, b) => { x.beginPath(); x.moveTo(...a); x.lineTo(...b); x.stroke(); };
+    x.lineWidth = 4; x.strokeStyle = '#f2c14e'; line(P(0, 0), P(0, 1));
     x.lineWidth = 1.5; x.setLineDash([6, 6]); x.strokeStyle = 'rgba(255,255,255,.55)';
-    x.beginPath(); x.moveTo(...P(.25, 0)); x.lineTo(...P(.25, 1)); x.moveTo(...P(0, .5)); x.lineTo(...P(1, .5)); x.stroke(); x.setLineDash([]);
-    x.font = '700 12px system-ui'; x.fillStyle = '#f2c14e'; x.textAlign = lagCfg.headLeft ? 'left' : 'right';
-    x.fillText('HEAD RAIL', P(0, 0)[0] + (lagCfg.headLeft ? 6 : -6), P(0, 0)[1] + 16);
-    const rad = Math.max(7, r.h * BR / WTOT + 3), res = lag.res;
+    line(P(.25, 0), P(.25, 1)); line(P(0, .5), P(1, .5)); x.setLineDash([]);
+    x.font = '700 12px system-ui'; x.fillStyle = '#f2c14e'; x.textAlign = 'center';
+    { const [hx, hy] = P(0, .5), [ix, iy] = P(.06, .5); x.fillText('HEAD RAIL', ix + (ix - hx) * .2, P(0, 0)[1] + 16); }
+    const radAt = (sx, sy) => { const a = S(sx, sy), b = S(sx + BR / LTOT, sy); return Math.max(7, Math.hypot(b[0] - a[0], b[1] - a[1]) + 3); };
+    const res = lag.res;
     lag.tr.forEach((tr, k) => {
       if (!tr) return;
-      const [px, py] = [r.x + tr.x * r.w, r.y + tr.y * r.h], won = res && res.w === k;
+      const [px, py] = S(tr.x, tr.y), won = res && res.w === k, rad = radAt(tr.x, tr.y);
       x.lineWidth = won ? 5 : 3; x.strokeStyle = won ? '#f2c14e' : LAGC[k];
       x.beginPath(); x.arc(px, py, rad + (won ? 3 : 0), 0, 7); x.stroke();
-      const d = lagIn(tr.x);
-      // measuring line to the head cushion
-      x.lineWidth = 1.5; x.setLineDash([3, 4]); x.strokeStyle = LAGC[k]; x.beginPath(); x.moveTo(px, py); x.lineTo(P(0, 0)[0], py); x.stroke(); x.setLineDash([]);
+      // measuring line to the head cushion, along the table
+      x.lineWidth = 1.5; x.setLineDash([3, 4]); x.strokeStyle = LAGC[k]; line([px, py], S(lagCfg.headLeft ? U(0) : 1 - U(0), tr.y)); x.setLineDash([]);
       x.fillStyle = '#fff'; x.textAlign = 'center'; x.font = '700 13px system-ui';
-      x.fillText(`${short(side(lagWho(k)))} ${d.toFixed(1)}″`, px, py + (tr.y < .5 ? rad + 16 : -rad - 8));
+      x.fillText(`${short(side(lagWho(k)))} ${lagIn(tr.x).toFixed(1)}″`, px, py + (tr.y < .5 ? rad + 16 : -rad - 8));
     });
-    if (lag.phase === 'wait') (lag.B || []).forEach(b => { x.strokeStyle = 'rgba(255,255,255,.5)'; x.lineWidth = 1.5; x.beginPath(); x.arc(r.x + b.x * r.w, r.y + b.y * r.h, rad, 0, 7); x.stroke(); });
+    if (lag.phase === 'wait') (lag.B || []).forEach(b => { const [bx, by] = S(b.x, b.y); x.strokeStyle = 'rgba(255,255,255,.5)'; x.lineWidth = 1.5; x.beginPath(); x.arc(bx, by, radAt(b.x, b.y), 0, 7); x.stroke(); });
   }
   // Coin flip: one player calls it in the air.
   let flipCaller = -1, flipBusy = false, flipTurns = 0;
@@ -2815,9 +2827,11 @@
   // (open on the computer the Stream Deck is plugged into, or the iPad) carries them out. The key comes from ?ctl=
   // once and is remembered on this device.
   (() => {
+    // Every table page listens on its table's channel (poolar-ctl-<hall>-t<N>) with no setup; ?ctl=KEY adds a private channel.
     const CK = (q0.get('ctl') || (() => { try { return localStorage.getItem('poolar-ctl') || ''; } catch { return ''; } })()).replace(/[^a-z0-9]/gi, '').slice(0, 40);
-    if (!CK) return;
-    try { localStorage.setItem('poolar-ctl', CK); } catch {}
+    if (q0.get('ctl')) try { localStorage.setItem('poolar-ctl', CK); } catch {}
+    const topics = [tableMode ? `poolar-ctl-${HALL}-t${TNUM}` : '', CK ? `poolar-ctl-${CK}` : ''].filter(Boolean);
+    if (!topics.length) return;
     const OWN = window.POOLAR_OWN_RELAY || 'https://poolar-relay.poolar-relay.workers.dev';
     const seen = new Set(), t0 = Date.now();
     const refBtn = c => { if ($('refPop').hidden) return flash('🎛️ No ref call open'); const b = document.querySelector(`#refPop .rbtn button[data-c="${c}"]`); if (b) b.click(); return true; };
@@ -2841,9 +2855,13 @@
       flash('🎛️ ' + (LABEL[c] || c));
     };
     const take = (id, time, raw) => { if (seen.has(id) || time * 1000 < t0 - 2000) return; seen.add(id); let m; try { m = JSON.parse(raw); } catch { return; } try { run(m); } catch (e) { console.warn(e); } };
-    try { const es = new PoolarStream(`${OWN}/poolar-ctl-${CK}/sse`);
-      es.onmessage = e => { try { const d = JSON.parse(e.data); if (d.event === 'message') take(d.id, d.time, d.message); } catch {} }; } catch {}
-    setTimeout(() => flash('🎛️ Stream Deck connected'), 1500);
+    const chip = document.createElement('div'); chip.id = 'deckChip';
+    chip.style.cssText = 'position:fixed;left:10px;bottom:10px;z-index:30;background:rgba(10,16,14,.9);border:1px solid #3a4a42;color:#8ea69a;font:700 12px Barlow,system-ui,sans-serif;padding:5px 10px;border-radius:999px;pointer-events:none';
+    chip.textContent = `🎛️ Stream Deck${tableMode ? ' · table ' + TNUM : ''} · connecting…`; document.body.appendChild(chip);
+    for (const tp of topics) try { const es = new PoolarStream(`${OWN}/${tp}/sse`);
+      es.onopen = () => { chip.textContent = `🎛️ Stream Deck${tableMode ? ' · table ' + TNUM : ''} · ready`; chip.style.color = '#57d98a'; chip.style.borderColor = '#57d98a'; };
+      es.onmessage = e => { try { const d = JSON.parse(e.data); if (d.event === 'message') { take(d.id, d.time, d.message); chip.textContent = `🎛️ Stream Deck${tableMode ? ' · table ' + TNUM : ''} · ready`; chip.style.color = '#57d98a'; } } catch {} }; } catch {}
+    setTimeout(() => flash('🎛️ Stream Deck ready'), 1500);
   })();
   pollElsewhere(); setInterval(() => { if (document.visibilityState === 'visible') pollElsewhere(); }, 60000);
   // New game: the invite QR comes first (so friends can join the line), then names and game settings.
@@ -2860,5 +2878,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930182827"></script>
+<script src="build.js?v=20260930193232"></script>
 </body></html>
