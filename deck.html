@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930162207"><script src="stream.js?v=20260930162207"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930172519"><script src="stream.js?v=20260930172519"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -813,10 +813,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930162207"></script>
-<script src="halls.js?v=20260930162207"></script>
-<script src="qrcode.js?v=20260930162207"></script>
-<script src="tablecv.js?v=20260930162207"></script>
+<script src="hallday.js?v=20260930172519"></script>
+<script src="halls.js?v=20260930172519"></script>
+<script src="qrcode.js?v=20260930172519"></script>
+<script src="tablecv.js?v=20260930172519"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -978,7 +978,7 @@
     location.replace(u.toString());
   }
   const fresh = () => ({ names:['BCA Shag','Terry'], race:[5,5], firstBreak:1, mode:'alt', racks:[], fix:null,
-    shooter:1, groups:[null,null], turns:0, bih:false, down:[], dbl:false, scotch:false, lineOpen:true, partners:['',''], rot:[0,0], fouls:[0,0], pots:[], inn:[0,0], tt:[0,0], t0:0, tEnd:0, tFrom:0, clockLen:60, clockV:2, gtype:8, rules:'bca', fmtMode:'race', sl:[5,5], adj:[0,0], queue:[], seen:[], games:[], streak:0, lastW:'', pairStart:0, locked:false, bs:'', qSince:0, hist:[] });
+    shooter:1, groups:[null,null], turns:0, bih:false, down:[], dbl:false, scotch:false, lineOpen:true, partners:['',''], rot:[0,0], fouls:[0,0], pots:[], dead:[], potAt:{}, inn:[0,0], tt:[0,0], t0:0, tEnd:0, tFrom:0, clockLen:60, clockV:2, gtype:8, rules:'bca', fmtMode:'race', sl:[5,5], adj:[0,0], queue:[], seen:[], games:[], streak:0, lastW:'', pairStart:0, locked:false, bs:'', qSince:0, hist:[] });
   // Every game is saved on this device under its own key, so opening another table (or a relay that
   // can't be reached) never overwrites a game in progress — that is what kept wiping table 9's
   // settings and waitlist. KEY still points at the last game, for links without a game code.
@@ -1128,8 +1128,10 @@
       st.down = st.down.filter(x => x !== n);
       let j = -1; st.pots.forEach((e, k) => { const f = e.split('.'); if (+f[0]===n && +f[2]===r) j = k; });
       if (j >= 0) st.pots.splice(j, 1);
-    } else { st.down = [...st.down, n]; st.pots.push(`${n}.${st.shooter}.${r}.${st.turns}`); potted = true; if (st.dbl && st.scotch) st.rot[st.shooter] ^= 1; }
-  }); if (potted) clockStart(); };
+    } else { st.down = [...st.down, n]; st.pots.push(`${n}.${st.shooter}.${r}.${st.turns}`); (st.potAt = st.potAt || {})[n] = Date.now(); potted = true; if (st.dbl && st.scotch) st.rot[st.shooter] ^= 1; }
+    // APA 9-ball: the match ends the moment a player reaches their points, usually mid-rack.
+    if (ptsMode() && winner(scores()) >= 0 && !st.tEnd) st.tEnd = Date.now();
+  }); if (potted) clockStart(); if (ptsMode() && winner(scores()) >= 0) saveResult('match'); };
   let render = function(){
     const s = scores(), b = breaker(), w = winner(s), live = w<0;
     $('raceLbl').textContent = (rotating() ? ({ wso: '👑 Winner stays', pick: '🏆 Winner picks', rand: '🎲 Random game' }[st.fmtMode] || '🎲 Rotate') : ptsMode() ? `${st.race[0]}–${st.race[1]} pts` : `Race ${st.race[0]}–${st.race[1]}`) + (st.gtype === 8 ? '' : ` · ${st.gtype}-ball`);
@@ -1145,7 +1147,7 @@
     for (const i of [0,1]) {
       $('n'+i).textContent = side(i);
       $('t'+i).textContent = st.dbl ? `Shooting · ${short(whoShoots(i))}` : 'Shooting';
-      $('s'+i).textContent = s[i];
+      $('s'+i).textContent = ptsMode() ? Math.min(s[i], st.race[i]) : s[i];   // APA: points past the target aren't marked
       const left = st.race[i]-s[i];
       $('d'+i).textContent = rotating() ? `${wins(side(i))} win${wins(side(i))===1?'':'s'} tonight` : ptsMode() ? `${left<=0 ? 'Wins' : `Needs ${left} pts`} · SL ${st.sl[i]}` : left<=0 ? 'Wins' : left===1 ? 'Hill · needs 1' : `Needs ${left}`;
       const g = st.groups[i];
@@ -1216,7 +1218,22 @@
   const buzz = () => { try { navigator.vibrate && navigator.vibrate(25); } catch {} };
 
   const endInning = () => { const now = Date.now(); st.inn[st.shooter]++; if (st.dbl) st.rot[st.shooter] ^= 1; st.tt[st.shooter] += now - (st.tFrom || now); st.tFrom = now; };
-  const passTable = foul => { act(() => { const kitchen = foul && onBreak() && breakScratch() === 'kitchen';
+  // APA 9-ball foul: balls just made on the fouling shot (tapped in the last 25 s) are dead, not points;
+  // a 9 made on a foul goes back on the spot.
+  function deadOnFoul(){
+    if (!ptsMode()) return;
+    // Only the fouling shot's balls: the last group tapped together (within 6 s of each other), tapped in the last 30 s.
+    const r = st.racks.length, now = Date.now(), gone = [], at = st.potAt || {};
+    const mine = st.pots.map(e => e.split('.')).filter(f => +f[1] === st.shooter && +f[2] === r && +f[3] === st.turns).map(f => +f[0]);
+    const lastT = Math.max(0, ...mine.map(n => at[n] || 0));
+    if (!lastT || now - lastT > 30000) return;
+    st.pots = st.pots.filter(e => { const f = e.split('.'); const n = +f[0];
+      if (+f[1] === st.shooter && +f[2] === r && +f[3] === st.turns && (at[n] || 0) >= lastT - 6000) { gone.push(n); return false; } return true; });
+    for (const n of gone) { if (n === 9) st.down = st.down.filter(x => x !== 9); else (st.dead = st.dead || []).push(`${n}.${r}`); }
+    if (gone.length) setTimeout(() => flash(gone.includes(9) ? `9 goes back on the spot · ${gone.filter(n => n !== 9).map(n => 'the ' + n).join(', ') || 'no points'}${gone.length > 1 ? ' dead' : ''}` : `${gone.map(n => 'The ' + n).join(', ')} made on the foul ${gone.length > 1 ? 'are' : 'is'} dead · no points`), 50);
+  }
+  function markDead(ns){ const r = st.racks.length; ns.forEach(n => { if (n && !st.down.includes(n)) { st.down = [...st.down, n]; (st.dead = st.dead || []).push(`${n}.${r}`); } }); }
+  const passTable = foul => { act(() => { if (foul) deadOnFoul(); const kitchen = foul && onBreak() && breakScratch() === 'kitchen';
     endInning(); if (foul) st.fouls[st.shooter]++; st.shooter = 1-st.shooter; st.turns++; st.bih = foul ? (kitchen ? 'kitchen' : true) : false; }); buzz(); clockStart(); };
   $('endTurn').onclick = () => passTable(false);
   $('foul').onclick = () => passTable(true);
@@ -1278,6 +1295,7 @@
   for (const i of [0,1]) $('w'+i).onclick = () => {
     act(() => { endInning();
       const r = st.racks.length, last = st.gtype;
+      if (ptsMode()) for (let n = 1; n <= 8; n++) if (!st.down.includes(n)) (st.dead = st.dead || []).push(`${n}.${r}`);   // balls left after the 9 are dead
       if (ptsMode() && !st.down.includes(9)) st.pots.push(`9.${i}.${r}.${st.turns}`);   // the 9 is worth 2 to whoever made it
       else if (st.gtype !== 8 && !st.down.includes(last)) st.pots.push(`${last}.${i}.${r}.${st.turns}`);
       st.racks.push({ w:i, wn:side(i), b:breaker(), g:st.groups[i], turns:st.turns+1, t:Date.now() });
@@ -1368,7 +1386,7 @@
     if (!st.racks.length) { st.firstBreak = b; st.fix = null; } else st.fix = { n: st.racks.length, b };
     st.shooter = b;
   });
-  const resetMatch = () => { st.racks=[]; st.fix=null; st.pots=[]; st.pairStart=0; st.adj=[0,0]; st.games=[]; st.streak=0; st.lastW=''; st.fouls=[0,0]; st.inn=[0,0]; st.tt=[0,0]; st.t0=st.tFrom=Date.now(); st.tEnd=0; newRack(); };
+  const resetMatch = () => { st.racks=[]; st.fix=null; st.pots=[]; st.dead=[]; st.potAt={}; st.pairStart=0; st.adj=[0,0]; st.games=[]; st.streak=0; st.lastW=''; st.fouls=[0,0]; st.inn=[0,0]; st.tt=[0,0]; st.t0=st.tFrom=Date.now(); st.tEnd=0; newRack(); };
   $('winNew').onclick = () => act(() => { st.firstBreak = 1-st.firstBreak; resetMatch(); });
 
   const hms = ms => { const t = Math.max(0, Math.floor(ms/1000)), h = Math.floor(t/3600), m = Math.floor(t/60)%60, x = t%60;
@@ -1912,6 +1930,7 @@
   //  own ball down (or any ball on an open table) -> keep shooting; else -> turn over
   function judge(ev){
     if (!refOn || winner(scores()) >= 0) return;
+    if (st.gtype === 9 || st.gtype === 10) return judgeRot(ev);   // rotation games: lowest ball first, the 9/10 wins the rack
     const i = st.shooter, opp = 1 - i, g = st.groups[i], me = whoShoots(i), them = st.dbl ? side(opp) : st.names[opp];
     const made = ev.pocketed.filter(b => !(b.num && st.down.includes(b.num)));
     const nums = made.map(b => b.num).filter(Boolean);
@@ -1953,8 +1972,39 @@
     // No hit seen: still ask, but never apply it by itself (a shaky read must not end a turn).
     if (!sug && !ev.first) sug = { type: 'turn', conf: .45, balls: [], title: 'Turn over?', text: `Shot over, nothing of ${me}'s went in. ${them} to shoot?`, apply: () => passTable(false), auto: '', noAuto: true };
     if (!sug) sug = { type: 'turn', conf: .6, balls: [], title: 'Turn over?', text: `Legal hit, nothing of ${me}'s dropped. ${them} to shoot.`, apply: () => passTable(false), auto: 'Turn over' };
-    if (sug.conf < (refP.gates[sug.type] || .5)) return;       // not sure enough yet: stay quiet
+    // Every shot gets a pop-up. When the ref isn't sure it asks and waits instead of applying on its own.
+    if (sug.conf < (refP.gates[sug.type] || .5)) { sug.noAuto = true; sug.auto = ''; sug.title += ' (not sure)'; }
     sug.ev = ev; sug.key = stateKey(); sug.shooter = i; sug.group = g || null;
+    shotSnap().then(b => { sug.snap = b; });
+    showPop(sug);
+    try { window.POOLAR_ON_CALL && window.POOLAR_ON_CALL(sug); } catch {}
+  }
+  // 9-ball / 10-ball: hit the lowest ball first; a legal 9 (or 10) wins the rack, including combos and on the break;
+  // balls made on a foul are dead (APA 9-ball) and the game ball is spotted.
+  function judgeRot(ev){
+    const i = st.shooter, opp = 1 - i, me = whoShoots(i), them = st.dbl ? side(opp) : st.names[opp];
+    const last = st.gtype, isBreak = st.turns === 0 && !st.down.length;
+    const made = ev.pocketed.filter(b => !(b.num && st.down.includes(b.num)));
+    const nums = made.map(b => b.num).filter(Boolean);
+    const low = Array.from({ length: last }, (_, k) => k + 1).find(n => !st.down.includes(n));
+    const f = ev.first, badFirst = !isBreak && f && f.num && f.cls !== 'cluster' && f.cls !== 'cue' && f.num !== low;
+    const lastIn = nums.includes(last);
+    const foulSug = (title, text, conf, balls) => ({ type: 'foul', conf, balls: balls || nums, title,
+      text: `${text}${lastIn ? ` The ${last} goes back on the spot.` : ''}${ptsMode() && nums.filter(n => n !== last).length ? ' Balls made on a foul are dead.' : ''} Ball in hand → ${them}?`,
+      apply: () => { act(() => markDead(nums.filter(n => n !== last))); passTable(true); }, auto: 'Foul' });
+    let sug;
+    if (ev.scratch) sug = foulSug('Scratch', `Cue ball went in${isBreak ? ' on the break (ball in hand anywhere)' : ''}.`, .7);
+    else if (ev.noHit && !isBreak) sug = foulSug('No ball hit', `${me}'s cue ball didn't touch a ball.`, .5, []);
+    else if (badFirst) sug = foulSug('Bad hit', `${me} had to hit the ${low} first but hit the ${f.num}.`, f.conf, [f.num]);
+    else if (!isBreak && f && !made.length && !ev.rail) sug = foulSug('No rail', 'Nothing reached a rail and nothing dropped.', .4, [f.num || 0]);
+    else if (lastIn) sug = { type: 'eight', conf: .7, balls: nums, title: isBreak ? `${last} on the snap!` : `${last} made`,
+        text: `${me} made the ${last}${isBreak ? ' on the break' : ''}. ${side(i)} wins the rack?`,
+        apply: () => { markMade(nums.filter(n => n !== last)); $('w' + i).click(); }, auto: 'Rack to ' + short(side(i)) };
+    else if (made.length) sug = { type: 'made', conf: .7, balls: nums.length ? nums : [0], title: made.length > 1 ? `${made.length} balls made` : 'Ball made',
+        text: `${made.map(clsName).join(', ')} in. ${me} keeps shooting?`, apply: () => markMade(nums), auto: 'Mark ball' };
+    else sug = { type: 'turn', conf: f ? .6 : .45, balls: [], title: 'Turn over?', text: `Nothing dropped. ${them} to shoot.`, apply: () => passTable(false), auto: f ? 'Turn over' : '', noAuto: !f };
+    if (sug.conf < (refP.gates[sug.type] || .5)) { sug.noAuto = true; sug.auto = ''; sug.title += ' (not sure)'; }
+    sug.ev = ev; sug.key = stateKey(); sug.shooter = i; sug.group = null;
     shotSnap().then(b => { sug.snap = b; });
     showPop(sug);
     try { window.POOLAR_ON_CALL && window.POOLAR_ON_CALL(sug); } catch {}
@@ -2766,5 +2816,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930162207"></script>
+<script src="build.js?v=20260930172519"></script>
 </body></html>
