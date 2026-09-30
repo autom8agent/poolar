@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930052236"><script src="stream.js"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930054527"><script src="stream.js"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -1649,6 +1649,13 @@
   const PNAME = ['top-left corner', 'top side', 'top-right corner', 'bottom-left corner', 'bottom side', 'bottom-right corner'];
   const ballEl = n => n ? `<span class="ball${n > 8 ? ' st' : ''}" style="--c:${BC[(n - 1) % 8]}"><span>${n}</span></span>` : '<span class="ball" style="--c:#777"><span>?</span></span>';
   const clsName = b => b.cls === 'eight' ? 'the 8' : b.num ? `the ${b.num}` : `a ${b.cls}`;
+  // APA 8-ball shot outcome (official APA 8-Ball Game Rules; flow in Pool AI PAL/data/rules):
+  //  8-ball down?  -> won if the shooter was on the 8, no scratch and it was the marked pocket; else lost
+  //  cue ball down? -> foul, ball in hand (behind the head string after a break)
+  //  hit nothing?   -> foul, ball in hand
+  //  wrong ball first (opponent's group, or the 8 while not on it)? -> foul, ball in hand
+  //  nothing down and no ball reached a rail after contact? -> foul, ball in hand
+  //  own ball down (or any ball on an open table) -> keep shooting; else -> turn over
   function judge(ev){
     if (!refOn || winner(scores()) >= 0) return;
     const i = st.shooter, opp = 1 - i, g = st.groups[i], me = whoShoots(i), them = st.dbl ? side(opp) : st.names[opp];
@@ -1657,30 +1664,41 @@
     const mine = g ? GROUP[g].filter(n => !st.down.includes(n)) : null;
     const onEight = g && mine.length === 0;
     const eightIn = made.some(b => b.cls === 'eight' || b.num === 8);
+    const isBreak = st.turns === 0 && !st.down.length;
+    const ownOf = b => !g ? (b.cls === 'solid' || b.cls === 'stripe') : b.num ? GROUP[g].includes(b.num) : b.cls === (g === 'solids' ? 'solid' : 'stripe');
+    const want = onEight ? 'eight' : g === 'solids' ? 'solid' : 'stripe';
+    const badFirst = !isBreak && g && ev.first && ev.first.cls !== 'cluster' && ev.first.cls !== 'cue' && ev.first.cls !== want;
+    const foul = (type, title, text, conf, balls) => ({ type, conf, balls: balls || nums, title, text: `${text} Ball in hand → ${them}?`, apply: () => { markMade(nums.filter(n => n !== 8)); passTable(true); }, auto: 'Foul' });
     let sug;
     if (eightIn) {
-      const legal = onEight && !ev.scratch;
-      sug = { type: 'eight', conf: .7, balls: [8], title: legal ? '8 ball made' : '8 ball made early', text: legal ? `${me} made the 8. ${side(i)} won the rack?` : `${me} made the 8 ${ev.scratch ? 'and scratched' : 'before clearing their group'}. ${side(opp)} wins the rack?`, apply: () => $('w' + (legal ? i : opp)).click(), auto: 'Win rack' };
+      if (isBreak) sug = ev.scratch
+        ? { type: 'eight', conf: .7, balls: [8], title: '8 on the break + scratch', text: `${me} made the 8 on the break but scratched. ${side(opp)} wins the rack?`, apply: () => $('w' + opp).click(), auto: 'Rack to ' + short(side(opp)) }
+        : { type: 'eight', conf: .7, balls: [8], title: '8 on the break!', text: `${me} made the 8 on the break. ${side(i)} wins the rack?`, apply: () => $('w' + i).click(), auto: 'Rack to ' + short(side(i)) };
+      else if (!onEight || ev.scratch || badFirst) sug = { type: 'eight', conf: .7, balls: [8], title: '8 ball — loss of rack', text: `${me} ${ev.scratch ? 'scratched on the 8' : badFirst ? 'fouled, then made the 8' : 'made the 8 before clearing their group'}. ${side(opp)} wins the rack?`, apply: () => $('w' + opp).click(), auto: 'Rack to ' + short(side(opp)) };
+      else sug = { type: 'eight', conf: .7, balls: [8], title: '8 ball made', text: `${me} made the 8 in the ${PNAME[ev.pocketed.find(b => b.cls === 'eight' || b.num === 8).pocket] || 'pocket'}. Was that the marked pocket? Yes → ${side(i)} wins the rack.`, apply: () => $('w' + i).click(), auto: '', noAuto: true };
     } else if (ev.scratch) {
-      sug = { type: 'scratch', conf: .7, balls: nums, title: 'Scratch', text: `Cue ball went in the ${PNAME[ev.cuePocket] || 'pocket'}. Ball in hand → ${them}?`, apply: () => { markMade(nums); passTable(true); }, auto: 'Foul' };
-    } else if (g && ev.first && ev.first.cls !== 'cluster' && ev.first.cls !== 'cue') {
-      const want = onEight ? 'eight' : g === 'solids' ? 'solid' : 'stripe';
-      if (ev.first.cls !== want) sug = { type: 'foul', conf: ev.first.conf, balls: [ev.first.num || 0], title: 'Bad hit', text: `${me} is on ${onEight ? 'the 8' : g} but hit ${clsName(ev.first)} first. Foul → ball in hand to ${them}?`, apply: () => { markMade(nums); passTable(true); }, auto: 'Foul' };
-    }
-    if (!sug && made.length) {
-      const own = !g ? made.filter(b => b.cls === 'solid' || b.cls === 'stripe') : made.filter(b => b.num ? GROUP[g].includes(b.num) : b.cls === (g === 'solids' ? 'solid' : 'stripe'));
-      const keep = own.length > 0;
+      sug = foul('scratch', 'Scratch', `Cue ball went in the ${PNAME[ev.cuePocket] || 'pocket'}${isBreak ? ' on the break (ball in hand behind the head string)' : ''}.`, .7);
+    } else if (ev.noHit && !isBreak) {
+      sug = foul('foul', 'No ball hit', `${me}'s cue ball didn't touch a ball.`, .5, []);
+    } else if (badFirst) {
+      sug = foul('foul', 'Bad hit', `${me} is on ${onEight ? 'the 8' : g} but hit ${clsName(ev.first)} first.`, ev.first.conf, [ev.first.num || 0]);
+    } else if (!isBreak && ev.first && !made.length && !ev.rail) {
+      sug = foul('foul', 'No rail', `${me} hit ${clsName(ev.first)} but nothing reached a rail and nothing dropped.`, .4, [ev.first.num || 0]);
+    } else if (made.length) {
+      const own = made.filter(ownOf), keep = own.length > 0;
+      const pickGroup = !g && keep && !isBreak && new Set(own.map(b => b.cls)).size === 1 ? own[0].cls : null;
       sug = { type: 'made', conf: .7, balls: nums.length ? nums : [0], title: made.length > 1 ? `${made.length} balls made` : 'Ball made',
-        text: `${made.map(clsName).join(', ')} in. ${keep ? `${me} keeps shooting?` : `Not ${me}'s group → turn over to ${them}?`}`,
-        apply: () => { markMade(nums); if (!keep) passTable(false); }, auto: keep ? 'Mark ball' : 'Turn over' };
+        text: `${made.map(clsName).join(', ')} in. ${keep ? `${me} keeps shooting${pickGroup ? ` and takes ${pickGroup}s` : ''}?` : `Not ${me}'s group → turn over to ${them}?`}`,
+        apply: () => { markMade(nums); if (pickGroup && !st.groups[i]) setSolids(pickGroup === 'solid' ? i : opp); if (!keep) passTable(false); }, auto: keep ? 'Mark ball' : 'Turn over' };
     }
     // No hit seen: still ask, but never apply it by itself (a shaky read must not end a turn).
     if (!sug && !ev.first) sug = { type: 'turn', conf: .45, balls: [], title: 'Turn over?', text: `Shot over, nothing of ${me}'s went in. ${them} to shoot?`, apply: () => passTable(false), auto: '', noAuto: true };
-    if (!sug) sug = { type: 'turn', conf: .6, balls: [], title: 'Turn over?', text: `No ball made. ${them} to shoot.`, apply: () => passTable(false), auto: 'Turn over' };
+    if (!sug) sug = { type: 'turn', conf: .6, balls: [], title: 'Turn over?', text: `Legal hit, nothing of ${me}'s dropped. ${them} to shoot.`, apply: () => passTable(false), auto: 'Turn over' };
     if (sug.conf < (refP.gates[sug.type] || .5)) return;       // not sure enough yet: stay quiet
     sug.ev = ev; sug.key = stateKey(); sug.shooter = i; sug.group = g || null;
     shotSnap().then(b => { sug.snap = b; });
     showPop(sug);
+    try { window.POOLAR_ON_CALL && window.POOLAR_ON_CALL(sug); } catch {}
   }
   function markMade(nums){ nums.forEach(n => { if (n && !st.down.includes(n)) $('ball' + n).click(); }); }
   // Picture of the shot for the feedback: the straightened table with what the ref saw drawn on it.
