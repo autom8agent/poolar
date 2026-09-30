@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930180755"><script src="stream.js?v=20260930180755"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930183431"><script src="stream.js?v=20260930183431"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -766,10 +766,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930180755"></script>
-<script src="halls.js?v=20260930180755"></script>
-<script src="qrcode.js?v=20260930180755"></script>
-<script src="tablecv.js?v=20260930180755"></script>
+<script src="hallday.js?v=20260930183431"></script>
+<script src="halls.js?v=20260930183431"></script>
+<script src="qrcode.js?v=20260930183431"></script>
+<script src="tablecv.js?v=20260930183431"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -2571,9 +2571,11 @@
   // (open on the computer the Stream Deck is plugged into, or the iPad) carries them out. The key comes from ?ctl=
   // once and is remembered on this device.
   (() => {
+    // Every table page listens on its table's channel (poolar-ctl-<hall>-t<N>) with no setup; ?ctl=KEY adds a private channel.
     const CK = (q0.get('ctl') || (() => { try { return localStorage.getItem('poolar-ctl') || ''; } catch { return ''; } })()).replace(/[^a-z0-9]/gi, '').slice(0, 40);
-    if (!CK) return;
-    try { localStorage.setItem('poolar-ctl', CK); } catch {}
+    if (q0.get('ctl')) try { localStorage.setItem('poolar-ctl', CK); } catch {}
+    const topics = [tableMode ? `poolar-ctl-${HALL}-t${TNUM}` : '', CK ? `poolar-ctl-${CK}` : ''].filter(Boolean);
+    if (!topics.length) return;
     const OWN = window.POOLAR_OWN_RELAY || 'https://poolar-relay.poolar-relay.workers.dev';
     const seen = new Set(), t0 = Date.now();
     const refBtn = c => { if ($('refPop').hidden) return flash('🎛️ No ref call open'); const b = document.querySelector(`#refPop .rbtn button[data-c="${c}"]`); if (b) b.click(); return true; };
@@ -2597,9 +2599,13 @@
       flash('🎛️ ' + (LABEL[c] || c));
     };
     const take = (id, time, raw) => { if (seen.has(id) || time * 1000 < t0 - 2000) return; seen.add(id); let m; try { m = JSON.parse(raw); } catch { return; } try { run(m); } catch (e) { console.warn(e); } };
-    try { const es = new PoolarStream(`${OWN}/poolar-ctl-${CK}/sse`);
-      es.onmessage = e => { try { const d = JSON.parse(e.data); if (d.event === 'message') take(d.id, d.time, d.message); } catch {} }; } catch {}
-    setTimeout(() => flash('🎛️ Stream Deck connected'), 1500);
+    const chip = document.createElement('div'); chip.id = 'deckChip';
+    chip.style.cssText = 'position:fixed;left:10px;bottom:10px;z-index:30;background:rgba(10,16,14,.9);border:1px solid #3a4a42;color:#8ea69a;font:700 12px Barlow,system-ui,sans-serif;padding:5px 10px;border-radius:999px;pointer-events:none';
+    chip.textContent = `🎛️ Stream Deck${tableMode ? ' · table ' + TNUM : ''} · connecting…`; document.body.appendChild(chip);
+    for (const tp of topics) try { const es = new PoolarStream(`${OWN}/${tp}/sse`);
+      es.onopen = () => { chip.textContent = `🎛️ Stream Deck${tableMode ? ' · table ' + TNUM : ''} · ready`; chip.style.color = '#57d98a'; chip.style.borderColor = '#57d98a'; };
+      es.onmessage = e => { try { const d = JSON.parse(e.data); if (d.event === 'message') { take(d.id, d.time, d.message); chip.textContent = `🎛️ Stream Deck${tableMode ? ' · table ' + TNUM : ''} · ready`; chip.style.color = '#57d98a'; } } catch {} }; } catch {}
+    setTimeout(() => flash('🎛️ Stream Deck ready'), 1500);
   })();
   pollElsewhere(); setInterval(() => { if (document.visibilityState === 'visible') pollElsewhere(); }, 60000);
   // New game: the invite QR comes first (so friends can join the line), then names and game settings.
@@ -2616,5 +2622,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930180755"></script>
+<script src="build.js?v=20260930183431"></script>
 </body></html>
