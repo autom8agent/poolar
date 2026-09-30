@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930221903"><script src="stream.js?v=20260930221903"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930222302"><script src="stream.js?v=20260930222302"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -803,10 +803,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930221903"></script>
-<script src="halls.js?v=20260930221903"></script>
-<script src="qrcode.js?v=20260930221903"></script>
-<script src="tablecv.js?v=20260930221903"></script>
+<script src="hallday.js?v=20260930222302"></script>
+<script src="halls.js?v=20260930222302"></script>
+<script src="qrcode.js?v=20260930222302"></script>
+<script src="tablecv.js?v=20260930222302"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -1861,7 +1861,11 @@
   // clean 2:1 table. The same straightened picture feeds the shot tracker behind the ref pop-ups.
   const CKEY = () => 'poolar-corners-' + camKey;
   const warper = window.TableCV ? new TableCV.Warper($('viewCan')) : null;
-  const smallC = document.createElement('canvas'), smallW = window.TableCV ? new TableCV.Warper(smallC, [480, 240]) : null;
+  // Laptops/desktops have the power to read a sharper picture far more often: 960x480 at up to 25 checks a second
+  // (tablets: 480x240, ~9 a second). Fast balls then move inches between looks instead of a foot.
+  const HIFI = !/iPad|iPhone|Android|Mobile/i.test(navigator.userAgent) && !(navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
+  const REFW = HIFI ? [720, 360] : [480, 240]; let REFMS = HIFI ? 50 : 110, refCost = 0;   // REFMS adapts to how fast this computer is
+  const smallC = document.createElement('canvas'), smallW = window.TableCV ? new TableCV.Warper(smallC, REFW) : null;
   const grabC = document.createElement('canvas'); grabC.width = 320; grabC.height = 180;
   function setCorners(q, save){
     corners = q; const use = rawView ? null : (q && TableCV.withRails ? TableCV.withRails(q) : q);   // show rails + pockets, not just the cloth
@@ -1880,7 +1884,7 @@
     // Table edges not found yet: after 15 s run the ref on the whole picture rather than stay quiet.
     const fallback = !corners && now - viewTick.t0 > 15000;
     if (fallback && !viewTick.fb) { viewTick.fb = true; smallW.setQuad(null); note('Ref is on. For best calls: ⊞ Table → Adjust corners.'); }
-    if (refOn && (corners || fallback) && now - viewLast > 110) { viewLast = now; refTick(v); }
+    if (refOn && (corners || fallback) && now - viewLast > REFMS) { viewLast = now; refTick(v); }
     else paintRefStat();
     return true;
   }
@@ -1945,7 +1949,7 @@
   try { const p = JSON.parse(localStorage.getItem(REFKEY)); if (p && p.v === 2 && p.gates) refP = { ...refP, ...p, gates: { ...refP.gates, ...p.gates } }; if (p && p.off) refOn = false; } catch {}
   if (VIEW) refOn = false;
   const saveRefP = () => { try { localStorage.setItem(REFKEY, JSON.stringify({ ...refP, off: !refOn })); } catch {} };
-  const tracker = window.TableCV ? new TableCV.Tracker() : null;
+  const tracker = window.TableCV ? new TableCV.Tracker(HIFI ? { w: 720, h: 360, still: .9, move: 2.4 } : {}) : null;
   let shotsSeen = 0, lastShotAt = 0;
   if (tracker) tracker.onShot = ev => { shotsSeen++; lastShotAt = Date.now(); try { judge(ev); } catch (e) { console.warn(e); } };
   // Ref health for Claude: what this scoreboard's ref is doing, every 15 s, on a private relay topic (own relay).
@@ -1961,7 +1965,8 @@
   function refUI(){ $('tvRef').textContent = refOn ? '🤖 Ref on' : '🤖 Ref off'; $('tvRef').classList.toggle('refon', refOn); }
   $('tvRef').onclick = () => { refOn = !refOn; saveRefP(); refUI(); if (!refOn) closePop(); };
   refUI();
-  function refTick(v){ if (!smallW || !smallW.ok || !smallW.draw(v, feedFlipped())) return; try { tracker.feed(smallW.read(), performance.now()); } catch {} paintRefStat(); }
+  function refTick(v){ if (!smallW || !smallW.ok || !smallW.draw(v, feedFlipped())) return; const a = performance.now(); try { tracker.feed(smallW.read(), a); } catch {}
+    refCost = refCost * .9 + (performance.now() - a) * .1; if (HIFI) REFMS = Math.max(40, Math.min(110, refCost * 1.4)); paintRefStat(); }
   // What the ref sees right now, on the video, so it's obvious when it can't work.
   let refStatT = 0;
   function paintRefStat(force){
@@ -2838,5 +2843,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930221903"></script>
+<script src="build.js?v=20260930222302"></script>
 </body></html>

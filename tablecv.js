@@ -387,7 +387,7 @@
         }
         if (this.shot) { this.shot.rest0 = {}; for (const tr of this.tracks) { this.shot.rest0[tr.id] = tr.restX != null ? [tr.restX, tr.restY] : [tr.x, tr.y]; tr.restSince = 0; tr.lastRest = 0; tr.restDur = 0; tr.restX = null; } }
         else {
-          restBook();
+          if (!(this.handUntil > t)) restBook();   // a hand right by the cue ball: keep the pre-shot rest spot until it's gone
           // Safety net: the cue ball settled in a new spot (1.2 s still) and no shot was called since it last settled.
           if (cue && cue.restDur > 1200 && !(this.handUntil > t)) {
             const nowN = nNow;
