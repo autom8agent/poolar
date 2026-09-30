@@ -384,7 +384,7 @@
             this.quietFrom = 0;
           }
         }
-        if (this.shot) for (const tr of this.tracks) { tr.restSince = 0; tr.lastRest = 0; tr.restDur = 0; tr.restX = null; }
+        if (this.shot) { this.shot.rest0 = {}; for (const tr of this.tracks) { this.shot.rest0[tr.id] = tr.restX != null ? [tr.restX, tr.restY] : [tr.x, tr.y]; tr.restSince = 0; tr.lastRest = 0; tr.restDur = 0; tr.restX = null; } }
         else {
           restBook();
           // Safety net: the cue ball settled in a new spot (1.2 s still) and no shot was called since it last settled.
@@ -402,6 +402,8 @@
         return;
       }
       const s = this.shot;
+      s.seenMoving = s.seenMoving || new Set();
+      for (const tr of this.tracks) if (tr.seen === t && tr.v > this.o.move) s.seenMoving.add(tr.id);
       for (const tr of this.tracks) {
         if (tr.id === s.cueId || tr.cls === 'cue' || s.moved.has(tr.id) || !s.stillAtStart.has(tr.id)) continue;
         // A struck ball can jump further than the tracker matches in one frame, so "gone from its
@@ -452,11 +454,16 @@
         let scratch = false, cuePocket = -1;
         // A fast ball is often last seen well before the pocket, so a ball that moved and then vanished (with no
         // hand or cue over it) counts too, in the nearest pocket, as long as the table really has that many fewer balls.
+        const byPocket = tr => { const r0 = (s.rest0 || {})[tr.id]; if (!r0) return false; return POCKETS.some(([px2, py]) => Math.hypot(r0[0] - px2, (r0[1] - py) * .5) < .09); };   // where it rested before the shot
+        const leftRest = tr => { const r0 = (s.rest0 || {})[tr.id]; return !!r0 && Math.hypot(tr.x - r0[0], (tr.y - r0[1]) * .5) > R * 3; };
+        const reallyMoved = tr => tr.id === s.cueId || s.seenMoving.has(tr.id) || leftRest(tr) || (s.moved.has(tr.id) && !byPocket(tr));
         const cand = [];
         for (const tr of this.tracks) {
           if (t - tr.seen < this.o.gone || tr.seen < s.t0 || nearOcc(tr)) continue;
           let pk = -1, d = 9; POCKETS.forEach(([px2, py], k) => { const dd = Math.hypot(tr.x - px2, (tr.y - py) * .5); if (dd < d) { d = dd; pk = k; } });
-          const strict = d < this.o.pocketR, moved = tr.id === s.cueId || s.moved.has(tr.id);
+          // Only a ball seen moving in this shot can go down. A ball resting near a pocket flickers in and out of view
+          // (the pocket opening is masked), which made a still 8 ball read as pocketed.
+          const moved = reallyMoved(tr), strict = moved && d < this.o.pocketR;
           if (strict || (moved && d < .35)) cand.push({ tr, pk, d, strict });
         }
         const fewer = Math.max(0, (s.n0 || 0) - nNow);
@@ -475,7 +482,7 @@
         let room = blocked ? 0 : Math.max(0, (s.n0 || 0) - nNow - pocketed.length - (scratch ? 1 : 0));
         for (const n of gone) { if (room <= 0) break; room--;
           const tr = this.tracks.find(x => x.num === n), pos = tr || { x: .5, y: .5 };
-          if (tr && nearOcc(tr)) { room++; continue; }
+          if (tr && (nearOcc(tr) || !reallyMoved(tr))) { room++; continue; }
           let pk = 0, d = 9; POCKETS.forEach(([px2, py], k) => { const dd = Math.hypot(pos.x - px2, (pos.y - py) * .5); if (dd < d) { d = dd; pk = k; } });
           pocketed.push({ cls: n === 8 ? 'eight' : n > 8 ? 'stripe' : 'solid', num: n, pocket: pk, counted: true });
           if (tr) tr.pocketed = true; }
