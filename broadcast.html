@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="build" content="20260930185442"><script src="stream.js?v=20260930185442"></script>
+<meta charset="utf-8"><meta name="build" content="20260930185952"><script src="stream.js?v=20260930185952"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#05080a">
 <title>Pool Broadcast</title>
@@ -94,7 +94,7 @@
   <div class="side r" id="s1"><div class="nm" id="n1"></div><div class="sl" id="l1"></div><div class="balls" id="b1"></div></div>
 </div>
 <div class="menu" id="menu"><button id="mFull">⛶ Full screen</button><a id="mScore" href="deck.html">Scoreboard</a><a href="hall.html">⌂ Tables</a></div>
-<script src="tablecv.js?v=20260930185442"></script>
+<script src="tablecv.js?v=20260930185952"></script>
 <script>
 (() => {
   const $ = id => document.getElementById(id);
@@ -113,7 +113,7 @@
   const flipped = () => { try { return $('camFrame').contentDocument.getElementById('wstage').classList.contains('flip'); } catch { return false; } };
   const warp = window.TableCV ? new TableCV.Warper($('warp')) : null;
   let corners = null, tries = [], lastTry = 0;
-  try { const q = JSON.parse(localStorage.getItem('poolar-corners-' + camTop)); if (q && q.tl) { corners = q; warp && warp.setQuad(q); } } catch {}
+  try { const q = JSON.parse(localStorage.getItem('poolar-corners-' + camTop)); if (q && q.tl) { corners = q; warp && warp.setQuad(TableCV.withRails(q)); } } catch {}
   const grab = document.createElement('canvas'); grab.width = 320; grab.height = 180;
   function findTable(v){
     const x = grab.getContext('2d', { willReadFrequently: true }); x.drawImage(v, 0, 0, 320, 180);
@@ -122,7 +122,7 @@
     tries.push(q); if (tries.length > 3) tries.shift();
     if (tries.length === 3 && TableCV.cornerDiff(tries[0], tries[2]) < .02) {
       corners = {}; ['tl', 'tr', 'br', 'bl'].forEach(k => corners[k] = { x: tries.reduce((a, c) => a + c[k].x, 0) / 3, y: tries.reduce((a, c) => a + c[k].y, 0) / 3 });
-      warp.setQuad(corners); try { localStorage.setItem('poolar-corners-' + camTop, JSON.stringify(corners)); } catch {}
+      warp.setQuad(TableCV.withRails(corners)); try { localStorage.setItem('poolar-corners-' + camTop, JSON.stringify(corners)); } catch {}
     }
   }
   // Program picture: the straightened overhead table, centred on a dark backdrop, 1920x1080.
@@ -139,7 +139,9 @@
       tr = { x: (1920 - w) / 2, y: 40 + (900 - h) / 2, w, h, full: !!corners };
       px.drawImage(c, tr.x, tr.y, w, h);
     }
-    if (st) zones(tr || { x: 160, y: 130, w: 1600, h: 800, full: false }, now);
+    // The picture includes the rails (TableCV.withRails: .05 along, .1 across); the zones belong on the cloth.
+    const cloth = tr && corners ? { x: tr.x + tr.w * .05 / 1.1, y: tr.y + tr.h * .1 / 1.2, w: tr.w / 1.1, h: tr.h / 1.2, full: true } : tr;
+    if (st) zones(cloth || { x: 160, y: 130, w: 1600, h: 800, full: false }, now);
     const b = vid('camBFrame'); $('pip').hidden = !b;
     if (b) $('pipCan').getContext('2d').drawImage(b, 0, 0, 640, 360);
     $('wait').hidden = live || !!st; if (!live && st) $('wait').hidden = true;
@@ -335,6 +337,6 @@
   keepAwake(); document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') keepAwake(); });
 })();
 </script>
-<script src="build.js?v=20260930185442"></script>
+<script src="build.js?v=20260930185952"></script>
 </body>
 </html>

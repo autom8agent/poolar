@@ -397,5 +397,9 @@
     }
   }
 
-  G.TableCV = { findCorners, cornerDiff, Warper, Tracker, toCam, apply, POCKETS };
+  // The whole table for display: the cloth corners pushed out over the rails and pockets (mu along the
+  // table, mv across it, in cloth widths). The tracker keeps using the exact cloth corners.
+  const withRails = (q, mu = .05, mv = .1) => { if (!q) return q; const H = toCam(q);
+    return { tl: apply(H, -mu, -mv), tr: apply(H, 1 + mu, -mv), br: apply(H, 1 + mu, 1 + mv), bl: apply(H, -mu, 1 + mv) }; };
+  G.TableCV = { findCorners, cornerDiff, Warper, Tracker, toCam, apply, withRails, POCKETS };
 })(window);
