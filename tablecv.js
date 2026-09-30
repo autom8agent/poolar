@@ -491,7 +491,7 @@
           if (tr) tr.pocketed = true; }
         this.tracks = this.tracks.filter(tr => !tr.pocketed);
         this.shot = null;
-        const ev = { type: 'shot', first: s.first, pocketed, scratch, cuePocket, rail: !!s.rail, kick: !!s.kick, maybe: s.maybe || [], noHit: !s.first && !pocketed.length && !(s.spawned > 1) && s.moved.size === 0 && ![...(s.seenMoving || [])].some(id => id !== s.cueId), ms: t - s.t0, t };
+        const ev = { type: 'shot', first: s.first, pocketed, scratch, cuePocket, rail: !!s.rail, kick: !!s.kick, maybe: s.maybe || [], noHit: !s.first && !pocketed.length && !(s.spawned > 1) && s.moved.size === 0 && ![...(s.seenMoving || [])].some(id => id !== s.cueId) && !blocked && (s.n0 || 0) <= nNow, n0: s.n0 || 0, n1: nNow, blocked, ms: t - s.t0, t };
         this.lastShotT = t; { const c2 = this.tracks.find(x => x.id === s.cueId); this.settled = c2 && !scratch ? { x: c2.x, y: c2.y, t, n: nNow } : null; }
         if (this.onShot) this.onShot(ev);
       }

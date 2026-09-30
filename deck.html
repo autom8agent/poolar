@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930221524"><script src="stream.js?v=20260930221524"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930221903"><script src="stream.js?v=20260930221903"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -803,10 +803,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930221524"></script>
-<script src="halls.js?v=20260930221524"></script>
-<script src="qrcode.js?v=20260930221524"></script>
-<script src="tablecv.js?v=20260930221524"></script>
+<script src="hallday.js?v=20260930221903"></script>
+<script src="halls.js?v=20260930221903"></script>
+<script src="qrcode.js?v=20260930221903"></script>
+<script src="tablecv.js?v=20260930221903"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -1996,6 +1996,12 @@
     // Waiting for the break: racking and placing the cue ball move balls by hand. Only a real break counts
     // (the cue ball hit something, a ball dropped, or a scratch).
     if (st.turns === 0 && !st.down.length && !ev.first && !ev.scratch && !ev.pocketed.some(b => b.cls !== 'cue') && !(ev.maybe && ev.maybe.length)) return;
+    // Fewer balls than before but I didn't see which one went in: ask instead of calling 'nothing dropped' or 'no hit'.
+    if (!ev.scratch && !ev.pocketed.some(b => b.cls !== 'cue') && !(ev.maybe && ev.maybe.length) && ev.n0 > ev.n1 && !ev.blocked) {
+      showFix && setTimeout(() => { if (pop) showFix(); }, 50);
+      return showPop({ type: 'made', conf: .5, balls: [], title: 'Did a ball go in?', text: `I saw ${ev.n0} → ${ev.n1} balls on the table but didn't catch which one dropped. Tap the ball that went in below (or No if nothing did).`,
+        apply: () => {}, auto: '', noAuto: true, key: stateKey(), shooter: st.shooter, group: null, ev });
+    }
     if (ev.maybe && ev.maybe.length && !ev.scratch && !ev.pocketed.some(b => b.cls !== 'cue')) {   // a ball by a pocket is gone from view: ask
       const n = ev.maybe[0];
       return showPop({ type: 'made', conf: .5, balls: [n], title: `Did the ${n} go in?`, text: `The ${n} was by a pocket and is gone from view, but I didn't see it move. Yes = it went in.`,
@@ -2832,5 +2838,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930221524"></script>
+<script src="build.js?v=20260930221903"></script>
 </body></html>
