@@ -183,7 +183,7 @@
   class Tracker {
     constructor(opt){
       this.o = Object.assign({ w: 480, h: 240, still: .6, move: 1.6, endQuiet: 1100, maxShot: 15000, gone: 700, pocketR: .085 }, opt || {});
-      this.tracks = []; this.nid = 1; this.shot = null; this.quietFrom = 0; this.onShot = null; this.frame = 0;
+      this.tracks = []; this.nid = 1; this.shot = null; this.quietFrom = 0; this.onShot = null; this.onPocket = null; this.frame = 0;
     }
     get ballPx(){ return this.o.h * 2.25 / 50; }
     detect(img){
@@ -348,6 +348,14 @@
             s.first = { cls: tr.cls, num: tr.num, conf: near < 3.5 ? .8 : near < 6 ? .55 : .3 };
           }
         }
+      }
+      // A ball gone for `gone` ms next to a pocket has dropped: announce it now, not when the balls stop
+      // (the "made the 7" flash belongs right after the drop — never at the strike, never a few seconds late).
+      for (const tr of this.tracks) {
+        if (tr.dropSent || tr.id === s.cueId || tr.seen < s.t0 || t - tr.seen < this.o.gone) continue;
+        const pk = POCKETS.findIndex(([px2, py]) => Math.hypot(tr.x - px2, (tr.y - py) * .5) < this.o.pocketR);
+        if (pk < 0 || nearOcc(tr)) continue;
+        tr.dropSent = true; if (this.onPocket) try { this.onPocket({ cls: tr.cls, num: tr.num, pocket: pk, t }); } catch {}
       }
       // Quiet = nothing moving AND the cue ball seen at rest (a lost cue ball is not a stopped one),
       // unless it vanished at a pocket (scratch).
