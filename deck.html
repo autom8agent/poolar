@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930230600"><script src="stream.js?v=20260930230600"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930230837"><script src="stream.js?v=20260930230837"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -808,10 +808,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930230600"></script>
-<script src="halls.js?v=20260930230600"></script>
-<script src="qrcode.js?v=20260930230600"></script>
-<script src="tablecv.js?v=20260930230600"></script>
+<script src="hallday.js?v=20260930230837"></script>
+<script src="halls.js?v=20260930230837"></script>
+<script src="qrcode.js?v=20260930230837"></script>
+<script src="tablecv.js?v=20260930230837"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -2329,8 +2329,11 @@
       build: (document.querySelector('meta[name="build"]') || {}).content, ua: navigator.userAgent.slice(0, 80) };
     const up = segs => { segs.forEach((g, i) => fetch(`${R}/${i}`, { method: 'PUT', headers: { 'content-type': g.blob.type || 'video/webm' }, body: g.blob }).catch(() => {}));
       meta.clips = segs.map(g => ({ t0: g.t0, t1: g.t1 })); fetch(`${R}/meta`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(meta) }).catch(() => {}); };
-    const sn = ev.snaps || {}; meta.snaps = Object.keys(sn).filter(k => typeof sn[k] === 'string');
-    meta.snaps.forEach(k => fetch(sn[k]).then(r => r.blob()).then(b => fetch(`${R}/${{ start: 90, contact: 91, end: 92 }[k]}`, { method: 'PUT', headers: { 'content-type': 'image/jpeg' }, body: b })).catch(() => {}));
+    const sn = { ...(ev.snaps || {}) }; if (ev.pre && ev.pre.img) sn.pre = ev.pre.img; if (ev.post && ev.post.img) sn.post = ev.post.img;
+    meta.snaps = Object.keys(sn).filter(k => typeof sn[k] === 'string');
+    meta.diff = ev.diff || null; meta.pre = ev.pre ? { count: ev.pre.count, nums: ev.pre.nums, cue: ev.pre.cue, clumps: ev.pre.clumps } : null; meta.post = ev.post ? { count: ev.post.count, nums: ev.post.nums, cue: ev.post.cue, clumps: ev.post.clumps } : null;
+    meta.unsure = (tracker && tracker.last ? tracker.last.balls.filter(b => b.cls === 'cluster').map(b => `clump of ~${b.n || 2} balls`) : []);
+    meta.snaps.forEach(k => fetch(sn[k]).then(r => r.blob()).then(b => fetch(`${R}/${{ start: 90, contact: 91, end: 92, pre: 93, post: 94 }[k]}`, { method: 'PUT', headers: { 'content-type': 'image/jpeg' }, body: b })).catch(() => {}));
     const pick = () => (typeof buf !== 'undefined' ? buf : []).filter(g => g.t1 >= startW - 1500 && g.t0 <= endW + 2500).slice(-6);
     if (sug.segs && sug.segs.length) up(sug.segs);
     else if (typeof rotate === 'function' && typeof bufRec !== 'undefined' && bufRec) rotate(() => up(pick())); else up(pick());
@@ -2947,5 +2950,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930230600"></script>
+<script src="build.js?v=20260930230837"></script>
 </body></html>
