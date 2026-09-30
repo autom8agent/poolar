@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930205814"><script src="stream.js?v=20260930205814"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930210213"><script src="stream.js?v=20260930210213"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -738,6 +738,7 @@
     <h2>Sync balls with the table</h2>
     <p id="syncSub" class="syncsub"></p>
     <div class="syncgrid" id="syncGrid"></div>
+    <textarea id="syncC" rows="2" placeholder="Comment (optional): tell the ref what's really on the table" style="width:100%;margin-bottom:8px"></textarea>
     <p class="syncleg"><span class="k on"></span> on the table <span class="k dn"></span> made <span class="k chg"></span> will change</p>
     <div class="two"><button id="syncCancel">Cancel</button><button class="primary" id="syncApply">Apply</button></div>
   </div>
@@ -796,10 +797,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930205814"></script>
-<script src="halls.js?v=20260930205814"></script>
-<script src="qrcode.js?v=20260930205814"></script>
-<script src="tablecv.js?v=20260930205814"></script>
+<script src="hallday.js?v=20260930210213"></script>
+<script src="halls.js?v=20260930210213"></script>
+<script src="qrcode.js?v=20260930210213"></script>
+<script src="tablecv.js?v=20260930210213"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -1735,10 +1736,16 @@
     if (!tracker || !feedLive) return flash('No camera picture to read the balls from');
     const on = tracker.onTable(), all = st.gtype === 8 ? [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15] : Array.from({ length: st.gtype }, (_, k) => k + 1);
     if (!on.length) return flash("The ref can't see the balls right now");
-    const plan = {}; for (const n of all) plan[n] = !on.includes(n);   // true = made (not on the table)
+    // Go by the COUNT first (ball numbers can be misread; the count is reliable): suggest only as many changes as
+    // the difference between balls the camera sees and balls up on the scoreboard.
+    const plan = {}; for (const n of all) plan[n] = st.down.includes(n);   // start from the scoreboard (true = made)
+    const up = all.filter(n => !st.down.includes(n)), seenCount = on.filter(n => all.includes(n)).length;
+    if (seenCount < up.length) { let k = up.length - seenCount; for (const n of up) if (k > 0 && !on.includes(n)) { plan[n] = true; k--; } }
+    else if (seenCount > up.length) { let k = seenCount - up.length; for (const n of st.down) if (k > 0 && on.includes(n)) { plan[n] = false; k--; } }
     const paint = () => {
       const changes = all.filter(n => plan[n] !== st.down.includes(n));
-      $('syncSub').textContent = changes.length ? `The camera suggests ${changes.length} change${changes.length > 1 ? 's' : ''} (gold). Tap any ball to flip it, then Apply.` : 'The scoreboard already matches the table. Tap a ball to change it.';
+      const cnt = `Camera sees ${seenCount} ball${seenCount === 1 ? '' : 's'} + the cue ball; scoreboard has ${up.length} up. `;
+      $('syncSub').textContent = cnt + (changes.length ? `The camera suggests ${changes.length} change${changes.length > 1 ? 's' : ''} (gold). Tap any ball to flip it, then Apply.` : 'Nothing to change. Tap a ball to change it yourself.');
       $('syncGrid').innerHTML = all.map(n => `<button type="button" class="sb ${plan[n] ? 'dn' : ''} ${plan[n] !== st.down.includes(n) ? 'chg' : ''}" data-sb="${n}">${ballEl(n)}</button>`).join('');
       $('syncApply').textContent = changes.length ? `Apply ${changes.length} change${changes.length > 1 ? 's' : ''}` : 'Done';
     };
@@ -1748,7 +1755,9 @@
       if (toDown.length || toUp.length) act(() => {
         for (const n of toUp) { st.down = st.down.filter(x => x !== n); let j = -1; st.pots.forEach((e, k) => { if (+e.split('.')[0] === n) j = k; }); if (j >= 0) st.pots.splice(j, 1); }
         const r = st.racks.length; for (const n of toDown) { st.down = [...st.down, n]; st.pots.push(`${n}.${st.shooter}.${r}.${st.turns}`); } });
-      $('syncSheet').hidden = true; if (toDown.length || toUp.length) flash('Balls synced with the table');
+      const c = $('syncC').value.trim();
+      if (c || toDown.length || toUp.length) try { fetch('https://poolar-relay.poolar-relay.workers.dev/poolar-ref-fb', { method: 'POST', body: JSON.stringify({ type: 'sync', title: 'Sync balls', choice: 'sync', comment: c, seen: on, madeNow: toDown, backUp: toUp, table: TNUM, game }) }); } catch {}
+      $('syncC').value = ''; $('syncSheet').hidden = true; if (toDown.length || toUp.length) flash('Balls synced with the table');
     };
     $('syncCancel').onclick = () => $('syncSheet').hidden = true;
     paint(); $('syncSheet').hidden = false;
@@ -2728,5 +2737,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930205814"></script>
+<script src="build.js?v=20260930210213"></script>
 </body></html>
