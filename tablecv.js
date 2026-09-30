@@ -221,7 +221,7 @@
       const lab = new Int32Array(w * h), blobs = [];
       for (let s = 0; s < w * h; s++) {
         if (!mask[s] || lab[s]) continue;
-        const b = { n: 0, sx: 0, sy: 0, x0: w, x1: 0, y0: h, y1: 0, wh: 0, dk: 0, hue: new Array(36).fill(0), vs: 0, ss: 0, cn: 0, cc: 0 };
+        const b = { n: 0, sx: 0, sy: 0, x0: w, x1: 0, y0: h, y1: 0, wh: 0, dk: 0, hue: new Array(36).fill(0), vs: 0, ss: 0, cn: 0, cc: 0, vall: 0 };
         const stk = [s]; lab[s] = blobs.length + 1;
         while (stk.length) {
           const p = stk.pop(), x = p % w, y = (p - x) / w, i = p * 4;
@@ -229,9 +229,10 @@
           const r = d[i], g = d[i+1], bl = d[i+2], mx = Math.max(r, g, bl), mn = Math.min(r, g, bl);
           // White includes the ivory of the cue ball and stripe caps (cream: yellowish, low saturation).
           // Compressed video greys the white a little, hence 145 / 60.
-          const c = hsv(r, g, bl);
-          if ((mn > 145 && mx - mn < 60) || (c[2] > .62 && c[0] >= 25 && c[0] <= 65 && c[1] < .45)) b.wh++;
-          else if (mx < 70) b.dk++;
+          const c = hsv(r, g, bl); b.vall += c[2];
+          // (Terry's table 4: the cue ball is cream with a blue cast from the cloth, and the 8 is blue-black.)
+          if ((mn > 145 && mx - mn < 60) || (c[2] > .62 && c[0] >= 25 && c[0] <= 65 && c[1] < .45) || (c[2] > .6 && c[1] < .28)) b.wh++;
+          else if (mx < 70 || (c[2] < .36 && c[1] < .75)) b.dk++;
           // Ball colour, but not the cloth showing through at the ball's edge (blue cloth vs the 2/10 balls:
           // the balls are darker and more saturated than the cloth).
           else if (c[1] > .3 && !(hueDist(c[0], fhsv[0]) < 22 && c[2] > fhsv[2] * .82)) { b.hue[Math.floor(c[0] / 10) % 36]++; b.vs += c[2]; b.ss += c[1]; b.cn++; if (hueDist(c[0], fhsv[0]) < 32) b.cc++; }
@@ -243,7 +244,7 @@
         }
         blobs.push(b);
       }
-      const balls = [], occ = [];
+      const balls = [], occ = [];   // (relative cue / 8 pick happens after classification, below)
       for (const b of blobs) {
         if (b.n < A * .3) continue;
         const bw = b.x1 - b.x0 + 1, bh = b.y1 - b.y0 + 1, fill = b.n / (bw * bh), x = b.sx / b.n / w, y = b.sy / b.n / h;
@@ -274,7 +275,7 @@
             if (hb < 0 || other < Math.max(2, b.cn * .2)) hb = b.hue.indexOf(Math.max(...b.hue));
             num = b.cn ? ballNumber(hb * 10 + 5, b.vs / b.cn) + (cls === 'stripe' ? 8 : 0) : 0;
           }
-          balls.push({ x, y, cls, num, wf, df, cf, sat: b.cn ? b.ss / b.cn : 0, cc: b.cc / b.n, fh: fhsv[0], hue: b.cn ? b.hue.indexOf(Math.max(...b.hue)) * 10 + 5 : -1 });
+          balls.push({ x, y, cls, num, wf, df, cf, vmean: b.vall / b.n, cfBall: (b.cn - b.cc) / b.n, sat: b.cn ? b.ss / b.cn : 0, cc: b.cc / b.n, fh: fhsv[0], hue: b.cn ? b.hue.indexOf(Math.max(...b.hue)) * 10 + 5 : -1 });
         } else if (b.n <= A * 7 && fill > .4 && Math.max(bw, bh) < this.ballPx * 5) balls.push({ x, y, cls: 'cluster', num: 0, n: Math.round(b.n / A) });
         else {
           // Something that isn't a ball: a cue shaft is long and thin (about a ball wide); a hand, glove
@@ -282,6 +283,18 @@
           const len = Math.hypot(bw, bh), thick = b.n / Math.max(1, len);
           occ.push({ x0: b.x0 / w, x1: b.x1 / w, y0: b.y0 / h, y1: b.y1 / h, dark: b.dk / b.n > .45 && b.n > A * 6, thick, id: blobs.indexOf(b) + 1 });
         }
+      }
+      // Lighting varies table to table, so fixed colour cut-offs can miss the two balls that matter most.
+      // There's exactly one cue ball and one 8: if none was found, take the brightest ball with little ball colour
+      // as the cue ball, and the darkest ball as the 8.
+      const real = balls.filter(b => b.cls !== 'cluster');
+      if (real.length >= 3 && !real.some(b => b.cls === 'cue')) {
+        const c = real.filter(b => b.wf > .25 && b.cfBall < .2).sort((a, b) => (b.wf - b.cfBall) - (a.wf - a.cfBall))[0];
+        if (c) { c.cls = 'cue'; c.num = 0; }
+      }
+      if (real.length >= 3 && !real.some(b => b.cls === 'eight')) {
+        const byV = real.filter(b => b.cls !== 'cue').sort((a, b) => a.vmean - b.vmean), d = byV[0], next = byV[1];
+        if (d && next && d.vmean < .5 && d.vmean < next.vmean * .9) { d.cls = 'eight'; d.num = 8; }
       }
       // The rental ball tray (or a dark glove holding the cue ball): a big dark shape. Balls inside it
       // aren't in play.

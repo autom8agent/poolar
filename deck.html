@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930202334"><script src="stream.js?v=20260930202334"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930202716"><script src="stream.js?v=20260930202716"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -399,7 +399,7 @@
   <div class="players">
     <div class="tv" id="tv">
       <div class="reflog" id="refLog" hidden><h4>🤖 Ref calls</h4><div id="refLogL"></div></div>
-      <div class="tvadd" id="tvAdd"><button class="primary" id="tvAddBtn">+ Add camera</button><small>Top-down table view · replays · recording</small></div>
+      <div class="tvadd" id="tvAdd"><button class="primary" id="tvWatchBtn">📺 Watch table camera</button><button id="tvAddBtn">+ Add camera</button><small>Top-down table view · replays · recording</small></div>
       <iframe id="feedFrame" title="Top-down table camera" allow="autoplay; fullscreen" hidden></iframe>
       <canvas id="viewCan" hidden></canvas>
       <div class="campip" id="pip" hidden><iframe id="behindFrame" title="Behind the table camera" allow="autoplay"></iframe><span>Behind the table</span></div>
@@ -775,10 +775,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930202334"></script>
-<script src="halls.js?v=20260930202334"></script>
-<script src="qrcode.js?v=20260930202334"></script>
-<script src="tablecv.js?v=20260930202334"></script>
+<script src="hallday.js?v=20260930202716"></script>
+<script src="halls.js?v=20260930202716"></script>
+<script src="qrcode.js?v=20260930202716"></script>
+<script src="tablecv.js?v=20260930202716"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -1709,6 +1709,7 @@
     try { localStorage.removeItem(FEEDKEY); } catch {}
     qs.delete('cam'); try { history.replaceState(null, '', '?' + qs); } catch {}
   }
+  $('tvWatchBtn').onclick = () => showFeed(tableMode ? camChan('top') : (qs.get('cam') || camChan('top')));
   function watchLive(){
     const v = feedVideo(), bv = behindVideo(), now = Date.now();
     if (v) lastLive = now;
@@ -1782,10 +1783,16 @@
     hallCams.onmessage = e => { try { const d = JSON.parse(e.data); if (d.event !== 'message') return; const m = JSON.parse(d.message);
       if (m.kind !== 'cam' || m.t !== TNUM) return; const k = m.loc === 'behind' ? 'behind' : 'top';
       camSeen[k] = m.on ? m.ts : 0;
-      if (m.on && Date.now() - m.ts < 6 * 60 * 1000) {
+      // The stream only replays the last 10 minutes, so any "on" here is recent (no clock comparison: a laptop
+      // with its clock a few minutes off never opened the camera).
+      if (m.on) {
         if (k === 'top' && !$('feedFrame').getAttribute('src')) showFeed(camChan('top'));
         if (k === 'behind' && !$('behindFrame').getAttribute('src')) $('behindFrame').src = watchSrc(camChan('behind'));
       } } catch {} };
+    // Don't wait for the camera's next 4-minute heartbeat: look up its latest announcement now.
+    fetch(`https://poolar-relay.poolar-relay.workers.dev/${HALL_TOPIC}/json?poll=1&since=10m`).then(r => r.text()).then(txt => {
+      let last = null; for (const l of txt.split('\n')) { try { const e = JSON.parse(l); if (e.event !== 'message') continue; const m = JSON.parse(e.message); if (m.kind === 'cam' && m.t === TNUM && m.loc !== 'behind') last = m; } catch {} }
+      if (last && last.on && !$('feedFrame').getAttribute('src')) showFeed(camChan('top')); }).catch(() => {});
   }
 
   // ---------- Straightened table view + automatic referee ----------
@@ -2062,9 +2069,10 @@
   // Running list of the ref's calls down the left of the video (newest on top), updated as they're answered.
   const refLog = [];
   function paintRefLog(){
-    const el = $('refLog'); if (!el) return; el.hidden = !refLog.length;
-    $('refLogL').innerHTML = refLog.slice(0, 8).map((e, k) => `<div class="it ${k === 0 ? 'new' : ''}"><small>${e.at}</small><b>${esc(e.title)}</b>${e.saw ? `<small>${esc(e.saw)}</small>` : ''}<span class="a ${e.ans === 'Yes' || e.ans === 'Applied' ? 'yes' : e.ans === 'No' ? 'no' : 'wait'}">${e.ans}</span></div>`).join('');
+    const el = $('refLog'); if (!el) return; el.hidden = false;
+    $('refLogL').innerHTML = (refLog.length ? '' : '<div class="it"><b>Waiting for the first shot…</b><small>Every call the ref makes stays listed here.</small></div>') + refLog.slice(0, 8).map((e, k) => `<div class="it ${k === 0 ? 'new' : ''}"><small>${e.at}</small><b>${esc(e.title)}</b>${e.saw ? `<small>${esc(e.saw)}</small>` : ''}<span class="a ${e.ans === 'Yes' || e.ans === 'Applied' ? 'yes' : e.ans === 'No' ? 'no' : 'wait'}">${e.ans}</span></div>`).join('');
   }
+  setTimeout(paintRefLog, 500);
   function logCall(sug){ const saw = (($('refS').textContent || '').split('\nSaw: ')[1] || '').slice(0, 140);
     sug.log = { at: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' }), title: sug.title, saw, ans: 'Waiting…' }; refLog.unshift(sug.log); paintRefLog(); }
   function finish(choice){
@@ -2672,5 +2680,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930202334"></script>
+<script src="build.js?v=20260930202716"></script>
 </body></html>
