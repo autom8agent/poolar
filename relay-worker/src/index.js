@@ -15,6 +15,18 @@ export default {
     if (req.method === 'OPTIONS') return new Response(null, { headers: CORS });
     const url = new URL(req.url), parts = url.pathname.split('/').filter(Boolean);
     if (!parts.length) return new Response('poolar relay ok', { headers: CORS });
+    // /turn: short-lived TURN credentials for the camera video (Cloudflare Realtime TURN on Terry's account).
+    // Needs secrets TURN_KEY_ID + TURN_KEY_TOKEN; without them it returns STUN only.
+    if (parts[0] === 'turn') {
+      const stun = { urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] };
+      if (!env.TURN_KEY_ID || !env.TURN_KEY_TOKEN) return Response.json({ iceServers: [stun], turn: false }, { headers: CORS });
+      try {
+        const r = await fetch(`https://rtc.live.cloudflare.com/v1/turn/keys/${env.TURN_KEY_ID}/credentials/generate-ice-servers`, {
+          method: 'POST', headers: { Authorization: `Bearer ${env.TURN_KEY_TOKEN}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ ttl: 86400 }) });
+        const j = await r.json(); const ice = j.iceServers ? (Array.isArray(j.iceServers) ? j.iceServers : [j.iceServers]) : [];
+        return Response.json({ iceServers: [stun, ...ice], turn: ice.length > 0 }, { headers: { ...CORS, 'Cache-Control': 'no-store' } });
+      } catch (e) { return Response.json({ iceServers: [stun], turn: false, err: String(e) }, { headers: CORS }); }
+    }
     const topic = parts[0];
     if (!TOPIC_RE.test(topic)) return new Response('bad topic', { status: 400, headers: CORS });
     const stub = env.TOPIC.get(env.TOPIC.idFromName(topic));
