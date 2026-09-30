@@ -59,4 +59,6 @@ window.POOLAR = {
     return `<svg width="${dbl ? size * 1.5 : size}" height="${size}" viewBox="0 0 ${dbl ? 30 : 20} 20" fill="currentColor" aria-hidden="true">${dbl ? one(9) + one(21) : one(10)}</svg>`;
   },
   profile(){ try { return JSON.parse(localStorage.getItem('poolar-profile') || 'null'); } catch { return null; } },
+  // The signed-in member (auth.js) merged over the saved profile; { } when neither exists. Has `uid` when signed in.
+  me(){ const p = this.profile() || {}, m = window.PoolarAuth && window.PoolarAuth.current(); return m ? { ...p, ...m } : p; },
 };

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930061857"><script src="stream.js"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930063155"><script src="stream.js"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -824,10 +824,11 @@
       el('gClaim').disabled = true; el('gClaim').textContent = 'Starting…';
       const key = (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)).slice(0, 16);
       const me = (window.POOLAR && POOLAR.profile()) || {};
-      const names = [me.name || 'Player 1', 'Player 2'];
-      const race = c.race ? [c.race, c.race] : [5, 5];
+      // A tournament table comes set up for its match: both names, each player's race and skill level.
+      const names = Array.isArray(c.names) && c.names.length === 2 ? c.names.map(String) : [me.name || 'Player 1', 'Player 2'];
+      const race = Array.isArray(c.races) && c.races.length === 2 ? c.races.map(Number) : c.race ? [c.race, c.race] : [5, 5];
       try { localStorage.setItem(KEY, JSON.stringify({ game: key, names, clockV: 2, table: `${HALL}-${TNUM}`, qSince: Date.now() - 30 * 60 * 1000, locked: false,
-        dbl: pick.dbl, gtype: pick.gt, fmtMode: c.fmt || 'race', rules: c.rules || 'bca', race, mode: c.rules === 'apa' ? 'win' : 'alt' })); } catch {}
+        dbl: pick.dbl, gtype: pick.gt, fmtMode: c.fmt || 'race', rules: c.rules || 'bca', race, mode: c.rules === 'apa' ? 'win' : 'alt', ...(Array.isArray(c.sl) ? { sl: c.sl.map(Number) } : {}) })); } catch {}
       setMine(`${HALL}-${TNUM}`, key);
       try { await Promise.race([postStatus({ state: 'busy', gh: hashKey(key), names, score: [0, 0], race, dbl: pick.dbl, gtype: pick.gt, open: true, key, q: 0 }), new Promise(r => setTimeout(r, 2500))]); } catch {}
       enter(key, true);
