@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930194152"><script src="stream.js?v=20260930194152"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930194810"><script src="stream.js?v=20260930194810"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -766,10 +766,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930194152"></script>
-<script src="halls.js?v=20260930194152"></script>
-<script src="qrcode.js?v=20260930194152"></script>
-<script src="tablecv.js?v=20260930194152"></script>
+<script src="hallday.js?v=20260930194810"></script>
+<script src="halls.js?v=20260930194810"></script>
+<script src="qrcode.js?v=20260930194810"></script>
+<script src="tablecv.js?v=20260930194810"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -1788,7 +1788,8 @@
     const v = feedVideo(); if (!v || !warper || !warper.ok) return !!v && false;
     if (!warper.draw(v, feedFlipped())) return false;
     const now = performance.now();
-    if (!corners && now - cornerT > 1500) { cornerT = now; autoCorners(v); }   // the ref always needs the table corners, whatever the view shows
+    if (!corners && now - cornerT > 1500) { cornerT = now; autoCorners(v); }
+    else if (corners && now - cornerT > 20000) { cornerT = now; recheckCorners(v); }   // camera moved or re-zoomed: follow it   // the ref always needs the table corners, whatever the view shows
     if (!viewTick.t0) viewTick.t0 = now;
     // Table edges not found yet: after 15 s run the ref on the whole picture rather than stay quiet.
     const fallback = !corners && now - viewTick.t0 > 15000;
@@ -1796,6 +1797,14 @@
     if (refOn && (corners || fallback) && now - viewLast > 110) { viewLast = now; refTick(v); }
     else paintRefStat();
     return true;
+  }
+  // Saved corners go stale when the camera is moved or zoomed; re-detect and switch when 2 checks agree it moved.
+  let recheck = null;
+  function recheckCorners(v){
+    const x = grabC.getContext('2d', { willReadFrequently: true }); x.drawImage(v, 0, 0, 320, 180);
+    let q = null; try { q = TableCV.findCorners(x.getImageData(0, 0, 320, 180)); } catch {}
+    if (!q || TableCV.cornerDiff(q, corners) < .03) { recheck = null; return; }
+    if (recheck && TableCV.cornerDiff(recheck, q) < .02) { setCorners(q, true); recheck = null; note('Camera moved: ref re-found the table.'); } else recheck = q;
   }
   // Automatic corners: a few frames in a row must agree before the view switches over.
   function autoCorners(v){
@@ -1851,7 +1860,16 @@
   if (VIEW) refOn = false;
   const saveRefP = () => { try { localStorage.setItem(REFKEY, JSON.stringify({ ...refP, off: !refOn })); } catch {} };
   const tracker = window.TableCV ? new TableCV.Tracker() : null;
-  if (tracker) tracker.onShot = ev => { try { judge(ev); } catch (e) { console.warn(e); } };
+  let shotsSeen = 0, lastShotAt = 0;
+  if (tracker) tracker.onShot = ev => { shotsSeen++; lastShotAt = Date.now(); try { judge(ev); } catch (e) { console.warn(e); } };
+  // Ref health for Claude: what this scoreboard's ref is doing, every 15 s, on a private relay topic (own relay).
+  if (tableMode) setInterval(() => { try {
+    const L = tracker && tracker.last, v = feedVideo();
+    fetch(`https://poolar-relay.poolar-relay.workers.dev/poolar-refdiag-${HALL}-t${TNUM}`, { method: 'POST', body: JSON.stringify({
+      build: (document.querySelector('meta[name="build"]') || {}).content, refOn, feedLive: !!feedLive, corners: corners ? [corners.tl, corners.br].map(p => [+p.x.toFixed(3), +p.y.toFixed(3)]) : null,
+      raw: rawView, video: v ? `${v.videoWidth}x${v.videoHeight}` : null, balls: L ? L.balls.length : null, cue: !!(L && L.balls.some(b => b.cls === 'cue')),
+      shots: shotsSeen, lastShot: lastShotAt ? Math.round((Date.now() - lastShotAt) / 1000) : null, stat: ($('refStat') || {}).textContent || '', ua: navigator.userAgent.slice(0, 60) }) }).catch(() => {});
+  } catch {} }, 15000);
   function refUI(){ $('tvRef').textContent = refOn ? '🤖 Ref on' : '🤖 Ref off'; $('tvRef').classList.toggle('refon', refOn); }
   $('tvRef').onclick = () => { refOn = !refOn; saveRefP(); refUI(); if (!refOn) closePop(); };
   refUI();
@@ -2591,6 +2609,8 @@
       else if (c === 'other') { if (!refBtn('other')) return; if (!$('refStop').hidden) $('refStop').click(); $('refC').focus(); }
       else if (c === 'stop') { if ($('refPop').hidden || $('refStop').hidden) return flash('🎛️ No timer running'); $('refStop').click(); }
       else if (c === 'undo') $('undo').click();
+      else if (c === 'call' && m.title) { showPop({ type: m.type || 'turn', conf: .5, balls: Array.isArray(m.balls) ? m.balls : [], title: String(m.title).slice(0, 60), text: String(m.text || '').slice(0, 300),
+          apply: () => {}, auto: '', noAuto: true, key: stateKey(), shooter: st.shooter, group: null, remote: true }); return; }
       else if (c === 'win0' || c === 'win1') $(c === 'win0' ? 'w0' : 'w1').click();
       else if (c === 'tag' && m.v) {   // bank / kick / combo / safety / jump: goes into the ref's feedback for training
         const tag = '#' + String(m.v).replace(/[^a-z]/gi, '').toLowerCase();
@@ -2624,5 +2644,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930194152"></script>
+<script src="build.js?v=20260930194810"></script>
 </body></html>
