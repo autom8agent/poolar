@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="build" content="20260930031552">
+<meta charset="utf-8"><meta name="build" content="20260930034409"><script src="stream.js"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0a0f14">
 <title>Pool Cam</title>
@@ -112,7 +112,7 @@
     let first = true;
     const open = () => {
       // Watchers read the last few minutes too, so a camera that's already live is found at once.
-      es = new EventSource(`${RELAY}/${topic}/sse${since && first ? '?since=' + since : ''}`); first = false;
+      es = new PoolarStream(`${RELAY}/${topic}/sse${since && first ? '?since=' + since : ''}`); first = false;
       es.onopen = () => onState(true);
       es.onerror = () => onState(false);
       es.onmessage = e => {
@@ -129,7 +129,7 @@
     };
     open();
     // Phones drop the connection when they sleep; reopen on wake.
-    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && es && es.readyState === 2) open(); });
+    // (PoolarStream reconnects by itself, with backoff, including when the phone wakes.)
   }
   // Send a complete description (no trickle ICE) so each side needs only one message.
   const gathered = pc => new Promise(res => {
