@@ -1,12 +1,12 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="build" content="20260930065924"><script src="stream.js?v=20260930065924"></script>
+<meta charset="utf-8"><meta name="build" content="20260930071815"><script src="stream.js?v=20260930071815"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0a0f14">
 <title>Open Table Night</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
-<link rel="stylesheet" href="common.css?v=20260930065924">
+<link rel="stylesheet" href="common.css?v=20260930071815">
 <style>
   .status{display:inline-flex;align-items:center;gap:6px;font-weight:800;font-size:13px;padding:4px 10px;border-radius:999px;border:1px solid var(--line)}
   .status.on{color:var(--free);border-color:#2d6b45} .status.soon{color:var(--gold);border-color:#6b5520}
@@ -27,7 +27,12 @@
   .ctl .wide{grid-column:span 2}
   .acts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   .acts .primary{grid-column:1 / -1;padding:14px;font-size:17px}
-  @media (max-width:420px){ .plan{grid-template-columns:1fr} .ctl{grid-template-columns:1fr 1fr} }
+  .sched{display:flex;flex-direction:column;gap:6px}
+  .srow{display:grid;grid-template-columns:96px 1fr;gap:10px;align-items:center;text-align:left;padding:10px 12px;border-radius:12px;background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--felt);color:var(--text);text-decoration:none;font:600 14px var(--ui)}
+  .srow.tour{border-left-color:var(--gold)} .srow.sel{border-color:var(--felt);background:#0f2a3a}
+  .srow b{font-size:13px;letter-spacing:.03em;color:var(--muted)} .srow span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .row3 > label{min-width:0} .row3 input{min-width:0}
+  @media (max-width:420px){ .plan{grid-template-columns:1fr} .ctl{grid-template-columns:1fr 1fr} .row3{grid-template-columns:1fr 1fr} .row3 > label:first-child{grid-column:1 / -1} }
 </style>
 </head>
 <body>
@@ -38,16 +43,20 @@
   <p id="note"></p>
   <div class="plan" id="plan"></div>
 
+  <h2>Calendar</h2>
+  <div id="cal"></div>
+  <div class="sched" id="sched"></div>
+
   <form class="card" id="pinCard">
     <h2>Plan a night</h2>
-    <p>Hall staff: enter the admin PIN to plan an open table night — pick the tables and how each one plays.</p>
+    <p>Hall staff: tap a date on the calendar, then enter the admin PIN to plan an open table night — pick the tables and how each one plays.</p>
     <div class="row"><input id="pin" type="password" inputmode="numeric" autocomplete="off" placeholder="Admin PIN"><button class="primary" type="submit">Unlock</button></div>
     <p id="pinMsg"></p>
   </form>
 
   <div id="editor" hidden style="display:flex;flex-direction:column;gap:14px">
     <div class="card">
-      <h2>The night</h2>
+      <h2 id="edTitle">The night</h2>
       <label>Name<input id="nTitle" maxlength="50" placeholder="Open table night"></label>
       <div class="row3">
         <label>Date<input id="nDate" type="date"></label>
@@ -78,33 +87,41 @@
         <button class="primary" type="button" id="publish">Publish the plan</button>
         <button type="button" id="apply">Set up the tables now</button>
         <button type="button" id="end">End night · reset tables</button>
+        <button type="button" id="remove" style="grid-column:1 / -1">Take off the calendar</button>
       </div>
       <p id="actHelp">Publishing shows the plan on the tables page. The tables themselves switch to the night's setup when it starts — automatically if this page is open on an admin phone then, or tap “Set up the tables now”.</p>
     </div>
   </div>
 </div>
-<script src="halls.js?v=20260930065924"></script>
+<script src="halls.js?v=20260930071815"></script>
+<script src="hallday.js?v=20260930071815"></script>
 <script>
 (() => {
   const qs = new URLSearchParams(location.search);
   const HALL = (qs.get('hall') || 'surge-chicago').replace(/[^a-z0-9-]/gi, '');
-  const H = window.POOLAR_HALLS[HALL] || window.POOLAR_HALLS['surge-chicago'], P = window.POOLAR, RELAY = P.relay();
-  const TOPIC = 'poolar-hall-' + HALL, LS = 'poolar-night-' + HALL;
+  const H = window.POOLAR_HALLS[HALL] || window.POOLAR_HALLS['surge-chicago'], P = window.POOLAR, RELAY = P.relay(), D = window.PoolarDay;
+  const TOPIC = 'poolar-hall-' + HALL, SCHED = 'poolar-sched-' + HALL, LS = 'poolar-night-' + HALL;
   const $ = id => document.getElementById(id);
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const keep = p => `${p}?hall=${HALL}` + (RELAY !== 'https://ntfy.sh' ? `&relay=${encodeURIComponent(RELAY)}` : '');
   const toast = t => { const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 2000); };
-  const post = body => fetch(`${RELAY}/${TOPIC}`, { method: 'POST', body: JSON.stringify(body) }).catch(() => {});
+  const post = (topic, body) => fetch(`${RELAY}/${topic}`, { method: 'POST', body: JSON.stringify(body) }).catch(() => {});
   $('back').href = keep('hall.html');
   const tables = [...H.tables].sort((a, b) => a.n - b.n);
   const GAME = { 8: '8-ball', 9: '9-ball', 10: '10-ball', r: 'Random game' }, FMT = { wso: 'Winner stays', rot: 'Rotation', race: 'Race' };
 
-  let plan = null, snapTime = 0, admin = false;
+  // Every planned night (by id) lives in the hall's schedule (hallday.js), so nights can be planned weeks ahead.
+  // The page shows one of them: the one on the date picked in the calendar (or ?date=), else tonight's, else the next.
+  const S = D.Sched(HALL);
+  try { const p = JSON.parse(localStorage.getItem(LS) || 'null'); if (p && p.kind === 'night') S.take(p); } catch {}   // plans saved before the calendar
+  const isDate = d => /^\d{4}-\d{2}-\d{2}$/.test(d || '');
+  let selDate = isDate(qs.get('date')) ? qs.get('date') : '';
+  let plan = null, admin = false;
+  const snap = {};   // night id -> relay time (s) of its newest copy, for the 12-hour keep-alive
   try { admin = sessionStorage.getItem('poolar-admin-' + HALL) === '1'; } catch {}
-  try { const p = JSON.parse(localStorage.getItem(LS) || 'null'); if (p && p.kind === 'night') plan = p; } catch {}
-  let draft = null;   // what the organiser is editing
-  const blank = () => { const d = new Date(); const iso = new Date(d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
-    return { kind: 'night', id: Date.now().toString(36), on: true, title: 'Open table night', date: iso, start: '19:00', end: '23:00', note: '',
+  let draft = null, dirty = false;   // what the organiser is editing; dirty once they change anything (then nothing replaces it)
+  const blank = () => { const t = D.today(), date = selDate && selDate >= t ? selDate : t;
+    return { kind: 'night', id: Date.now().toString(36), on: true, title: 'Open table night', date, start: '19:00', end: '23:00', note: '',
       tables: tables.map(t => ({ t: t.n, g: 8, dbl: false, fmt: 'wso', race: 0, note: '' })), applied: 0, ended: 0, ts: 0 }; };
 
   // Start and end as dates; an end before the start means after midnight.
@@ -112,12 +129,29 @@
   const phase = p => { if (!p || !p.on) return 'none'; if (p.ended) return 'over'; const [s, e] = window_(p), now = Date.now(); return now < s ? 'soon' : now < e ? 'on' : 'over'; };
   const fmtTime = d => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   const describe = x => [x.g === 'r' ? 'Random game' : GAME[x.g], x.dbl ? 'Doubles' : 'Singles', x.fmt === 'race' ? `Race to ${x.race || 3}` : FMT[x.fmt]].join(' · ');
+  const pickPlan = () => { const all = S.nights();
+    if (selDate) return all.find(p => p.date === selDate) || null;
+    return all.find(p => phase(p) === 'on') || all.find(p => phase(p) === 'soon') || all.filter(p => phase(p) === 'over').pop() || null; };
+  const pub = () => draft && S.night(draft.id) && S.night(draft.id).on ? S.night(draft.id) : null;   // the published copy of what's being edited
+
+  const cal = D.calendar($('cal'), { sel: selDate, marks: () => S.marks(), onPick: d => pick(d) });
+  function pick(d){
+    if (admin && dirty && draft && !confirm('You have changes to this plan that aren\'t published. Leave them?')) return;
+    selDate = d; draft = null; dirty = false; cal.select(d);
+    const u = new URL(location.href); u.searchParams.set('date', d); try { history.replaceState(null, '', u); } catch {}
+    paint();
+    if (admin) $('editor').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
   function paint(){
+    plan = pickPlan();
     const ph = phase(plan);
     $('pinCard').hidden = admin; $('editor').hidden = !admin; $('editor').style.display = admin ? 'flex' : 'none';
-    if (ph === 'none' || (ph === 'over' && !admin)) {
-      $('title').textContent = 'Open table night'; $('when').textContent = ph === 'over' ? 'The last open table night has finished.' : 'No open table night is planned right now.'; $('note').textContent = ''; $('plan').innerHTML = '';
+    if (!plan) {
+      $('title').textContent = 'Open table night'; document.title = 'Open Table Night'; $('note').textContent = ''; $('plan').innerHTML = '';
+      $('when').textContent = selDate ? `Nothing planned for ${D.dayLabel(selDate, { weekday: 'long', month: 'long', day: 'numeric' })} yet.` : 'No open table night is planned right now.';
+    } else if (ph === 'over' && !admin && !selDate) {
+      $('title').textContent = 'Open table night'; $('when').textContent = 'The last open table night has finished.'; $('note').textContent = ''; $('plan').innerHTML = '';
     } else {
       const [s, e] = window_(plan);
       $('title').textContent = plan.title || 'Open table night'; document.title = plan.title || 'Open Table Night';
@@ -127,12 +161,26 @@
         return `<div class="pt"><span class="n">${x.t}</span><b>${esc(describe(x))}</b><span>${t.ft || ''}-ft table</span>${x.note ? `<i>${esc(x.note)}</i>` : ''}</div>`; }).join('')
         + `<a class="btn" href="${esc(keep('hall.html'))}" style="grid-column:1 / -1">See the live table map</a>`;
     }
+    paintSched();
     if (admin) paintEditor();
   }
 
+  // What's already on the calendar, soonest first. Tap one to open it.
+  function paintSched(){
+    const t = D.today(), up = S.upcoming(t).filter(x => x.kind === 'tour' || phase(S.night(x.id)) !== 'over');
+    const tm = hm => { if (!hm) return ''; const [h, m] = hm.split(':').map(Number); return new Date(2000, 0, 1, h, m).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); };
+    $('sched').innerHTML = up.length ? up.map(x => x.kind === 'tour'
+      ? `<a class="srow tour" href="${esc(keep('tournament.html'))}"><b>${x.date === t ? 'Today' : esc(D.dayLabel(x.date))}</b><span>🏆 ${esc(x.title)}${x.time ? ` · ${esc(tm(x.time))}` : ''}</span></a>`
+      : `<button type="button" class="srow${x.date === selDate ? ' sel' : ''}" data-date="${x.date}"><b>${x.date === t ? 'Today' : esc(D.dayLabel(x.date))}</b><span>${esc(x.title)}${x.time ? ` · ${esc(tm(x.time))}` : ''}</span></button>`).join('')
+      : '<p>Nothing on the calendar yet.</p>';
+    cal.paint();
+  }
+  $('sched').addEventListener('click', e => { const b = e.target.closest('[data-date]'); if (b) pick(b.dataset.date); });
+
   function paintEditor(){
-    if (!draft) draft = plan && phase(plan) !== 'over' ? JSON.parse(JSON.stringify(plan)) : blank();
-    const d = draft;
+    if (!draft) { draft = plan && phase(plan) !== 'over' ? JSON.parse(JSON.stringify(plan)) : blank(); dirty = false; }
+    const d = draft, p0 = pub();
+    $('edTitle').textContent = p0 ? 'Edit this night' : `Plan a night${selDate ? ` · ${D.dayLabel(d.date)}` : ''}`;
     for (const [id, k] of [['nTitle', 'title'], ['nDate', 'date'], ['nStart', 'start'], ['nEnd', 'end'], ['nNote', 'note']]) if (document.activeElement !== $(id)) $(id).value = d[k] || '';
     if ($('rows').contains(document.activeElement)) return;
     $('rows').innerHTML = tables.map(t => { const x = d.tables.find(y => y.t === t.n), on = !!x, c = x || { g: 8, dbl: false, fmt: 'wso', race: 0, note: '' };
@@ -145,10 +193,10 @@
           <input data-k="race" type="number" min="1" max="21" placeholder="Race to" value="${c.race || ''}" ${on && c.fmt === 'race' ? '' : 'disabled'} aria-label="Race to">
           <input class="wide" data-k="note" maxlength="40" placeholder="Note, e.g. Ladies' table" value="${esc(c.note)}" ${on ? '' : 'disabled'} aria-label="Note">
         </div></div>`; }).join('');
-    const ph = phase(plan);
-    $('apply').disabled = !plan; $('end').disabled = !plan || !plan.applied || !!plan.ended;
-    $('actHelp').textContent = !plan ? 'Publishing shows the plan on the tables page. The tables switch to the night\'s setup when it starts — automatically if this page is open on an admin phone then, or tap “Set up the tables now”.'
-      : plan.applied && !plan.ended ? `The tables are set up for the night (since ${fmtTime(new Date(plan.applied))}). “End night” puts them back to normal.` : ph === 'soon' ? 'Published. Keep this page open on an admin phone and the tables switch over at the start time, or tap “Set up the tables now”.' : 'Published.';
+    const ph = phase(p0);
+    $('apply').disabled = !p0; $('end').disabled = !p0 || !p0.applied || !!p0.ended; $('remove').disabled = !p0 || (!!p0.applied && !p0.ended);
+    $('actHelp').textContent = !p0 ? 'Publishing puts the night on the calendar and the tables page. The tables switch to the night\'s setup when it starts — automatically if this page is open on an admin phone then, or tap “Set up the tables now”.'
+      : p0.applied && !p0.ended ? `The tables are set up for the night (since ${fmtTime(new Date(p0.applied))}). “End night” puts them back to normal.` : ph === 'soon' ? 'Published. Keep this page open on an admin phone and the tables switch over at the start time, or tap “Set up the tables now”.' : 'Published.';
   }
 
   const TPL = {
@@ -165,51 +213,60 @@
     mixed: '9-ft tables cycle through 8-ball, 9-ball (winner stays) and 10-ball (race to 3); 7-ft tables play 8-ball doubles, and one plays a random game.' };
   $('tpl').addEventListener('click', e => { const b = e.target.closest('[data-tpl]'); if (!b) return;
     const inNight = new Set(draft.tables.map(x => x.t)), all = TPL[b.dataset.tpl]();
-    draft.tables = all.filter(x => inNight.size ? inNight.has(x.t) : true);
+    draft.tables = all.filter(x => inNight.size ? inNight.has(x.t) : true); dirty = true;
     $('tplHelp').textContent = TPL_HELP[b.dataset.tpl]; paintEditor(); });
   $('rows').addEventListener('click', e => { const b = e.target.closest('[data-inc]'); if (!b) return; const t = +b.closest('[data-t]').dataset.t;
     if (draft.tables.some(x => x.t === t)) draft.tables = draft.tables.filter(x => x.t !== t);
     else draft.tables = [...draft.tables, { t, g: 8, dbl: false, fmt: 'wso', race: 0, note: '' }].sort((a, b) => a.t - b.t);
-    b.blur(); paintEditor(); });
+    dirty = true; b.blur(); paintEditor(); });
   $('rows').addEventListener('change', e => { const el = e.target.closest('[data-k]'); if (!el) return; const t = +el.closest('[data-t]').dataset.t, x = draft.tables.find(y => y.t === t); if (!x) return;
     const k = el.dataset.k; x[k] = k === 'g' ? (el.value === 'r' ? 'r' : +el.value) : k === 'dbl' ? el.value === '1' : k === 'race' ? (+el.value || 0) : el.value.trim();
     if (k === 'fmt' && x.fmt === 'race' && !x.race) x.race = 3;
-    el.blur(); paintEditor(); });
-  for (const [id, k] of [['nTitle', 'title'], ['nDate', 'date'], ['nStart', 'start'], ['nEnd', 'end'], ['nNote', 'note']]) $(id).addEventListener('input', () => { draft[k] = $(id).value; });
+    dirty = true; el.blur(); paintEditor(); });
+  for (const [id, k] of [['nTitle', 'title'], ['nDate', 'date'], ['nStart', 'start'], ['nEnd', 'end'], ['nNote', 'note']]) $(id).addEventListener('input', () => { draft[k] = $(id).value; dirty = true; });
 
-  const save = p => { plan = p; try { localStorage.setItem(LS, JSON.stringify(p)); } catch {} };
-  const send = () => { post(plan); snapTime = Date.now() / 1000; };
+  // Every night goes to the hall topic (the map and the tables) and to the schedule topic (the calendar; the relay keeps it for months).
+  const save = p => { S.take(p); try { localStorage.setItem(LS, JSON.stringify(p)); } catch {} return p; };
+  const send = p => { post(TOPIC, p); post(SCHED, p); snap[p.id] = Date.now() / 1000; };
   $('publish').onclick = () => {
     if (!draft.tables.length) return toast('Add at least one table');
-    if (!draft.date) return toast('Pick a date');
-    const wasApplied = plan && plan.id === draft.id ? plan.applied : 0;
-    save({ ...draft, kind: 'night', on: true, ended: 0, applied: wasApplied, ts: Date.now() }); draft = JSON.parse(JSON.stringify(plan)); send();
-    toast('Plan published'); if (wasApplied) applyTables(); paint(); check();
+    if (!isDate(draft.date)) return toast('Pick a date');
+    const was = pub(), wasApplied = was ? was.applied : 0;
+    const p = save({ ...draft, kind: 'night', on: true, ended: 0, applied: wasApplied, ts: Date.now() }); send(p);
+    draft = JSON.parse(JSON.stringify(p)); dirty = false; selDate = p.date; cal.select(p.date);
+    toast('Plan published'); if (wasApplied) applyTables(p); paint(); check();
   };
   // Turn the plan into the per-table setup the scoreboard already understands (kind:'config').
-  function applyTables(){
-    for (const x of plan.tables) {
+  function applyTables(p){
+    for (const x of p.tables) {
       const g = x.g === 'r' ? [8, 9, 10][Math.floor(Math.random() * 3)] : x.g;
-      const note = [plan.title || 'Open table night', x.g === 'r' ? `random game: ${g}-ball` : '', x.note].filter(Boolean).join(' · ').slice(0, 60);
-      post({ kind: 'config', t: x.t, gtype: g, dbl: !!x.dbl, fmt: x.fmt, rules: 'bca', race: x.fmt === 'race' ? (x.race || 3) : 0, note, closed: false, night: plan.id, ts: Date.now() });
+      const note = [p.title || 'Open table night', x.g === 'r' ? `random game: ${g}-ball` : '', x.note].filter(Boolean).join(' · ').slice(0, 60);
+      post(TOPIC, { kind: 'config', t: x.t, gtype: g, dbl: !!x.dbl, fmt: x.fmt, rules: 'bca', race: x.fmt === 'race' ? (x.race || 3) : 0, note, closed: false, night: p.id, ts: Date.now() });
     }
-    save({ ...plan, applied: Date.now(), ts: Date.now() }); send();
+    send(save({ ...p, applied: Date.now(), ts: Date.now() }));
   }
-  $('apply').onclick = () => { if (!plan) return; applyTables(); toast(`${plan.tables.length} tables set up`); paint(); };
-  function endNight(){
-    for (const x of plan.tables) post({ kind: 'config', t: x.t, gtype: 8, dbl: false, fmt: 'race', rules: 'bca', race: 0, note: '', closed: false, ts: Date.now() });
-    save({ ...plan, ended: Date.now(), ts: Date.now() }); send(); draft = null;
+  $('apply').onclick = () => { const p = pub(); if (!p) return; applyTables(p); toast(`${p.tables.length} tables set up`); paint(); };
+  function endNight(p){
+    for (const x of p.tables) post(TOPIC, { kind: 'config', t: x.t, gtype: 8, dbl: false, fmt: 'race', rules: 'bca', race: 0, note: '', closed: false, ts: Date.now() });
+    send(save({ ...p, ended: Date.now(), ts: Date.now() })); if (draft && draft.id === p.id) { draft = null; dirty = false; }
   }
-  $('end').onclick = () => { if (!plan || !confirm('End the night and put the tables back to normal?')) return; endNight(); toast('Night ended'); paint(); };
+  $('end').onclick = () => { const p = pub(); if (!p || !confirm('End the night and put the tables back to normal?')) return; endNight(p); toast('Night ended'); paint(); };
+  $('remove').onclick = () => { const p = pub(); if (!p || !confirm(`Take “${p.title || 'Open table night'}” on ${D.dayLabel(p.date)} off the calendar?`)) return;
+    send(save({ ...p, on: false, ts: Date.now() })); draft = null; dirty = false; toast('Taken off the calendar'); paint(); };
 
   // While an admin phone has this page open, switch the tables over at the start time and back at the end.
   function check(){
-    if (!admin || !plan || !plan.on || plan.ended) return;
-    const ph = phase(plan);
-    if (ph === 'on' && !plan.applied) { applyTables(); toast('The night has started: tables set up'); paint(); }
-    else if (ph === 'over' && plan.applied) { endNight(); paint(); }
-    // The free relay keeps messages for 12 hours: re-post a plan for a later day before it's forgotten.
-    if (Date.now() / 1000 - snapTime > 8 * 3600) send();
+    if (!admin) return;
+    let changed = false;
+    for (const p of S.nights()) {
+      if (p.ended) continue;
+      const ph = phase(p);
+      if (ph === 'on' && !p.applied) { applyTables(p); toast('The night has started: tables set up'); changed = true; }
+      else if (ph === 'over' && p.applied) { endNight(p); changed = true; }
+      // The free relay keeps messages for 12 hours: re-post a plan for a later day before it's forgotten.
+      else if (ph !== 'over' && Date.now() / 1000 - (snap[p.id] || 0) > 8 * 3600) send(p);
+    }
+    if (changed) paint();
   }
 
   $('pinCard').addEventListener('submit', e => { e.preventDefault();
@@ -217,14 +274,17 @@
     else $('pinMsg').textContent = "That PIN isn't right."; });
 
   const take = (raw, time) => { let m; try { m = JSON.parse(raw); } catch { return false; }
-    if (!m || m.kind !== 'night') return false;
-    if (!plan || m.ts >= plan.ts) { const same = plan && plan.id === m.id; save(m); snapTime = Math.max(snapTime, time || 0); if (!same) draft = null; return true; }
-    if (m.ts === plan.ts) snapTime = Math.max(snapTime, time || 0);
-    return false; };
+    if (!m || (m.kind !== 'night' && m.kind !== 'tsum')) return false;
+    if (m.kind === 'night' && m.id) snap[m.id] = Math.max(snap[m.id] || 0, time || 0);
+    if (!S.take(m)) return false;
+    if (!dirty) draft = null;   // nothing typed yet: show the newest copy
+    return true; };
   const setLive = on => { $('live').textContent = on ? 'Live' : 'Offline'; $('live').style.color = on ? 'var(--free)' : ''; };
+  const poll = async (topic, since) => { const txt = await (await fetch(`${RELAY}/${topic}/json?poll=1&since=${since}`)).text();
+    for (const l of txt.split('\n')) { try { const e = JSON.parse(l); if (e.event === 'message') take(e.message, e.time); } catch {} } };
   (async () => {
-    try { const txt = await (await fetch(`${RELAY}/${TOPIC}/json?poll=1&since=12h`)).text();
-      for (const l of txt.split('\n')) { try { const e = JSON.parse(l); if (e.event === 'message') take(e.message, e.time); } catch {} } setLive(true); } catch { setLive(false); }
+    try { await poll(SCHED, 'all'); } catch {}
+    try { await poll(TOPIC, '12h'); setLive(true); } catch { setLive(false); }
     paint(); check();
   })();
   try { const es = new PoolarStream(`${RELAY}/${TOPIC}/sse`); es.onopen = () => setLive(true);
@@ -233,6 +293,6 @@
   setInterval(() => { check(); if (!admin) paint(); }, 60000);
 })();
 </script>
-<script src="build.js?v=20260930065924"></script>
+<script src="build.js?v=20260930071815"></script>
 </body>
 </html>

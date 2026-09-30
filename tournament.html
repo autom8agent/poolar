@@ -1,12 +1,12 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="build" content="20260930065924"><script src="stream.js?v=20260930065924"></script>
+<meta charset="utf-8"><meta name="build" content="20260930071815"><script src="stream.js?v=20260930071815"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0a0f14">
 <title>Tournament</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
-<link rel="stylesheet" href="common.css?v=20260930065924">
+<link rel="stylesheet" href="common.css?v=20260930071815">
 <style>
   .wrap{max-width:760px}
   .tabs{display:flex;gap:6px;overflow-x:auto;position:sticky;top:0;z-index:5;background:var(--bg);padding:6px 0;margin:0 -2px}
@@ -201,10 +201,10 @@
   <p class="link" id="qrLink"></p>
   <button type="button" id="qrClose">Close</button>
 </div>
-<script src="halls.js?v=20260930065924"></script>
-<script src="auth.js?v=20260930065924"></script>
-<script src="tourney.js?v=20260930065924"></script>
-<script src="qrcode.js?v=20260930065924"></script>
+<script src="halls.js?v=20260930071815"></script>
+<script src="auth.js?v=20260930071815"></script>
+<script src="tourney.js?v=20260930071815"></script>
+<script src="qrcode.js?v=20260930071815"></script>
 <script>
 (() => {
   const qs = new URLSearchParams(location.search);
@@ -281,7 +281,8 @@
     return { kind: 'tsum', tid: T.tid, title: T.title, phase: T.phase, open: !!T.open, n: T.players.length, fmt: T.fmt, gtype: T.gtype, rules: T.rules, when: T.when || '', tables: T.tables,
       champion: R && R.champion ? nm(R.champion) : '', top, ts: Date.now() };
   };
-  const postSummary = () => post(HALL_TOPIC, summary());
+  // The summary also goes to the hall's schedule topic, which the relay keeps for months: the calendar on the tables page and the night planner show it.
+  const postSummary = () => { const s = summary(); post(HALL_TOPIC, s); post('poolar-sched-' + HALL, s); };
 
   const idleCfg = t => ({ sig: 'idle', cfg: { kind: 'config', t, gtype: T.gtype, dbl: !!T.dbl, fmt: 'race', rules: T.rules === 'none' ? 'custom' : T.rules, race: 0, note: `${T.title}: tournament table`.slice(0, 60), closed: true, tid: T.tid } });
   const releaseCfg = t => ({ sig: 'free', cfg: { kind: 'config', t, gtype: 8, dbl: false, fmt: 'race', rules: 'bca', race: 0, note: '', closed: false } });
@@ -649,7 +650,7 @@
   $('backToReg').onclick = () => { if (!confirm('Throw away the bracket and all results, and go back to sign-ups?')) return;
     T.phase = 'reg'; T.seeds = null; T.res = {}; T.sc = {}; T.assign = {}; T.called = {}; T.posted = 0; BKEY = ''; publish(); postSummary(); };
   $('clearT').onclick = () => { if (!confirm('End and clear this tournament? Its tables are released.')) return;
-    const tid = T.tid; T.phase = 'none'; T.tables = []; T.assign = {}; publish(); post(HALL_TOPIC, { kind: 'tsum', tid, phase: 'none', ts: Date.now() }); };
+    const tid = T.tid; T.phase = 'none'; T.tables = []; T.assign = {}; publish(); const off = { kind: 'tsum', tid, phase: 'none', ts: Date.now() }; post(HALL_TOPIC, off); post('poolar-sched-' + HALL, off); };
 
   // Setup form
   const fmtVal = () => (document.querySelector('[name=fmt]:checked') || {}).value || 'double';
@@ -721,6 +722,6 @@
   setInterval(() => { if (currentTab() === 'me') paintMe(); }, 60000);
 })();
 </script>
-<script src="build.js?v=20260930065924"></script>
+<script src="build.js?v=20260930071815"></script>
 </body>
 </html>
