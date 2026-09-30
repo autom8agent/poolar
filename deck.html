@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930063155"><script src="stream.js"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930063940"><script src="stream.js"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -484,7 +484,7 @@
     <button class="switch" role="switch" id="lockSw2" hidden><span><b id="lockT2">Table open</b><small id="lockS2"></small></span><span class="knob" aria-hidden="true"></span></button>
     <p class="sub-h">Waitlist</p>
     <div class="line" id="lineList2"></div>
-    <form class="addrow" id="addForm2"><input id="addName2" placeholder="Add a name to the line" autocomplete="off" enterkeyhint="done"><select class="slpick" id="addSl2" aria-label="Skill level" required><option value="">SL</option><option value="1">SL 1</option><option value="2">SL 2</option><option value="3">SL 3</option><option value="4">SL 4</option><option value="5">SL 5</option><option value="6">SL 6</option><option value="7">SL 7</option><option value="8">SL 8</option><option value="9">SL 9</option></select><button type="submit">Add</button></form>
+    <form class="addrow" id="addForm2"><input id="addName2" placeholder="Add a name to the line" autocomplete="off" enterkeyhint="done"><select class="slpick" id="addSl2" aria-label="Skill level"><option value="">SL</option><option value="1">SL 1</option><option value="2">SL 2</option><option value="3">SL 3</option><option value="4">SL 4</option><option value="5">SL 5</option><option value="6">SL 6</option><option value="7">SL 7</option><option value="8">SL 8</option><option value="9">SL 9</option></select><button type="submit">Add</button></form>
     <div class="two3"><button class="primary" id="waitShare">Share waitlist</button><button id="qrOpen">Show QR code</button></div>
     <div id="board"></div>
   </section>
@@ -493,12 +493,12 @@
     <div class="dcard hostonly">
       <h3>Game <small>Changes apply right away</small></h3>
       <div class="dopts">
-        <div class="dopt"><span>Players</span><div class="seg" role="radiogroup"><button type="button" role="radio" data-q="dbl:0">1 v 1</button><button type="button" role="radio" data-q="dbl:1">Doubles</button></div></div>
+        <div class="dopt"><span>Players</span><div class="seg seg3" role="radiogroup"><button type="button" role="radio" data-q="dbl:0">1 v 1</button><button type="button" role="radio" data-q="dbl:1">Doubles</button><button type="button" role="radio" data-q="dbl:2">Scotch</button></div></div>
         <div class="dopt"><span>Game</span><div class="seg seg3" role="radiogroup"><button type="button" role="radio" data-q="gt:8">8-ball</button><button type="button" role="radio" data-q="gt:9">9-ball</button><button type="button" role="radio" data-q="gt:10">10-ball</button></div></div>
         <div class="dopt"><span>Format</span><div class="seg seg3" role="radiogroup"><button type="button" role="radio" data-q="fo:race">Race</button><button type="button" role="radio" data-q="fo:wso">Winner stays</button><button type="button" role="radio" data-q="fo:rot">Rotate</button></div></div>
         <div class="dopt" id="dRaceRow"><span>Race to</span><div class="rstep"><button type="button" data-q="race:-1" aria-label="Shorter race">−</button><b id="dRace">5</b><button type="button" data-q="race:1" aria-label="Longer race">+</button></div></div>
       </div>
-      <form class="addrow" id="dAdd"><input id="dAddName" placeholder="Add a player to the line" autocomplete="off" enterkeyhint="done"><select class="slpick" id="dAddSl" aria-label="Skill level" required><option value="">SL</option><option value="1">SL 1</option><option value="2">SL 2</option><option value="3">SL 3</option><option value="4">SL 4</option><option value="5">SL 5</option><option value="6">SL 6</option><option value="7">SL 7</option><option value="8">SL 8</option><option value="9">SL 9</option></select><button type="submit" class="primary">Add player</button></form>
+      <form class="addrow" id="dAdd"><input id="dAddName" placeholder="Add a player to the line" autocomplete="off" enterkeyhint="done"><select class="slpick" id="dAddSl" aria-label="Skill level"><option value="">SL</option><option value="1">SL 1</option><option value="2">SL 2</option><option value="3">SL 3</option><option value="4">SL 4</option><option value="5">SL 5</option><option value="6">SL 6</option><option value="7">SL 7</option><option value="8">SL 8</option><option value="9">SL 9</option></select><button type="submit" class="primary">Add player</button></form>
       <div class="two"><button type="button" id="dMore">All settings</button><button type="button" id="dNew">New match 0–0</button></div>
     </div>
     <div class="dcard">
@@ -580,6 +580,11 @@
 <div class="sheet" id="setup" hidden>
   <form class="card" id="setupForm" novalidate>
     <h2>Match</h2>
+    <div class="optrow"><span>Players</span>
+      <div class="seg seg3" role="radiogroup" aria-label="Players">
+        <button type="button" id="fmt1" role="radio">Singles</button><button type="button" id="fmt2" role="radio">Doubles</button><button type="button" id="fmt3" role="radio">Scotch doubles</button>
+      </div></div>
+    <p class="fmtnote" id="dblHelp"></p>
     <div class="optrow"><span>Game</span>
       <div class="seg seg3" role="radiogroup" aria-label="Game">
         <button type="button" role="radio" data-gt="8">8-ball</button><button type="button" role="radio" data-gt="9">9-ball</button><button type="button" role="radio" data-gt="10">10-ball</button>
@@ -595,10 +600,7 @@
     <p id="fmtHelp" class="fmtnote"></p>
     <p class="rulesum" id="ruleSum"></p>
     <label class="optrow" id="bsRow"><span>Scratch on the break</span><select id="fbs"><option value="kitchen">Ball in hand in the kitchen</option><option value="bih">Ball in hand anywhere</option></select></label>
-    <div class="seg" role="radiogroup" aria-label="Players">
-      <button type="button" id="fmt1" role="radio">1v1</button>
-      <button type="button" id="fmt2" role="radio">2v2 doubles</button>
-    </div>
+
     <div class="sides">
       <fieldset class="side">
         <legend id="sideL0">Side 1</legend>
@@ -663,7 +665,7 @@
     <div class="qr" id="qr"></div>
     <div class="share-row"><input id="waitUrl" readonly aria-label="Waitlist link"><button id="waitCopy">Copy</button></div>
     <div class="line" id="lineList"></div>
-    <form class="addrow" id="addForm"><input id="addName" placeholder="Add a name to the line" autocomplete="off" enterkeyhint="done"><select class="slpick" id="addSl" aria-label="Skill level" required><option value="">SL</option><option value="1">SL 1</option><option value="2">SL 2</option><option value="3">SL 3</option><option value="4">SL 4</option><option value="5">SL 5</option><option value="6">SL 6</option><option value="7">SL 7</option><option value="8">SL 8</option><option value="9">SL 9</option></select><button type="submit">Add</button></form>
+    <form class="addrow" id="addForm"><input id="addName" placeholder="Add a name to the line" autocomplete="off" enterkeyhint="done"><select class="slpick" id="addSl" aria-label="Skill level"><option value="">SL</option><option value="1">SL 1</option><option value="2">SL 2</option><option value="3">SL 3</option><option value="4">SL 4</option><option value="5">SL 5</option><option value="6">SL 6</option><option value="7">SL 7</option><option value="8">SL 8</option><option value="9">SL 9</option></select><button type="submit">Add</button></form>
     <p class="sub-h">Scoring links</p>
     <p>Anyone with one of these sees every tap as it happens, and can score too.</p>
     <label><span id="sl0">Player 1's link</span><div class="share-row"><input id="su0" readonly><button id="sc0">Copy</button></div></label>
@@ -707,7 +709,7 @@
     <p id="gSub"></p>
     <p id="gMsg" class="gmsg">Checking whether this table is free…</p>
     <div class="gopts" id="gOpts" hidden>
-      <div class="seg" role="radiogroup" aria-label="Players"><button type="button" role="radio" data-gd="0">Singles 1v1</button><button type="button" role="radio" data-gd="1">Doubles 2v2</button></div>
+      <div class="seg seg3" role="radiogroup" aria-label="Players"><button type="button" role="radio" data-gd="0">Singles</button><button type="button" role="radio" data-gd="1">Doubles</button><button type="button" role="radio" data-gd="2">Scotch doubles</button></div>
       <div class="seg seg3" role="radiogroup" aria-label="Game"><button type="button" role="radio" data-gg="8">8-ball</button><button type="button" role="radio" data-gg="9">9-ball</button><button type="button" role="radio" data-gg="10">10-ball</button></div>
       <p class="gnote" id="gNote" hidden></p>
     </div>
@@ -773,7 +775,12 @@
     tableConfig = c;
     return s;
   };
-  const postStatus = body => fetch(`${RELAY0}/${HALL_TOPIC}`, { method: 'POST', body: JSON.stringify({ kind: 'table', t: TNUM, ts: Date.now(), ...body }) });
+  // Posts that the relay refuses (HTTP 429 when a network sends too much) are retried with backoff
+  // instead of being lost — a lost "table in use" once made a 9-ball game on table 9 look unsaved.
+  const retryT = {};
+  const postRetry = (key, url, getBody, tries = 0) => fetch(url, { method: 'POST', body: getBody() }).then(r => { if (!r.ok) throw new Error(r.status); return r; })
+    .catch(e => { clearTimeout(retryT[key]); if (tries < 7) retryT[key] = setTimeout(() => postRetry(key, url, getBody, tries + 1).catch(() => {}), Math.min(120000, 4000 * 2 ** tries) + Math.random() * 1500); throw e; });
+  const postStatus = body => { const b = JSON.stringify({ kind: 'table', t: TNUM, ts: Date.now(), ...body }); return postRetry('status', `${RELAY0}/${HALL_TOPIC}`, () => b); };
   if (tableMode && !q0.get('game')) { gate(); return; }
 
   async function gate(){
@@ -794,7 +801,9 @@
     try { s = await tableStatus(); } catch { checked = false; }
     const mineKey = myTables()[`${HALL}-${TNUM}`];
     const inUse = s && s.state === 'busy' && Date.now() - s.ts < STALE;
-    if (inUse && mineKey && s.gh === hashKey(mineKey)) return enter(mineKey, false);
+    // Your own game on this table (started from this device): go straight back in, even if the relay
+    // dropped the "in use" message (it refuses busy networks) — and the scoreboard re-posts it.
+    if (mineKey && (!inUse || s.gh === hashKey(mineKey))) return enter(mineKey, false);
     if (inUse && s.open && s.key) return enter(s.key, false);   // the group unlocked the table: anyone can join and score
     el('gWait').href = `wait.html?hall=${HALL}&t=${TNUM}` + (q0.get('relay') ? `&relay=${encodeURIComponent(q0.get('relay'))}` : '');
     if (inUse) {
@@ -812,11 +821,11 @@
     // Singles or doubles, and which game. The admin's setup for this table picks the defaults.
     let pick = { dbl: !!c.dbl, gt: c.gtype || 8 };
     const paintPick = () => {
-      for (const b of el('gOpts').querySelectorAll('[data-gd]')) b.setAttribute('aria-checked', String(!!+b.dataset.gd === pick.dbl));
+      for (const b of el('gOpts').querySelectorAll('[data-gd]')) b.setAttribute('aria-checked', String(+b.dataset.gd === (pick.dbl ? (pick.scotch ? 2 : 1) : 0)));
       for (const b of el('gOpts').querySelectorAll('[data-gg]')) b.setAttribute('aria-checked', String(+b.dataset.gg === pick.gt));
     };
     el('gOpts').onclick = e => { const b = e.target.closest('[data-gd],[data-gg]'); if (!b) return;
-      if (b.dataset.gd) pick.dbl = !!+b.dataset.gd; if (b.dataset.gg) pick.gt = +b.dataset.gg; paintPick(); };
+      if (b.dataset.gd) { pick.dbl = +b.dataset.gd > 0; pick.scotch = +b.dataset.gd === 2; } if (b.dataset.gg) pick.gt = +b.dataset.gg; paintPick(); };
     if (c.note || c.fmt) { el('gNote').hidden = false; el('gNote').textContent = [c.note, c.fmt === 'wso' ? 'Winner stays on' : c.fmt === 'rot' ? 'Rotating games' : ''].filter(Boolean).join(' · '); }
     paintPick(); el('gOpts').hidden = false;
     el('gClaim').hidden = false;
@@ -828,7 +837,7 @@
       const names = Array.isArray(c.names) && c.names.length === 2 ? c.names.map(String) : [me.name || 'Player 1', 'Player 2'];
       const race = Array.isArray(c.races) && c.races.length === 2 ? c.races.map(Number) : c.race ? [c.race, c.race] : [5, 5];
       try { localStorage.setItem(KEY, JSON.stringify({ game: key, names, clockV: 2, table: `${HALL}-${TNUM}`, qSince: Date.now() - 30 * 60 * 1000, locked: false,
-        dbl: pick.dbl, gtype: pick.gt, fmtMode: c.fmt || 'race', rules: c.rules || 'bca', race, mode: c.rules === 'apa' ? 'win' : 'alt', ...(Array.isArray(c.sl) ? { sl: c.sl.map(Number) } : {}) })); } catch {}
+        dbl: pick.dbl, scotch: !!pick.scotch, gtype: pick.gt, fmtMode: c.fmt || 'race', rules: c.rules || 'bca', race, mode: c.rules === 'apa' ? 'win' : 'alt', ...(Array.isArray(c.sl) ? { sl: c.sl.map(Number) } : {}) })); } catch {}
       setMine(`${HALL}-${TNUM}`, key);
       try { await Promise.race([postStatus({ state: 'busy', gh: hashKey(key), names, score: [0, 0], race, dbl: pick.dbl, gtype: pick.gt, open: true, key, q: 0 }), new Promise(r => setTimeout(r, 2500))]); } catch {}
       enter(key, true);
@@ -840,14 +849,22 @@
     location.replace(u.toString());
   }
   const fresh = () => ({ names:['BCA Shag','Terry'], race:[5,5], firstBreak:1, mode:'alt', racks:[], fix:null,
-    shooter:1, groups:[null,null], turns:0, bih:false, down:[], dbl:false, partners:['',''], rot:[0,0], fouls:[0,0], pots:[], inn:[0,0], tt:[0,0], t0:0, tEnd:0, tFrom:0, clockLen:60, clockV:2, gtype:8, rules:'bca', fmtMode:'race', sl:[5,5], adj:[0,0], queue:[], seen:[], games:[], streak:0, lastW:'', pairStart:0, locked:false, bs:'', qSince:0, hist:[] });
+    shooter:1, groups:[null,null], turns:0, bih:false, down:[], dbl:false, scotch:false, partners:['',''], rot:[0,0], fouls:[0,0], pots:[], inn:[0,0], tt:[0,0], t0:0, tEnd:0, tFrom:0, clockLen:60, clockV:2, gtype:8, rules:'bca', fmtMode:'race', sl:[5,5], adj:[0,0], queue:[], seen:[], games:[], streak:0, lastW:'', pairStart:0, locked:false, bs:'', qSince:0, hist:[] });
+  // Every game is saved on this device under its own key, so opening another table (or a relay that
+  // can't be reached) never overwrites a game in progress — that is what kept wiping table 9's
+  // settings and waitlist. KEY still points at the last game, for links without a game code.
+  const GKEY = id => 'poolar-game-' + id;
+  const urlGame = (new URLSearchParams(location.search).get('game') || '').replace(/[^a-z0-9]/gi, '').slice(0, 24);
   let st;
-  try { st = JSON.parse(localStorage.getItem(KEY)) || fresh(); } catch { st = fresh(); }
+  try {
+    const last = JSON.parse(localStorage.getItem(KEY) || 'null');
+    st = urlGame ? (JSON.parse(localStorage.getItem(GKEY(urlGame)) || 'null') || (last && last.game === urlGame ? last : null) || fresh()) : (last || fresh());
+  } catch { st = fresh(); }
   if (st.clockV !== 2) { st.clockLen = 60; st.clockV = 2; }
   st = { ...fresh(), ...st };
   // A match already under way when stats arrived: time it from its first finished rack.
   if (!st.t0 && st.racks.length) { st.t0 = st.racks[0].t; st.tFrom = Date.now(); }
-  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch {} };
+  const save = () => { try { const j = JSON.stringify(st); localStorage.setItem(KEY, j); if (st.game) localStorage.setItem(GKEY(st.game), j); } catch {} };
 
   // Live sync: every change is posted to an ntfy.sh topic named after the game code in the URL,
   // and every open copy of the page listens on that topic. Newest change wins.
@@ -871,7 +888,7 @@
   let pushT, liveOn = false;
   const payload = () => { const { hist, ...rest } = st; return JSON.stringify({ ts: st.ts || 0, from: cid, st: rest, clk: { end: clk.end, left: clk.left, running: clk.running, ext: clk.ext, acc: clk.acc, from: clk.from, loops: clk.loops } }); };
   const sync = () => { clearTimeout(pushT); pushT = setTimeout(() => {
-    fetch(`${RELAY}/${TOPIC}`, { method: 'POST', body: payload() }).catch(() => setLive(false)); }, 600); };
+    postRetry('sync', `${RELAY}/${TOPIC}`, payload).then(() => setLive(true), () => setLive(false)); }, 600); };
   function applyRemote(raw, force){
     let m; try { m = JSON.parse(raw); } catch { return; }
     if (!m || !m.st || m.from === cid) return;
@@ -973,13 +990,13 @@
       st.down = st.down.filter(x => x !== n);
       let j = -1; st.pots.forEach((e, k) => { const f = e.split('.'); if (+f[0]===n && +f[2]===r) j = k; });
       if (j >= 0) st.pots.splice(j, 1);
-    } else { st.down = [...st.down, n]; st.pots.push(`${n}.${st.shooter}.${r}.${st.turns}`); potted = true; }
+    } else { st.down = [...st.down, n]; st.pots.push(`${n}.${st.shooter}.${r}.${st.turns}`); potted = true; if (st.dbl && st.scotch) st.rot[st.shooter] ^= 1; }
   }); if (potted) clockStart(); };
   let render = function(){
     const s = scores(), b = breaker(), w = winner(s), live = w<0;
     $('raceLbl').textContent = (rotating() ? (st.fmtMode === 'wso' ? 'Winner stays' : 'Rotate') : ptsMode() ? `${st.race[0]}–${st.race[1]} pts` : `Race ${st.race[0]}–${st.race[1]}`) + (st.gtype === 8 ? '' : ` · ${st.gtype}-ball`);
     const nq = st.queue.length; $('shareBtn').innerHTML = nq ? `Share<span class="badge">${nq}</span>` : 'Share';
-    $('modeBtn').textContent = st.dbl ? '2v2' : '1v1';
+    $('modeBtn').textContent = st.dbl ? (st.scotch ? 'Scotch' : '2v2') : '1v1';
     if (typeof statusTick === 'function') try { statusTick(); } catch {}
     $('rackNo').textContent = live ? `Rack ${st.racks.length+1} · T${st.turns+1}` : 'Final';
     for (const i of [0,1]) {
@@ -1237,19 +1254,21 @@
     for (const i of [0,1]) { $('fn'+i).value=st.names[i]; $('fp'+i).value=st.partners[i]; $('fr'+i).value=st.race[i]; }
     $('fb').options[0].text=side(0); $('fb').options[1].text=side(1);
     const sc = scores(); for (const i of [0,1]) $('fs'+i).value = sc[i];
-    setFmt(st.dbl);
+    setFmt(st.dbl, st.scotch);
     form = { gt: st.gtype, ru: st.rules, fo: st.fmtMode };
     $('fbs').value = breakScratch();
     for (const i of [0,1]) $('fk'+i).value = st.sl[i];
     paintForm();
     $('fb').value=String(st.firstBreak); $('fm').value=st.mode; $('ver').textContent = `Version ${VERSION}`; $('setup').hidden=false;
   };
-  let fmtDbl = false;
-  const setFmt = d => { fmtDbl = d; $('setupForm').classList.toggle('dbl', d);
-    $('fmt1').setAttribute('aria-checked', String(!d)); $('fmt2').setAttribute('aria-checked', String(d));
+  let fmtDbl = false, fmtScotch = false;
+  const setFmt = (d, sc) => { fmtDbl = d; fmtScotch = !!(d && sc); $('setupForm').classList.toggle('dbl', d);
+    $('fmt1').setAttribute('aria-checked', String(!d)); $('fmt2').setAttribute('aria-checked', String(d && !fmtScotch)); $('fmt3').setAttribute('aria-checked', String(fmtScotch));
+    $('dblHelp').textContent = !d ? 'One player a side.' : fmtScotch ? 'Scotch doubles: partners alternate EVERY shot — even after making a ball. The partner who didn\'t take the last shot starts the next turn.' : 'Doubles: partners take turns at the table (one turn each).';
     for (const i of [0,1]) $('sideL'+i).textContent = d ? `Team ${i+1}` : `Player ${i+1}`; };
   $('fmt1').onclick = () => setFmt(false);
-  $('fmt2').onclick = () => { setFmt(true); if (!$('fp0').value) $('fp0').focus(); };
+  $('fmt2').onclick = () => { setFmt(true, false); if (!$('fp0').value) $('fp0').focus(); };
+  $('fmt3').onclick = () => { setFmt(true, true); if (!$('fp0').value) $('fp0').focus(); };
   for (const b of document.querySelectorAll('[data-step]')) b.onclick = () => {
     const [id, d] = b.dataset.step.split(':'); const inp = $(id);
     inp.value = Math.max(+inp.min, Math.min(+inp.max, (parseInt(inp.value,10) || 0) + +d));
@@ -1319,7 +1338,7 @@
         st.race[i] = Math.max(1, Math.min(99, parseInt($('fr'+i).value,10) || 5));
       }
       if (fmtDbl !== st.dbl) st.rot = [0,0];
-      st.dbl = fmtDbl;
+      st.dbl = fmtDbl; st.scotch = fmtScotch;
       // First break: a side, a random draw, or the lag (asked right after saving).
       const fbv = $('fb').value;
       if (fbv === 'rand') { st.firstBreak = Math.random() < .5 ? 0 : 1; st.lagWinner = st.firstBreak; breakNote = `${side(st.firstBreak)} breaks (random draw)`; }
@@ -1430,7 +1449,8 @@
   };
   $('lineList').addEventListener('click', lineClick); $('lineList2').addEventListener('click', lineClick);
   // Joining the line needs a skill level (it sets the race when they come up).
-  const needSl = sel => { if (sel.value) return false; sel.classList.add('need'); sel.focus(); setTimeout(() => sel.classList.remove('need'), 1600); return true; };
+  // One-off games: skill level doesn't matter; under APA rules it sets the race, so it's required.
+  const needSl = sel => { if (sel.value || st.rules !== 'apa') return false; sel.classList.add('need'); sel.focus(); setTimeout(() => sel.classList.remove('need'), 1600); return true; };
   for (const [f, inp, sl] of [['addForm','addName','addSl'], ['addForm2','addName2','addSl2']]) $(f).addEventListener('submit', e => { e.preventDefault(); const n = $(inp).value.trim(); if (!n || needSl($(sl))) return;
     act(() => st.queue.push({ id: qid(), name: n.slice(0, 24), sl: +$(sl).value })); $(inp).value = ''; $(sl).value = ''; paintLine(); });
   function paintLock(){
@@ -2180,7 +2200,7 @@
   function setRecPref(v){ try { localStorage.setItem('poolar-rec-' + game, v); } catch {} }
   function paintDock(){
     const set = (q, on) => { const b = document.querySelector(`[data-q="${q}"]`); if (b) b.setAttribute('aria-checked', String(on)); };
-    set('dbl:0', !st.dbl); set('dbl:1', !!st.dbl);
+    set('dbl:0', !st.dbl); set('dbl:1', !!st.dbl && !st.scotch); set('dbl:2', !!st.dbl && !!st.scotch);
     [8, 9, 10].forEach(g => set('gt:' + g, st.gtype === g));
     ['race', 'wso', 'rot'].forEach(f => set('fo:' + f, st.fmtMode === f));
     $('dRace').textContent = st.race[0] === st.race[1] ? st.race[0] : `${st.race[0]}–${st.race[1]}`;
@@ -2189,7 +2209,7 @@
   $('dock').addEventListener('click', e => {
     const b = e.target.closest('[data-q]'); if (!b) return;
     const [k, v] = b.dataset.q.split(':');
-    if (k === 'dbl') { const d = v === '1'; if (d === !!st.dbl) return; act(() => { st.dbl = d; st.rot = [0, 0]; }); if (d && !st.partners[0]) $('nb0').click(); }
+    if (k === 'dbl') { const d = v !== '0', sc = v === '2'; if (d === !!st.dbl && sc === !!st.scotch) return; act(() => { st.dbl = d; st.scotch = sc; st.rot = [0, 0]; }); if (d && !st.partners[0]) $('nb0').click(); }
     if (k === 'gt') { const g = +v; if (g === st.gtype) return; act(() => { st.down = []; st.groups = [null, null]; st.gtype = g; }); }
     if (k === 'fo') { if (v === st.fmtMode) return; act(() => { st.fmtMode = v; if (st.turns === 0) st.shooter = breaker(); }); }
     if (k === 'race') act(() => { st.race = st.race.map(r => Math.max(1, Math.min(99, r + +v))); });
