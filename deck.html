@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930222547"><script src="stream.js?v=20260930222547"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930223106"><script src="stream.js?v=20260930223106"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -433,7 +433,7 @@
         <div class="rbtn"><button data-c="yes">Yes</button><button data-c="no">No</button><button data-c="other">Other</button></div>
         <div class="rfix" id="refFix" hidden><small>Fix the game (applies now):</small><div class="rfixb" id="refFixB"></div></div>
         <textarea id="refC" rows="2" placeholder="Comment (optional) — tell it what really happened"></textarea>
-        <div class="rfoot"><span id="refAuto"></span><button id="refStop">⏸ Stop timer</button><button class="primary" id="refSubmit">Submit</button></div>
+        <div class="rfoot"><span id="refAuto"></span><button id="refReplay">▶ Replay shot</button><button id="refStop">⏸ Stop timer</button><button class="primary" id="refSubmit">Submit</button></div>
         <i class="rbar" id="refBar"></i>
       </div>
       <video id="replayVid" playsinline muted hidden></video>
@@ -803,10 +803,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930222547"></script>
-<script src="halls.js?v=20260930222547"></script>
-<script src="qrcode.js?v=20260930222547"></script>
-<script src="tablecv.js?v=20260930222547"></script>
+<script src="hallday.js?v=20260930223106"></script>
+<script src="halls.js?v=20260930223106"></script>
+<script src="qrcode.js?v=20260930223106"></script>
+<script src="tablecv.js?v=20260930223106"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -2177,6 +2177,11 @@
       + up.map(n => `<button type="button" data-fx="b${n}" title="The ${n} went in">${ballEl(n)}</button>`).join('');
     $('refFix').hidden = false;
   }
+  // Replay the shot the pop-up is about: from ~1 s before the cue ball moved until the balls stopped (and a little after).
+  $('refReplay').onclick = () => { if (!pop) return; touch2(); if (!$('refStop').hidden) $('refStop').click();
+    const ev = pop.ev || {}, startPerf = ev.t && ev.ms != null ? ev.t - ev.ms : performance.now() - 8000;
+    const secBack = Math.max(4, Math.min(60, (performance.now() - startPerf) / 1000 + 1.5));   // tracker time is performance.now(); the buffer keeps the clock of the moment
+    if (typeof replay === 'function') replay(Math.round(secBack)); else flash('No replay recorded yet'); };
   $('refFixB').onclick = e => { const b = e.target.closest('[data-fx]'); if (!b || !pop) return; touch2(); const f = b.dataset.fx; let what = '';
     if (f === 'turn') { passTable(false); what = 'turn over'; }
     else if (f === 'foul') { passTable(true); what = 'foul'; }
@@ -2865,5 +2870,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930222547"></script>
+<script src="build.js?v=20260930223106"></script>
 </body></html>
