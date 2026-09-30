@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930031552"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930034409"><script src="stream.js"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -859,7 +859,7 @@
     // A phone that slept may have missed updates: catch up when it wakes.
     document.addEventListener('visibilitychange', async () => { if (document.visibilityState === 'visible') { const l = await pollLatest(); if (l) applyRemote(l); } });
     try {
-      const es = new EventSource(`${RELAY}/${TOPIC}/sse`);
+      const es = new PoolarStream(`${RELAY}/${TOPIC}/sse`);
       es.onopen = () => setLive(true);
       es.onerror = () => setLive(false);
       es.onmessage = e => { try { const d = JSON.parse(e.data); if (d.event === 'message') applyRemote(d.message); } catch {} };
@@ -1340,7 +1340,7 @@
       const txt = await (await fetch(`${RELAY}/${WAIT_TOPIC}/json?poll=1&since=12h`)).text();
       for (const line of txt.split('\n')) { try { const e = JSON.parse(line); if (e.event === 'message') takeWait(e.message); } catch {} }
     } catch {}
-    try { const es = new EventSource(`${RELAY}/${WAIT_TOPIC}/sse`);
+    try { const es = new PoolarStream(`${RELAY}/${WAIT_TOPIC}/sse`);
       es.onmessage = e => { try { const d = JSON.parse(e.data); if (d.event === 'message') takeWait(d.message); } catch {} }; } catch {}
   }
   let lastLine = '', lineT;
@@ -1504,9 +1504,21 @@
   let dimT = 0;
   function wakeBar(){ $('tvBar').classList.remove('dim'); clearTimeout(dimT); dimT = setTimeout(() => { if (!replaying) $('tvBar').classList.add('dim'); }, 5000); }
   $('tv').addEventListener('pointerdown', wakeBar);
-  // Always listen for this table's cameras (an old ?cam=CODE link still picks that camera).
-  showFeed(qs.get('cam') || camChan('top'));
-  $('behindFrame').src = watchSrc(camChan('behind'));
+  // Open a camera connection only when this table's camera is actually live: each open connection
+  // counts against the free relay's per-address limit, shared by every device on the hall's Wi-Fi.
+  // Cameras announce themselves on the hall topic (on start, every 4 min, and when they stop).
+  if (!tableMode || qs.get('cam')) { showFeed(qs.get('cam') || camChan('top')); $('behindFrame').src = watchSrc(camChan('behind')); }
+  else {
+    const camSeen = { top: 0, behind: 0 };
+    const hallCams = new PoolarStream(`${RELAY}/${HALL_TOPIC}/sse?since=10m`);
+    hallCams.onmessage = e => { try { const d = JSON.parse(e.data); if (d.event !== 'message') return; const m = JSON.parse(d.message);
+      if (m.kind !== 'cam' || m.t !== TNUM) return; const k = m.loc === 'behind' ? 'behind' : 'top';
+      camSeen[k] = m.on ? m.ts : 0;
+      if (m.on && Date.now() - m.ts < 6 * 60 * 1000) {
+        if (k === 'top' && !$('feedFrame').getAttribute('src')) showFeed(camChan('top'));
+        if (k === 'behind' && !$('behindFrame').getAttribute('src')) $('behindFrame').src = watchSrc(camChan('behind'));
+      } } catch {} };
+  }
 
   // ---------- Straightened table view + automatic referee ----------
   // The camera is never exactly square to the table. tablecv.js finds the felt, fits the four rails
