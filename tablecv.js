@@ -365,7 +365,11 @@
       if (!this.shot) {
         // A hand (or glove) touching the cue ball while it moves = placing it (ball in hand), not a shot.
         const handOnCue = cue && this.handNear(cue, occ);
-        if (handOnCue) { this.handUntil = t + 900; cue.restX = null; cue.lastRest = 0; if (this.onHand) this.onHand({ t, x: cue.x, y: cue.y }); }
+        // A hand next to the cue ball blocks a shot start briefly (it may be placing it). Only a hand that stays with the
+        // ball while it moves for several frames is carrying it (ball in hand): then its old rest spot is forgotten.
+        // A bridge hand at the strike is next to the ball for a frame or two only, so the shot still starts.
+        if (handOnCue) { this.handUntil = t + 900; if (cue.v > this.o.move) { cue.carry = (cue.carry || 0) + 1; if (cue.carry >= 3) { cue.restX = null; cue.lastRest = 0; } } if (this.onHand) this.onHand({ t, x: cue.x, y: cue.y }); }
+        else if (cue) cue.carry = 0;
         if (cue && (cue.v > this.o.move || displaced(cue)) && wasResting(cue) && !(this.handUntil > t)) {
           this.shot = { t0: t, cueFrom: { x: cue.x, y: cue.y }, first: null, n0: nBefore(), before: this.tracks.filter(tr => t - tr.seen < 1500 && tr.cls !== 'cluster' && tr.num).map(tr => tr.num), moved: new Set(), stillAtStart: new Set(this.tracks.filter(tr => tr !== cue && tr.v < this.o.move).map(tr => tr.id))   /* compressed video jitters: 'not moving' is enough */, cueId: cue.id };
           this.quietFrom = 0;
