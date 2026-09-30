@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930031552"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -166,6 +166,13 @@
   .tvadd{display:none!important}
   .camb{position:relative;width:auto;padding:0 6px;gap:2px;display:inline-flex;align-items:center}
   .camb b{font-size:15px;line-height:1;color:var(--chalk)}
+  .camb .lbl{font:700 12px var(--ui);margin-left:3px;white-space:nowrap}
+  @media (max-width:640px){ .camb:not(.live) .lbl{display:none} }
+  .camb.live{border-color:#57d98a;color:#57d98a;background:rgba(87,217,138,.12);font-size:13px}
+  .camb.live .rec{width:8px;height:8px;border-radius:50%;background:#57d98a;margin-right:3px;animation:pulse 1.2s ease-in-out infinite}
+  .camstat div.onair{border-color:#57d98a;background:rgba(87,217,138,.08)}
+  .camstat em{font-style:normal;font-size:18px}
+  .camstat .lv{color:#57d98a;font-size:12px;letter-spacing:.06em}
   body.hastv .camb{border-color:#57d98a;color:#57d98a} body.hastv .camb b{color:#57d98a}
   #clipBtn svg{fill:none;stroke:currentColor;stroke-width:2}
   .camstat{display:flex;flex-direction:column;gap:6px}
@@ -351,7 +358,7 @@
 <div class="app">
  <div class="board">
   <header>
-    <div class="hdr-l"><a class="tchip home" id="tchip" hidden aria-label="All tables"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 12h3v8h5v-5h4v5h5v-8h3z"/></svg><span id="tchipN"></span></a><button class="lockic" id="lockIc" hidden aria-label="Lock or unlock the table"></button><button class="lockic camb" id="camBtn" aria-label="Add camera"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h3l2-2h6l2 2h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></svg><b>+</b></button><button class="lockic hostonly" id="clipBtn" aria-label="Clips"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18M3 15h18M8 5v4M16 5v4M8 15v4M16 15v4"/></svg></button><button class="modeb" id="modeBtn" aria-label="Change players: singles or doubles">1v1</button><div class="race" id="raceLbl" role="button" tabindex="0">Race 5–5</div></div>
+    <div class="hdr-l"><a class="tchip home" id="tchip" href="hall.html" aria-label="All tables"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 12h3v8h5v-5h4v5h5v-8h3z"/></svg><span id="tchipN"></span></a><button class="lockic" id="lockIc" hidden aria-label="Lock or unlock the table"></button><button class="lockic camb" id="camBtn" aria-label="Add camera"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h3l2-2h6l2 2h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></svg><b>+</b></button><button class="lockic hostonly" id="clipBtn" aria-label="Clips"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18M3 15h18M8 5v4M16 5v4M8 15v4M16 15v4"/></svg></button><button class="modeb" id="modeBtn" aria-label="Change players: singles or doubles">1v1</button><div class="race" id="raceLbl" role="button" tabindex="0">Race 5–5</div></div>
     <div class="hdr-r"><span class="live" id="live">Offline</span><div class="rackno" id="rackNo">Rack 1</div></div>
   </header>
 
@@ -1442,6 +1449,7 @@
     if (feedLive && !v && now - lastLive > 20000) { feedLive = false; $('tvBar').hidden = true; }
     behindLive = !!bv; $('pip').hidden = !bv; if (bv && !v) $('pip').classList.add('big');
     document.body.classList.toggle('hastv', feedLive || !!v || behindLive);
+    const sig = `${feedLive}|${behindLive}`; if (sig !== paintCamBtn.last) { paintCamBtn.last = sig; paintCamBtn(); }
     if (v && !feedLive) {
       feedLive = true; $('tvWait').hidden = true; $('tvBar').hidden = false; $('camRec').disabled = false; wakeBar(); $('pip').classList.remove('big');
       if (!corners) loadCorners();
@@ -1455,13 +1463,25 @@
     if (v) { progOn(); keepBuffer(progStream); }
   }
   // Add a camera: this device becomes the table's top-down (or behind-the-table) camera.
+  // Header camera button: 📷+ when there's no camera, a green 🎥 LIVE with the location when there is.
+  function paintCamBtn(){
+    const b = $('camBtn'), live = feedLive || behindLive;
+    b.classList.toggle('live', live);
+    b.innerHTML = live ? `<span class="rec"></span>🎥 <span class="lbl">LIVE · ${feedLive && behindLive ? '2 cameras' : feedLive ? 'Top-down' : 'Behind table'}</span>`
+      : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h3l2-2h6l2 2h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></svg><b>+</b><span class="lbl">Add camera</span>`;
+    b.setAttribute('aria-label', live ? 'Cameras (live)' : 'Add camera');
+  }
   function paintCamStat(){
-    const row = (on, name, sub) => `<div><i class="${on ? 'on' : ''}"></i><span>${name}</span><small>${on ? 'Live' : sub}</small></div>`;
+    const row = (on, name, sub) => `<div class="${on ? 'onair' : ''}"><em>${on ? '🎥' : '📷'}</em><span>${name}</span>${on ? '<b class="lv">● LIVE</b>' : `<small>${sub}</small>`}</div>`;
     $('camStat').innerHTML = row(feedLive, 'Top-down', 'No camera yet') + row(behindLive, 'Behind the table', 'Optional');
     $('camFor').textContent = tableMode ? `Use this phone as a camera for table ${TNUM}. Everyone who opens table ${TNUM} sees it.` : 'Use this phone as a camera for this game. Everyone who opens this scoreboard sees it.';
     $('camLoc').value = feedLive && !behindLive ? 'behind' : 'top';
   }
   $('camBtn').onclick = () => { paintCamStat(); $('camSheet').hidden = false; };
+  paintCamBtn();
+  if (!tableMode) { $('tchipN').textContent = 'Tables'; $('tchip').href = 'hall.html'; }
+  // Don't auto-update in the middle of a replay or an open ref question.
+  window.POOLAR_CAN_RELOAD = () => !replaying && !pop && $('clipsSheet').hidden;
   $('camGo').onclick = () => {
     const loc = $('camLoc').value, u = new URL('phonecam.html', location.href); u.search = '';
     u.searchParams.set('cam', camChan(loc)); u.searchParams.set('loc', loc);
@@ -2141,4 +2161,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} openSetup(); }
 })();
 </script>
+<script src="build.js"></script>
 </body></html>

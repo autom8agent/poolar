@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
+<meta charset="utf-8"><meta name="build" content="20260930031552">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0a0f14">
 <title>Pool Cam</title>
@@ -60,7 +60,7 @@
 
   <!-- Camera -->
   <section id="cam" hidden class="big">
-    <div class="top"><h1 id="camTitle">Pool Cam</h1><a id="camBack" href="phonecam.html">Back</a></div>
+    <div class="top"><h1 id="camTitle">Pool Cam</h1><span><a id="camBack" href="phonecam.html">Back</a> · <a href="hall.html">⌂ Tables</a></span></div>
     <div class="stage"><video id="preview" playsinline muted autoplay></video><span class="pill" id="camState"><span class="dot"></span><span id="camStateT">Starting…</span></span></div>
     <p class="turn" id="turnMsg" hidden>↻ Turn the phone sideways. The camera streams in landscape.</p>
     <p id="camMsg" hidden></p>
@@ -73,7 +73,7 @@
   <section id="watch" hidden>
     <div class="stage" id="wstage"><video id="remote" playsinline muted autoplay></video><span class="pill" id="wState"><span class="dot"></span><span id="wStateT">Connecting…</span></span></div>
     <div class="wmsg" id="wmsg"><p id="wmsgT">Waiting for the camera…</p></div>
-    <div class="wbar" id="wbar"><button class="primary" id="wRec" disabled>● Record</button><button id="full">Full screen</button><button id="rot">Rotate 180°</button><a class="btn" href="phonecam.html">Exit</a></div>
+    <div class="wbar" id="wbar"><button class="primary" id="wRec" disabled>● Record</button><button id="full">Full screen</button><button id="rot">Rotate 180°</button><a class="btn" href="phonecam.html">Exit</a><a class="btn" href="hall.html">⌂ Tables</a></div>
   </section>
 
 </div>
@@ -354,5 +354,6 @@
   }
 })();
 </script>
+<script src="build.js"></script>
 </body>
 </html>
