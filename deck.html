@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930193232"><script src="stream.js?v=20260930193232"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930203700"><script src="stream.js?v=20260930203700"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -198,8 +198,16 @@
   .handle{position:absolute;z-index:6;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;border:3px solid var(--gold);background:rgba(242,193,78,.25);touch-action:none}
   .handle::after{content:"";position:absolute;left:50%;top:50%;width:4px;height:4px;margin:-2px;border-radius:50%;background:var(--gold)}
   .adjbar{position:absolute;top:8px;left:50%;transform:translateX(-50%);z-index:7;display:flex;gap:6px;align-items:center;background:rgba(10,16,14,.92);border-radius:12px;padding:6px 8px;font-size:13px;white-space:nowrap}
-  .refpop{position:absolute;right:8px;bottom:60px;z-index:6;width:min(340px,calc(100% - 16px));background:rgba(12,20,17,.96);border:2px solid var(--gold);border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:8px;box-shadow:0 8px 30px rgba(0,0,0,.5);overflow:hidden}
-  .refpop .rtop{display:flex;align-items:center;gap:8px}
+  .reflog{position:absolute;left:0;top:0;bottom:0;z-index:5;width:22%;min-width:150px;max-width:300px;background:rgba(8,12,10,.82);border-right:1px solid #26372f;padding:8px;overflow:hidden;display:flex;flex-direction:column;gap:6px;font-size:13px}
+  .reflog h4{margin:0;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#8ea69a}
+  .reflog .it{border-radius:8px;padding:6px 8px;background:#15201b;border:1px solid #26372f;line-height:1.3}
+  .reflog .it.new{border-color:var(--gold)} .reflog .it b{display:block;font-size:14px}
+  .reflog .it small{color:#8ea69a;display:block} .reflog .it .a{font-weight:800;font-size:12px}
+  .reflog .it .a.yes{color:#57d98a} .reflog .it .a.no{color:#ff6b5e} .reflog .it .a.wait{color:var(--gold)}
+  .refpop{position:absolute;right:8px;bottom:60px;z-index:6;width:min(460px,calc(100% - 16px));font-size:16px;background:rgba(12,20,17,.96);border:2px solid var(--gold);border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:8px;box-shadow:0 8px 30px rgba(0,0,0,.5);overflow:hidden}
+  .refpop .rtop{display:flex;align-items:center;gap:8px;font-size:19px}
+  .refpop button{font-size:16px!important;padding:11px 14px!important}
+  .refpop #refS{font-size:15px;line-height:1.35}
   .refpop .rtop b{font-size:17px;flex:1}
   .refpop .rballs{display:flex;gap:4px}
   .refpop .rballs .ball{width:30px;cursor:default}
@@ -237,7 +245,7 @@
     body.hastv .players{grid-template-rows:minmax(160px,34vh) 1fr 1fr}
   }
   @media (min-width:800px) and (orientation:landscape){
-    .tv{position:absolute;z-index:3;top:52px;bottom:0;left:21%;right:16%}
+    .tv{position:absolute;z-index:3;top:52px;bottom:0;left:15%;right:11%}   /* wider box = taller 16:9 picture */
   }
   .tvnote{position:absolute;top:8px;left:50%;transform:translateX(-50%);z-index:5;display:flex;align-items:center;gap:6px;background:rgba(10,16,14,.92);border:1px solid var(--gold);border-radius:12px;padding:6px 6px 6px 12px;white-space:nowrap;max-width:calc(100% - 16px)}
   .tvnote span{font-size:13px;font-weight:700;color:var(--gold);overflow:hidden;text-overflow:ellipsis}
@@ -392,6 +400,7 @@
   .lgp.won{border-color:var(--gold)} .lgp.won .d{color:var(--gold)}
   .lgrules{font-size:13px;color:var(--muted)} .lgrules summary{cursor:pointer;font-weight:700;color:var(--text)}
   .lgrules ul{margin:8px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+  body.lagging .reflog{display:none!important}   /* the ref waits during a lag; its list would cover the head rail */
   #lagCan{position:absolute;inset:0;width:100%;height:100%;z-index:2;pointer-events:none}
   .coin{width:96px;height:96px;margin:4px auto;position:relative;transform-style:preserve-3d;transition:transform 1.4s cubic-bezier(.2,.7,.2,1)}
   .coin span{position:absolute;inset:0;border-radius:50%;display:grid;place-items:center;font-family:var(--num);font-weight:900;font-size:40px;
@@ -408,7 +417,8 @@
 
   <div class="players">
     <div class="tv" id="tv">
-      <div class="tvadd" id="tvAdd"><button class="primary" id="tvAddBtn">+ Add camera</button><small>Top-down table view · replays · recording</small></div>
+      <div class="reflog" id="refLog" hidden><h4>🤖 Ref calls</h4><div id="refLogL"></div></div>
+      <div class="tvadd" id="tvAdd"><button class="primary" id="tvWatchBtn">📺 Watch table camera</button><button id="tvAddBtn">+ Add camera</button><small>Top-down table view · replays · recording</small></div>
       <iframe id="feedFrame" title="Top-down table camera" allow="autoplay; fullscreen" hidden></iframe>
       <canvas id="viewCan" hidden></canvas>
       <canvas id="lagCan" hidden></canvas>
@@ -813,10 +823,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930193232"></script>
-<script src="halls.js?v=20260930193232"></script>
-<script src="qrcode.js?v=20260930193232"></script>
-<script src="tablecv.js?v=20260930193232"></script>
+<script src="hallday.js?v=20260930203700"></script>
+<script src="halls.js?v=20260930203700"></script>
+<script src="qrcode.js?v=20260930203700"></script>
+<script src="tablecv.js?v=20260930203700"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -1132,9 +1142,19 @@
     // APA 9-ball: the match ends the moment a player reaches their points, usually mid-rack.
     if (ptsMode() && winner(scores()) >= 0 && !st.tEnd) st.tEnd = Date.now();
   }); if (potted) clockStart(); if (ptsMode() && winner(scores()) >= 0) saveResult('match'); };
+  // iPad / laptop landscape: stretch the video box from just under the top bar down to just above the balls.
+  function fitTv(){
+    const tv = $('tv'); if (!tv || tv.classList.contains('full')) return;
+    if (!(innerWidth >= 800 && innerWidth > innerHeight) || !document.body.classList.contains('hastv')) { tv.style.cssText = ''; return; }
+    const hdr = $('raceLbl').closest('.hdr-l') || $('raceLbl'), top = hdr.getBoundingClientRect().bottom + 6;
+    const b1 = $('ball3') || $('ball1'), br = b1 && b1.offsetParent ? b1.getBoundingClientRect() : null;
+    const bottom = br && br.top > top + 200 ? br.top - 8 : document.querySelector('.players').getBoundingClientRect().bottom;
+    Object.assign(tv.style, { position: 'fixed', top: top + 'px', left: '15%', right: '11%', bottom: (innerHeight - bottom) + 'px', height: 'auto' });
+  }
+  addEventListener('resize', fitTv); setInterval(fitTv, 1000);
   let render = function(){
     const s = scores(), b = breaker(), w = winner(s), live = w<0;
-    $('raceLbl').textContent = (rotating() ? ({ wso: '👑 Winner stays', pick: '🏆 Winner picks', rand: '🎲 Random game' }[st.fmtMode] || '🎲 Rotate') : ptsMode() ? `${st.race[0]}–${st.race[1]} pts` : `Race ${st.race[0]}–${st.race[1]}`) + (st.gtype === 8 ? '' : ` · ${st.gtype}-ball`);
+    $('raceLbl').textContent = (rotating() ? ({ wso: '👑 Winner stays on', pick: '🏆 Winner picks', rand: '🎲 Random game' }[st.fmtMode] || '🎲 Rotate') : ptsMode() ? `${st.race[0]}–${st.race[1]} pts` : `Race ${st.race[0]}–${st.race[1]}`) + (st.gtype === 8 ? '' : ` · ${st.gtype}-ball`);
     $('shareBtn').textContent = 'Share';
     // Up next: the names in line, always on screen, updating as people join.
     { const qn = [...st.queue.filter(q => !busyAt(q)), ...st.queue.filter(q => busyAt(q))], on = tableMode || qn.length > 0;
@@ -1735,6 +1755,7 @@
     try { localStorage.removeItem(FEEDKEY); } catch {}
     qs.delete('cam'); try { history.replaceState(null, '', '?' + qs); } catch {}
   }
+  $('tvWatchBtn').onclick = () => showFeed(tableMode ? camChan('top') : (qs.get('cam') || camChan('top')));
   function watchLive(){
     const v = feedVideo(), bv = behindVideo(), now = Date.now();
     if (v) lastLive = now;
@@ -1808,10 +1829,16 @@
     hallCams.onmessage = e => { try { const d = JSON.parse(e.data); if (d.event !== 'message') return; const m = JSON.parse(d.message);
       if (m.kind !== 'cam' || m.t !== TNUM) return; const k = m.loc === 'behind' ? 'behind' : 'top';
       camSeen[k] = m.on ? m.ts : 0;
-      if (m.on && Date.now() - m.ts < 6 * 60 * 1000) {
+      // The stream only replays the last 10 minutes, so any "on" here is recent (no clock comparison: a laptop
+      // with its clock a few minutes off never opened the camera).
+      if (m.on) {
         if (k === 'top' && !$('feedFrame').getAttribute('src')) showFeed(camChan('top'));
         if (k === 'behind' && !$('behindFrame').getAttribute('src')) $('behindFrame').src = watchSrc(camChan('behind'));
       } } catch {} };
+    // Don't wait for the camera's next 4-minute heartbeat: look up its latest announcement now.
+    fetch(`https://poolar-relay.poolar-relay.workers.dev/${HALL_TOPIC}/json?poll=1&since=10m`).then(r => r.text()).then(txt => {
+      let last = null; for (const l of txt.split('\n')) { try { const e = JSON.parse(l); if (e.event !== 'message') continue; const m = JSON.parse(e.message); if (m.kind === 'cam' && m.t === TNUM && m.loc !== 'behind') last = m; } catch {} }
+      if (last && last.on && !$('feedFrame').getAttribute('src')) showFeed(camChan('top')); }).catch(() => {});
   }
 
   // ---------- Straightened table view + automatic referee ----------
@@ -1833,7 +1860,8 @@
     const v = feedVideo(); if (!v || !warper || !warper.ok) return !!v && false;
     if (!warper.draw(v, feedFlipped())) return false;
     const now = performance.now();
-    if (!corners && now - cornerT > 1500) { cornerT = now; autoCorners(v); }   // the ref always needs the table corners, whatever the view shows
+    if (!corners && now - cornerT > 1500) { cornerT = now; autoCorners(v); }
+    else if (corners && now - cornerT > 20000) { cornerT = now; recheckCorners(v); }   // camera moved or re-zoomed: follow it   // the ref always needs the table corners, whatever the view shows
     if (!viewTick.t0) viewTick.t0 = now;
     // Table edges not found yet: after 15 s run the ref on the whole picture rather than stay quiet.
     const fallback = !corners && now - viewTick.t0 > 15000;
@@ -1842,6 +1870,14 @@
     else if (refOn && (corners || fallback) && now - viewLast > 110) { viewLast = now; refTick(v); }
     else paintRefStat();
     return true;
+  }
+  // Saved corners go stale when the camera is moved or zoomed; re-detect and switch when 2 checks agree it moved.
+  let recheck = null;
+  function recheckCorners(v){
+    const x = grabC.getContext('2d', { willReadFrequently: true }); x.drawImage(v, 0, 0, 320, 180);
+    let q = null; try { q = TableCV.findCorners(x.getImageData(0, 0, 320, 180)); } catch {}
+    if (!q || TableCV.cornerDiff(q, corners) < .03) { recheck = null; return; }
+    if (recheck && TableCV.cornerDiff(recheck, q) < .02) { setCorners(q, true); recheck = null; note('Camera moved: ref re-found the table.'); } else recheck = q;
   }
   // Automatic corners: a few frames in a row must agree before the view switches over.
   function autoCorners(v){
@@ -1892,12 +1928,21 @@
   // Claude with a picture of the shot, and nudges how sure the ref must be before it speaks up.
   const REFKEY = 'poolar-ref-params', FBTOPIC = 'poolar-ref-fb';
   // Eager defaults (v2): speak up often while it learns; "No" answers raise a call's bar again.
-  let refOn = true, refP = { v: 2, gates: { scratch: .25, foul: .2, made: .25, turn: .2, eight: .3 }, autoSec: 12 };
+  let refOn = true, refP = { v: 2, gates: { scratch: .25, foul: .2, made: .25, turn: .2, eight: .3 }, autoSec: 60 };
   try { const p = JSON.parse(localStorage.getItem(REFKEY)); if (p && p.v === 2 && p.gates) refP = { ...refP, ...p, gates: { ...refP.gates, ...p.gates } }; if (p && p.off) refOn = false; } catch {}
   if (VIEW) refOn = false;
   const saveRefP = () => { try { localStorage.setItem(REFKEY, JSON.stringify({ ...refP, off: !refOn })); } catch {} };
   const tracker = window.TableCV ? new TableCV.Tracker() : null;
-  if (tracker) tracker.onShot = ev => { try { judge(ev); } catch (e) { console.warn(e); } };
+  let shotsSeen = 0, lastShotAt = 0;
+  if (tracker) tracker.onShot = ev => { shotsSeen++; lastShotAt = Date.now(); try { judge(ev); } catch (e) { console.warn(e); } };
+  // Ref health for Claude: what this scoreboard's ref is doing, every 15 s, on a private relay topic (own relay).
+  if (tableMode) setInterval(() => { try {
+    const L = tracker && tracker.last, v = feedVideo();
+    fetch(`https://poolar-relay.poolar-relay.workers.dev/poolar-refdiag-${HALL}-t${TNUM}`, { method: 'POST', body: JSON.stringify({
+      build: (document.querySelector('meta[name="build"]') || {}).content, refOn, feedLive: !!feedLive, corners: corners ? [corners.tl, corners.br].map(p => [+p.x.toFixed(3), +p.y.toFixed(3)]) : null,
+      raw: rawView, video: v ? `${v.videoWidth}x${v.videoHeight}` : null, balls: L ? L.balls.length : null, cue: !!(L && L.balls.some(b => b.cls === 'cue')),
+      shots: shotsSeen, lastShot: lastShotAt ? Math.round((Date.now() - lastShotAt) / 1000) : null, stat: ($('refStat') || {}).textContent || '', ua: navigator.userAgent.slice(0, 60) }) }).catch(() => {});
+  } catch {} }, 15000);
   function refUI(){ $('tvRef').textContent = refOn ? '🤖 Ref on' : '🤖 Ref off'; $('tvRef').classList.toggle('refon', refOn); }
   $('tvRef').onclick = () => { refOn = !refOn; saveRefP(); refUI(); if (!refOn) closePop(); };
   refUI();
@@ -1973,7 +2018,7 @@
     }
     // No hit seen: still ask, but never apply it by itself (a shaky read must not end a turn).
     if (!sug && !ev.first) sug = { type: 'turn', conf: .45, balls: [], title: 'Turn over?', text: `Shot over, nothing of ${me}'s went in. ${them} to shoot?`, apply: () => passTable(false), auto: '', noAuto: true };
-    if (!sug) sug = { type: 'turn', conf: .6, balls: [], title: 'Turn over?', text: `Legal hit, nothing of ${me}'s dropped. ${them} to shoot.`, apply: () => passTable(false), auto: 'Turn over' };
+    if (!sug) sug = { type: 'turn', conf: .6, balls: [], title: 'Turn over?', text: `Legal hit, nothing of ${me}'s dropped. ${them} to shoot.`, apply: () => passTable(false), auto: '', noAuto: true };   // never on its own: a missed drop must not pass the turn
     // Every shot gets a pop-up. When the ref isn't sure it asks and waits instead of applying on its own.
     if (sug.conf < (refP.gates[sug.type] || .5)) { sug.noAuto = true; sug.auto = ''; sug.title += ' (not sure)'; }
     sug.ev = ev; sug.key = stateKey(); sug.shooter = i; sug.group = g || null;
@@ -2004,7 +2049,7 @@
         apply: () => { markMade(nums.filter(n => n !== last)); $('w' + i).click(); }, auto: 'Rack to ' + short(side(i)) };
     else if (made.length) sug = { type: 'made', conf: .7, balls: nums.length ? nums : [0], title: made.length > 1 ? `${made.length} balls made` : 'Ball made',
         text: `${made.map(clsName).join(', ')} in. ${me} keeps shooting?`, apply: () => markMade(nums), auto: 'Mark ball' };
-    else sug = { type: 'turn', conf: f ? .6 : .45, balls: [], title: 'Turn over?', text: `Nothing dropped. ${them} to shoot.`, apply: () => passTable(false), auto: f ? 'Turn over' : '', noAuto: !f };
+    else sug = { type: 'turn', conf: f ? .6 : .45, balls: [], title: 'Turn over?', text: `Nothing dropped. ${them} to shoot.`, apply: () => passTable(false), auto: '', noAuto: true };
     if (sug.conf < (refP.gates[sug.type] || .5)) { sug.noAuto = true; sug.auto = ''; sug.title += ' (not sure)'; }
     sug.ev = ev; sug.key = stateKey(); sug.shooter = i; sug.group = null;
     shotSnap().then(b => { sug.snap = b; });
@@ -2039,8 +2084,8 @@
       if (e.scratch) bits.push(`cue ball in the ${PNAME[e.cuePocket] || 'pocket'}`);
       bits.push(e.rail ? 'a ball reached a rail' : 'no rail seen');
       $('refS').textContent = sug.text + '\nSaw: ' + bits.join(' · '); $('refS').style.whiteSpace = 'pre-line'; }
-    $('refPop').hidden = false; wakeBar();
-    const t0 = Date.now(), T = refP.autoSec * 1000;
+    $('refPop').hidden = false; wakeBar(); try { logCall(sug); } catch {}
+    const t0 = Date.now(), T = Math.max(60, refP.autoSec) * 1000;   // 1 minute to answer while the ref is being trained
     const tick = () => {
       if (!pop || pop !== sug) return;
       $('refStop').hidden = !!sug.touched;
@@ -2068,8 +2113,18 @@
   $('refC').addEventListener('focus', touch2); $('refC').addEventListener('input', touch2);
   $('refSubmit').onclick = () => { if (!pop) return; if (!pop.choice && !$('refC').value.trim()) { $('refAuto').textContent = 'Pick Yes, No or Other first'; return; } finish(pop.choice || 'other'); };
   $('refPop').addEventListener('pointerdown', e => e.stopPropagation());
+  // Running list of the ref's calls down the left of the video (newest on top), updated as they're answered.
+  const refLog = [];
+  function paintRefLog(){
+    const el = $('refLog'); if (!el) return; el.hidden = false;
+    $('refLogL').innerHTML = (refLog.length ? '' : '<div class="it"><b>Waiting for the first shot…</b><small>Every call the ref makes stays listed here.</small></div>') + refLog.slice(0, 8).map((e, k) => `<div class="it ${k === 0 ? 'new' : ''}"><small>${e.at}</small><b>${esc(e.title)}</b>${e.saw ? `<small>${esc(e.saw)}</small>` : ''}<span class="a ${e.ans === 'Yes' || e.ans === 'Applied' ? 'yes' : e.ans === 'No' ? 'no' : 'wait'}">${e.ans}</span></div>`).join('');
+  }
+  setTimeout(paintRefLog, 500);
+  function logCall(sug){ const saw = (($('refS').textContent || '').split('\nSaw: ')[1] || '').slice(0, 140);
+    sug.log = { at: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' }), title: sug.title, saw, ans: 'Waiting…' }; refLog.unshift(sug.log); paintRefLog(); }
   function finish(choice){
     const sug = pop; if (!sug) return; closePop();
+    if (sug.log) { sug.log.ans = choice === 'yes' ? 'Yes' : choice === 'no' ? 'No' : choice === 'other' ? 'Other' : sug.noAuto ? 'Skipped' : 'Applied'; paintRefLog(); }
     const comment = $('refC').value.trim();
     if ((choice === 'yes' || (choice === 'auto' && !sug.noAuto)) && stateKey() === sug.key) sug.apply();
     // Learn: a "No" makes the ref more cautious about that kind of call, a "Yes" slightly bolder.
@@ -2607,9 +2662,9 @@
     $('lgNoCam').textContent = !feedLive ? 'Add the top-down camera and it can judge the lag for you. Or watch it and tap the winner.'
       : 'The camera hasn\'t found the table corners yet (⊞ Table → Straighten automatically, or Adjust corners). Or tap the winner.';
     $('lgPickH').textContent = cam ? 'Confirm who won the lag' : 'Who won the lag?';
-    if (cam) { lagLive = true; $('lagCan').hidden = false; closePop(); lagReset(); } else lagStop();
+    if (cam) { lagLive = true; $('lagCan').hidden = false; document.body.classList.add('lagging'); closePop(); lagReset(); } else lagStop();
   }
-  function lagStop(){ lagLive = false; $('lagCan').hidden = true; }
+  function lagStop(){ lagLive = false; $('lagCan').hidden = true; document.body.classList.remove('lagging'); }
   function lagClose(){ lagStop(); $('lagSheet').hidden = true; $('lagSheet').classList.remove('see'); }
   function lagReset(){ lag = { phase: 'wait', tr: [null, null], readyT: 0, rollT: 0, res: null, B: [] }; lagUI(); lagDraw(); }
   const hxOf = x => lagCfg.headLeft ? x : 1 - x;                                    // 0 at the head end, 1 at the foot end
@@ -2845,6 +2900,8 @@
       else if (c === 'other') { if (!refBtn('other')) return; if (!$('refStop').hidden) $('refStop').click(); $('refC').focus(); }
       else if (c === 'stop') { if ($('refPop').hidden || $('refStop').hidden) return flash('🎛️ No timer running'); $('refStop').click(); }
       else if (c === 'undo') $('undo').click();
+      else if (c === 'call' && m.title) { showPop({ type: m.type || 'turn', conf: .5, balls: Array.isArray(m.balls) ? m.balls : [], title: String(m.title).slice(0, 60), text: String(m.text || '').slice(0, 300),
+          apply: () => {}, auto: '', noAuto: true, key: stateKey(), shooter: st.shooter, group: null, remote: true }); return; }
       else if (c === 'win0' || c === 'win1') $(c === 'win0' ? 'w0' : 'w1').click();
       else if (c === 'tag' && m.v) {   // bank / kick / combo / safety / jump: goes into the ref's feedback for training
         const tag = '#' + String(m.v).replace(/[^a-z]/gi, '').toLowerCase();
@@ -2878,5 +2935,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930193232"></script>
+<script src="build.js?v=20260930203700"></script>
 </body></html>

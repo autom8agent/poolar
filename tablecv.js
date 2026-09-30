@@ -221,7 +221,7 @@
       const lab = new Int32Array(w * h), blobs = [];
       for (let s = 0; s < w * h; s++) {
         if (!mask[s] || lab[s]) continue;
-        const b = { n: 0, sx: 0, sy: 0, x0: w, x1: 0, y0: h, y1: 0, wh: 0, dk: 0, hue: new Array(36).fill(0), vs: 0, cn: 0 };
+        const b = { n: 0, sx: 0, sy: 0, x0: w, x1: 0, y0: h, y1: 0, wh: 0, dk: 0, hue: new Array(36).fill(0), vs: 0, ss: 0, cn: 0, cc: 0, vall: 0 };
         const stk = [s]; lab[s] = blobs.length + 1;
         while (stk.length) {
           const p = stk.pop(), x = p % w, y = (p - x) / w, i = p * 4;
@@ -229,12 +229,13 @@
           const r = d[i], g = d[i+1], bl = d[i+2], mx = Math.max(r, g, bl), mn = Math.min(r, g, bl);
           // White includes the ivory of the cue ball and stripe caps (cream: yellowish, low saturation).
           // Compressed video greys the white a little, hence 145 / 60.
-          const c = hsv(r, g, bl);
-          if ((mn > 145 && mx - mn < 60) || (c[2] > .62 && c[0] >= 25 && c[0] <= 65 && c[1] < .45)) b.wh++;
-          else if (mx < 70) b.dk++;
+          const c = hsv(r, g, bl); b.vall += c[2];
+          // (Terry's table 4: the cue ball is cream with a blue cast from the cloth, and the 8 is blue-black.)
+          if ((mn > 145 && mx - mn < 60) || (c[2] > .62 && c[0] >= 25 && c[0] <= 65 && c[1] < .45) || (c[2] > .6 && c[1] < .28)) b.wh++;
+          else if (mx < 70 || (c[2] < .36 && c[1] < .75)) b.dk++;
           // Ball colour, but not the cloth showing through at the ball's edge (blue cloth vs the 2/10 balls:
           // the balls are darker and more saturated than the cloth).
-          else if (c[1] > .3 && !(hueDist(c[0], fhsv[0]) < 22 && c[2] > fhsv[2] * .82)) { b.hue[Math.floor(c[0] / 10) % 36]++; b.vs += c[2]; b.cn++; }
+          else if (c[1] > .3 && !(hueDist(c[0], fhsv[0]) < 22 && c[2] > fhsv[2] * .82)) { b.hue[Math.floor(c[0] / 10) % 36]++; b.vs += c[2]; b.ss += c[1]; b.cn++; if (hueDist(c[0], fhsv[0]) < 32) b.cc++; }
           const L = lab[s];
           if (x > 0 && mask[p-1] && !lab[p-1]) { lab[p-1] = L; stk.push(p-1); }
           if (x < w-1 && mask[p+1] && !lab[p+1]) { lab[p+1] = L; stk.push(p+1); }
@@ -243,7 +244,7 @@
         }
         blobs.push(b);
       }
-      const balls = [], occ = [];
+      const balls = [], occ = [];   // (relative cue / 8 pick happens after classification, below)
       for (const b of blobs) {
         if (b.n < A * .3) continue;
         const bw = b.x1 - b.x0 + 1, bh = b.y1 - b.y0 + 1, fill = b.n / (bw * bh), x = b.sx / b.n / w, y = b.sy / b.n / h;
@@ -251,14 +252,18 @@
         if (POCKETS.some(([px, py]) => Math.hypot(x - px, (y - py) * .5) < .04)) continue;
         // Our table edge is the cushion's outer line, so a real ball's centre can't be this close to it:
         // anything there is a rail diamond, a pocket jaw or a hand on the rail. (Occluders still count.)
-        const nearEdge = x < this.ballPx * 1.5 / w || x > 1 - this.ballPx * 1.5 / w || y < this.ballPx * 1.5 / h || y > 1 - this.ballPx * 1.5 / h;
-        if (nearEdge && b.n <= A * 1.9 && !this.o.keepEdge) continue;   // keepEdge: the lag needs balls frozen to a rail
+        const EM = this.ballPx * .5;
+        const nearEdge = x < EM / w || x > 1 - EM / w || y < EM / h || y > 1 - EM / h;
+        if (nearEdge && b.n <= A * 1.9 && !this.o.keepEdge) continue;   // keepEdge: the lag never drops a ball for being near the edge
         if (b.n <= A * 1.9 && fill > .45 && Math.max(bw, bh) < this.ballPx * 2) {
           const wf = b.wh / b.n, df = b.dk / b.n, cf = b.cn / b.n;
           let cls, num = 0;
           // Seen from above, a stripe with its cap up is almost all white; only a coloured ring at the
           // edge shows. White with a colour ring = stripe; white with none = the cue ball.
-          if (wf > .5 && cf < .08) cls = 'cue';
+          // Cue ball: white with no ball colour. The blue cloth showing at its edge doesn't count as colour
+          // (on Terry's table it made the cue ball read as a cap-up stripe, so the ref never saw a cue ball).
+          const cfBall = (b.cn - b.cc) / b.n;
+          if (wf > .5 && (cf < .08 || cfBall < .1)) cls = 'cue';
           else if (df > .45 && wf < .2) { cls = 'eight'; num = 8; }
           else {
             cls = wf > .13 ? 'stripe' : 'solid';
@@ -270,7 +275,7 @@
             if (hb < 0 || other < Math.max(2, b.cn * .2)) hb = b.hue.indexOf(Math.max(...b.hue));
             num = b.cn ? ballNumber(hb * 10 + 5, b.vs / b.cn) + (cls === 'stripe' ? 8 : 0) : 0;
           }
-          balls.push({ x, y, cls, num, wf, df });
+          balls.push({ x, y, cls, num, wf, df, cf, vmean: b.vall / b.n, cfBall: (b.cn - b.cc) / b.n, sat: b.cn ? b.ss / b.cn : 0, cc: b.cc / b.n, fh: fhsv[0], hue: b.cn ? b.hue.indexOf(Math.max(...b.hue)) * 10 + 5 : -1 });
         } else if (b.n <= A * 7 && fill > .4 && Math.max(bw, bh) < this.ballPx * 5) balls.push({ x, y, cls: 'cluster', num: 0, n: Math.round(b.n / A) });
         else {
           // Something that isn't a ball: a cue shaft is long and thin (about a ball wide); a hand, glove
@@ -278,6 +283,18 @@
           const len = Math.hypot(bw, bh), thick = b.n / Math.max(1, len);
           occ.push({ x0: b.x0 / w, x1: b.x1 / w, y0: b.y0 / h, y1: b.y1 / h, dark: b.dk / b.n > .45 && b.n > A * 6, thick, id: blobs.indexOf(b) + 1 });
         }
+      }
+      // Lighting varies table to table, so fixed colour cut-offs can miss the two balls that matter most.
+      // There's exactly one cue ball and one 8: if none was found, take the brightest ball with little ball colour
+      // as the cue ball, and the darkest ball as the 8.
+      const real = balls.filter(b => b.cls !== 'cluster');
+      if (real.length >= 3 && !real.some(b => b.cls === 'cue')) {
+        const c = real.filter(b => b.wf > .25 && b.cfBall < .2).sort((a, b) => (b.wf - b.cfBall) - (a.wf - a.cfBall))[0];
+        if (c) { c.cls = 'cue'; c.num = 0; }
+      }
+      if (real.length >= 3 && !real.some(b => b.cls === 'eight')) {
+        const byV = real.filter(b => b.cls !== 'cue').sort((a, b) => a.vmean - b.vmean), d = byV[0], next = byV[1];
+        if (d && next && d.vmean < .5 && d.vmean < next.vmean * .9) { d.cls = 'eight'; d.num = 8; }
       }
       // The rental ball tray (or a dark glove holding the cue ball): a big dark shape. Balls inside it
       // aren't in play.
@@ -328,9 +345,20 @@
         const handOnCue = cue && this.handNear(cue, occ);
         if (handOnCue) { this.handUntil = t + 900; if (this.onHand) this.onHand({ t, x: cue.x, y: cue.y }); }
         if (cue && cue.v > this.o.move && cue.prevStill && t - cue.prevStill > 500 && !(this.handUntil > t)) {
-          this.shot = { t0: t, cueFrom: { x: cue.x, y: cue.y }, first: null, moved: new Set(), stillAtStart: new Set(this.tracks.filter(tr => tr !== cue && tr.v < this.o.move).map(tr => tr.id))   /* compressed video jitters: 'not moving' is enough */, cueId: cue.id };
+          this.shot = { t0: t, cueFrom: { x: cue.x, y: cue.y }, first: null, n0: (this.last && this.last.balls ? this.last.balls.length : 0), moved: new Set(), stillAtStart: new Set(this.tracks.filter(tr => tr !== cue && tr.v < this.o.move).map(tr => tr.id))   /* compressed video jitters: 'not moving' is enough */, cueId: cue.id };
           this.quietFrom = 0;
         }
+        // Fallback when the cue ball isn't recognised as the cue ball (ivory under this light, a cap-up stripe…):
+        // the first ball to move off a still table is the one that was struck, so treat it as the cue ball.
+        if (!this.shot && !(this.handUntil > t)) {
+          const movers = this.tracks.filter(tr => tr.seen === t && tr.v > this.o.move && tr.prevStill && t - tr.prevStill > 500);
+          if (movers.length === 1 && !this.handNear(movers[0], occ)) {
+            const m = movers[0];
+            this.shot = { t0: t, cueFrom: { x: m.x, y: m.y }, first: null, n0: (this.last && this.last.balls ? this.last.balls.length : 0), moved: new Set(), stillAtStart: new Set(this.tracks.filter(tr => tr !== m && tr.v < this.o.move).map(tr => tr.id)), cueId: m.id, guessedCue: m.cls !== 'cue' };
+            this.quietFrom = 0;
+          }
+        }
+        for (const tr of this.tracks) if (tr.seen === t) tr.prevStill = tr.stillFrom || (tr.v < this.o.still ? t : 0);
         if (cue) cue.prevStill = cue.stillFrom || (cue.v < this.o.still ? t : 0);
         return;
       }
@@ -382,11 +410,22 @@
         // Balls that vanished during the shot next to a pocket were pocketed.
         const pocketed = [];
         let scratch = false, cuePocket = -1;
+        // A fast ball is often last seen well before the pocket, so a ball that moved and then vanished (with no
+        // hand or cue over it) counts too, in the nearest pocket, as long as the table really has that many fewer balls.
+        const cand = [];
         for (const tr of this.tracks) {
-          if (t - tr.seen < this.o.gone || tr.seen < s.t0) continue;
-          const pk = POCKETS.findIndex(([px2, py]) => Math.hypot(tr.x - px2, (tr.y - py) * .5) < this.o.pocketR);
-          if (pk < 0 || nearOcc(tr)) continue;
-          if (tr.id === s.cueId) { scratch = true; cuePocket = pk; } else pocketed.push({ cls: tr.cls, num: tr.num, pocket: pk, bank: !!(s.cush && s.cush.has(tr.id)) });
+          if (t - tr.seen < this.o.gone || tr.seen < s.t0 || nearOcc(tr)) continue;
+          let pk = -1, d = 9; POCKETS.forEach(([px2, py], k) => { const dd = Math.hypot(tr.x - px2, (tr.y - py) * .5); if (dd < d) { d = dd; pk = k; } });
+          const strict = d < this.o.pocketR, moved = tr.id === s.cueId || s.moved.has(tr.id);
+          if (strict || (moved && d < .35)) cand.push({ tr, pk, d, strict });
+        }
+        const fewer = Math.max(0, (s.n0 || 0) - ((this.last && this.last.balls) ? this.last.balls.length : 0));
+        cand.sort((a, b) => (b.strict - a.strict) || (a.d - b.d));
+        let loose = 0;
+        for (const c of cand) {
+          if (!c.strict && loose >= fewer) continue; if (!c.strict) loose++;
+          const tr = c.tr;
+          if (tr.id === s.cueId) { scratch = true; cuePocket = c.pk; } else pocketed.push({ cls: tr.cls, num: tr.num, pocket: c.pk, bank: !!(s.cush && s.cush.has(tr.id)), sure: c.strict });
           tr.pocketed = true;
         }
         this.tracks = this.tracks.filter(tr => !tr.pocketed);
