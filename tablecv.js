@@ -221,7 +221,7 @@
       const lab = new Int32Array(w * h), blobs = [];
       for (let s = 0; s < w * h; s++) {
         if (!mask[s] || lab[s]) continue;
-        const b = { n: 0, sx: 0, sy: 0, x0: w, x1: 0, y0: h, y1: 0, wh: 0, dk: 0, hue: new Array(36).fill(0), vs: 0, cn: 0 };
+        const b = { n: 0, sx: 0, sy: 0, x0: w, x1: 0, y0: h, y1: 0, wh: 0, dk: 0, hue: new Array(36).fill(0), vs: 0, ss: 0, cn: 0, cc: 0 };
         const stk = [s]; lab[s] = blobs.length + 1;
         while (stk.length) {
           const p = stk.pop(), x = p % w, y = (p - x) / w, i = p * 4;
@@ -234,7 +234,7 @@
           else if (mx < 70) b.dk++;
           // Ball colour, but not the cloth showing through at the ball's edge (blue cloth vs the 2/10 balls:
           // the balls are darker and more saturated than the cloth).
-          else if (c[1] > .3 && !(hueDist(c[0], fhsv[0]) < 22 && c[2] > fhsv[2] * .82)) { b.hue[Math.floor(c[0] / 10) % 36]++; b.vs += c[2]; b.cn++; }
+          else if (c[1] > .3 && !(hueDist(c[0], fhsv[0]) < 22 && c[2] > fhsv[2] * .82)) { b.hue[Math.floor(c[0] / 10) % 36]++; b.vs += c[2]; b.ss += c[1]; b.cn++; if (hueDist(c[0], fhsv[0]) < 32) b.cc++; }
           const L = lab[s];
           if (x > 0 && mask[p-1] && !lab[p-1]) { lab[p-1] = L; stk.push(p-1); }
           if (x < w-1 && mask[p+1] && !lab[p+1]) { lab[p+1] = L; stk.push(p+1); }
@@ -251,7 +251,7 @@
         if (POCKETS.some(([px, py]) => Math.hypot(x - px, (y - py) * .5) < .04)) continue;
         // Our table edge is the cushion's outer line, so a real ball's centre can't be this close to it:
         // anything there is a rail diamond, a pocket jaw or a hand on the rail. (Occluders still count.)
-        const EM = this.ballPx * 1.5;
+        const EM = this.ballPx * .5;
         const nearEdge = x < EM / w || x > 1 - EM / w || y < EM / h || y > 1 - EM / h;
         if (nearEdge && b.n <= A * 1.9) continue;
         if (b.n <= A * 1.9 && fill > .45 && Math.max(bw, bh) < this.ballPx * 2) {
@@ -259,7 +259,10 @@
           let cls, num = 0;
           // Seen from above, a stripe with its cap up is almost all white; only a coloured ring at the
           // edge shows. White with a colour ring = stripe; white with none = the cue ball.
-          if (wf > .5 && cf < .08) cls = 'cue';
+          // Cue ball: white with no ball colour. The blue cloth showing at its edge doesn't count as colour
+          // (on Terry's table it made the cue ball read as a cap-up stripe, so the ref never saw a cue ball).
+          const cfBall = (b.cn - b.cc) / b.n;
+          if (wf > .5 && (cf < .08 || cfBall < .1)) cls = 'cue';
           else if (df > .45 && wf < .2) { cls = 'eight'; num = 8; }
           else {
             cls = wf > .13 ? 'stripe' : 'solid';
@@ -271,7 +274,7 @@
             if (hb < 0 || other < Math.max(2, b.cn * .2)) hb = b.hue.indexOf(Math.max(...b.hue));
             num = b.cn ? ballNumber(hb * 10 + 5, b.vs / b.cn) + (cls === 'stripe' ? 8 : 0) : 0;
           }
-          balls.push({ x, y, cls, num, wf, df });
+          balls.push({ x, y, cls, num, wf, df, cf, sat: b.cn ? b.ss / b.cn : 0, cc: b.cc / b.n, fh: fhsv[0], hue: b.cn ? b.hue.indexOf(Math.max(...b.hue)) * 10 + 5 : -1 });
         } else if (b.n <= A * 7 && fill > .4 && Math.max(bw, bh) < this.ballPx * 5) balls.push({ x, y, cls: 'cluster', num: 0, n: Math.round(b.n / A) });
         else {
           // Something that isn't a ball: a cue shaft is long and thin (about a ball wide); a hand, glove
