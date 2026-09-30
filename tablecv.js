@@ -254,7 +254,7 @@
         // anything there is a rail diamond, a pocket jaw or a hand on the rail. (Occluders still count.)
         const EM = this.ballPx * .5;
         const nearEdge = x < EM / w || x > 1 - EM / w || y < EM / h || y > 1 - EM / h;
-        if (nearEdge && b.n <= A * 1.9) continue;
+        if (nearEdge && b.n <= A * 1.9 && !this.o.keepEdge) continue;   // keepEdge: the lag never drops a ball for being near the edge
         if (b.n <= A * 1.9 && fill > .45 && Math.max(bw, bh) < this.ballPx * 2) {
           const wf = b.wh / b.n, df = b.dk / b.n, cf = b.cn / b.n;
           let cls, num = 0;
