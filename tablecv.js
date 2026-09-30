@@ -168,14 +168,17 @@
   // Works on a small copy of the straightened table (default 480 x 240). A 9 ft table's 50 in
   // width over 240 px makes a 2.25 in ball about 11 px across.
   const POCKETS = [[0, 0], [.5, 0], [1, 0], [0, 1], [.5, 1], [1, 1]];
-  // Ball colours by hue (solids 1-7; the stripe with the same colour is +8).
+  // Ball colours by hue (solids 1-7; the stripe with the same colour is +8). Boundaries measured from
+  // Terry's rental set on Surge's blue cloth (data/training/ball-photos/profile-surge-blue.json):
+  // 1 yellow 36°, 5 orange 18°, 3 red 350° (bright) vs 7 maroon 346° (dark), 6 green 168°, 2 blue 216°,
+  // 4 purple 248°.
   function ballNumber(hue, val){
-    if (hue < 12 || hue >= 340) return val < .45 ? 7 : 3;    // maroon / red
-    if (hue < 38) return 5;                                   // orange
+    if (hue < 8 || hue >= 330) return val < .62 ? 7 : 3;     // maroon (dark) / red (bright): same hue
+    if (hue < 27) return 5;                                   // orange
     if (hue < 70) return 1;                                   // yellow
-    if (hue < 175) return 6;                                  // green
-    if (hue < 255) return 2;                                  // blue
-    return val < .5 ? 4 : 4;                                  // purple
+    if (hue < 195) return 6;                                  // green
+    if (hue < 238) return 2;                                  // blue
+    return 4;                                                 // purple
   }
   class Tracker {
     constructor(opt){
@@ -188,7 +191,7 @@
       // felt reference = median of a sparse grid (balls are a small fraction of the cloth)
       const R = [], Gc = [], Bc = [];
       for (let y = 3; y < h; y += 6) for (let x = 3; x < w; x += 6) { const i = (y * w + x) * 4; R.push(d[i]); Gc.push(d[i+1]); Bc.push(d[i+2]); }
-      const fr = median(R), fg = median(Gc), fb = median(Bc);
+      const fr = median(R), fg = median(Gc), fb = median(Bc), fhsv = hsv(fr, fg, fb);
       const dist = new Float32Array(w * h), ds = [];
       for (let p = 0, i = 0; p < w * h; p++, i += 4) { dist[p] = Math.abs(d[i] - fr) + Math.abs(d[i+1] - fg) + Math.abs(d[i+2] - fb); if ((p & 15) === 0) ds.push(dist[p]); }
       const md = median(ds), mad = median(ds.map(v => Math.abs(v - md)));
@@ -204,9 +207,14 @@
           const p = stk.pop(), x = p % w, y = (p - x) / w, i = p * 4;
           b.n++; b.sx += x; b.sy += y; if (x < b.x0) b.x0 = x; if (x > b.x1) b.x1 = x; if (y < b.y0) b.y0 = y; if (y > b.y1) b.y1 = y;
           const r = d[i], g = d[i+1], bl = d[i+2], mx = Math.max(r, g, bl), mn = Math.min(r, g, bl);
-          // (compressed video greys the white bands a little, hence 145 / 60)
-          if (mn > 145 && mx - mn < 60) b.wh++; else if (mx < 70) b.dk++;
-          else { const c = hsv(r, g, bl); if (c[1] > .3) { b.hue[Math.floor(c[0] / 10) % 36]++; b.vs += c[2]; b.cn++; } }
+          // White includes the ivory of the cue ball and stripe caps (cream: yellowish, low saturation).
+          // Compressed video greys the white a little, hence 145 / 60.
+          const c = hsv(r, g, bl);
+          if ((mn > 145 && mx - mn < 60) || (c[2] > .62 && c[0] >= 25 && c[0] <= 65 && c[1] < .45)) b.wh++;
+          else if (mx < 70) b.dk++;
+          // Ball colour, but not the cloth showing through at the ball's edge (blue cloth vs the 2/10 balls:
+          // the balls are darker and more saturated than the cloth).
+          else if (c[1] > .3 && !(hueDist(c[0], fhsv[0]) < 22 && c[2] > fhsv[2] * .82)) { b.hue[Math.floor(c[0] / 10) % 36]++; b.vs += c[2]; b.cn++; }
           const L = lab[s];
           if (x > 0 && mask[p-1] && !lab[p-1]) { lab[p-1] = L; stk.push(p-1); }
           if (x < w-1 && mask[p+1] && !lab[p+1]) { lab[p+1] = L; stk.push(p+1); }
@@ -222,20 +230,31 @@
         // The pocket openings themselves are dark blobs on the table edge: not balls.
         if (POCKETS.some(([px, py]) => Math.hypot(x - px, (y - py) * .5) < .04)) continue;
         if (b.n <= A * 1.9 && fill > .45 && Math.max(bw, bh) < this.ballPx * 2) {
-          const wf = b.wh / b.n, df = b.dk / b.n;
+          const wf = b.wh / b.n, df = b.dk / b.n, cf = b.cn / b.n;
           let cls, num = 0;
-          if (wf > .5) cls = 'cue';
+          // Seen from above, a stripe with its cap up is almost all white; only a coloured ring at the
+          // edge shows. White with a colour ring = stripe; white with none = the cue ball.
+          if (wf > .5 && cf < .08) cls = 'cue';
           else if (df > .45 && wf < .2) { cls = 'eight'; num = 8; }
           else {
             cls = wf > .13 ? 'stripe' : 'solid';
-            const hb = b.hue.indexOf(Math.max(...b.hue));
+            // Pick the ball's colour. Cloth-coloured hues (the blue bleeding into a ball's edge) only win when
+            // nothing else is there, so a stripe's thin ring isn't mistaken for the blue 10.
+            const clothy = i => hueDist(i * 10 + 5, fhsv[0]) < 32;
+            let hb = -1, best = 0, other = 0;
+            b.hue.forEach((v, i) => { if (!clothy(i)) { other += v; if (v > best) { best = v; hb = i; } } });
+            if (hb < 0 || other < Math.max(2, b.cn * .2)) hb = b.hue.indexOf(Math.max(...b.hue));
             num = b.cn ? ballNumber(hb * 10 + 5, b.vs / b.cn) + (cls === 'stripe' ? 8 : 0) : 0;
           }
           balls.push({ x, y, cls, num, wf, df });
         } else if (b.n <= A * 7 && fill > .4 && Math.max(bw, bh) < this.ballPx * 5) balls.push({ x, y, cls: 'cluster', num: 0, n: Math.round(b.n / A) });
-        else occ.push({ x0: b.x0 / w, x1: b.x1 / w, y0: b.y0 / h, y1: b.y1 / h });
+        else occ.push({ x0: b.x0 / w, x1: b.x1 / w, y0: b.y0 / h, y1: b.y1 / h, dark: b.dk / b.n > .45 && b.n > A * 6 });
       }
-      return { balls, occ };
+      // The rental ball tray (or a dark glove holding the cue ball): a big dark shape. Balls inside it
+      // aren't in play.
+      const trays = occ.filter(o => o.dark);
+      const inPlay = trays.length ? balls.filter(bb => !trays.some(o => bb.x > o.x0 && bb.x < o.x1 && bb.y > o.y0 && bb.y < o.y1)) : balls;
+      return { balls: inPlay, occ };
     }
     // Feed one straightened frame (ImageData) with its time in ms.
     feed(img, t){
