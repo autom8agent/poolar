@@ -182,7 +182,7 @@
   }
   class Tracker {
     constructor(opt){
-      this.o = Object.assign({ w: 480, h: 240, still: .6, move: 1.6, endQuiet: 1100, maxShot: 15000, gone: 700, pocketR: .085 }, opt || {});
+      this.o = Object.assign({ w: 480, h: 240, still: .6, move: 1.6, endQuiet: 2500, maxShot: 15000, gone: 700, pocketR: .085 }, opt || {});
       this.tracks = []; this.nid = 1; this.shot = null; this.quietFrom = 0; this.onShot = null; this.onPocket = null; this.frame = 0;
     }
     get ballPx(){ return this.o.h * 2.25 / 50; }
@@ -246,7 +246,7 @@
       }
       const balls = [], occ = [];   // (relative cue / 8 pick happens after classification, below)
       for (const b of blobs) {
-        if (b.n < A * .3) continue;
+        if (b.n < A * .55) continue;   // coins, chalk, diamonds: smaller than half a ball
         const bw = b.x1 - b.x0 + 1, bh = b.y1 - b.y0 + 1, fill = b.n / (bw * bh), x = b.sx / b.n / w, y = b.sy / b.n / h;
         // The pocket openings themselves are dark blobs on the table edge: not balls.
         if (POCKETS.some(([px, py]) => Math.hypot(x - px, (y - py) * .5) < .04)) continue;
@@ -323,7 +323,7 @@
       const used = new Set();
       for (const tr of this.tracks) {
         let best = -1, bd = R * (tr.cls === 'cue' ? 9 : 3) + Math.min(R * 6, tr.v * px * 1.2);   // fast balls travel far between frames
-        balls.forEach((b, i) => { if (used.has(i)) return; const dd = Math.hypot(b.x - tr.x, (b.y - tr.y) * .5) * (b.cls === tr.cls ? 1 : 1.6); if (dd < bd) { bd = dd; best = i; } });
+        balls.forEach((b, i) => { if (used.has(i)) return; const dd = Math.hypot(b.x - tr.x, (b.y - tr.y) * .5) * (b.cls === tr.cls && (!tr.num || b.num === tr.num) ? 1 : 4); if (dd < bd) { bd = dd; best = i; } });
         if (best >= 0) {
           const b = balls[best]; used.add(best);
           const dt = Math.max(1, t - tr.t), v = Math.hypot(b.x - tr.x, (b.y - tr.y) * .5) / px / (dt / 66);
@@ -333,29 +333,68 @@
           if (tr.v < this.o.still) { if (!tr.stillFrom) tr.stillFrom = t; } else tr.stillFrom = 0;
         }
       }
+      // A struck ball can travel further between frames than the match radius, so it looked lost and no shot started.
+      // Re-attach a lost track to the one unmatched detection of the same ball (the cue ball, or the same number).
+      for (const tr of this.tracks) {
+        if (tr.seen === t) continue;
+        const key = tr.cls === 'cue' ? 'cue' : (tr.num && tr.cls !== 'cluster') ? tr.num : null; if (key == null) continue;
+        const cands = []; balls.forEach((b, i) => { if (!used.has(i) && (key === 'cue' ? b.cls === 'cue' : b.num === key && b.cls !== 'cluster')) cands.push(i); });
+        if (cands.length !== 1) continue;
+        const b = balls[cands[0]]; used.add(cands[0]);
+        const dt = Math.max(1, t - tr.t), v = Math.hypot(b.x - tr.x, (b.y - tr.y) * .5) / px / (dt / 66);
+        tr.v = Math.max(v, this.o.move * 1.5); tr.x = b.x; tr.y = b.y; tr.t = t; tr.seen = t; tr.stillFrom = 0;
+      }
       const hasCue = this.tracks.some(tr => tr.cls === 'cue' && t - tr.seen < 1500);
       balls.forEach((b, i) => { if (!used.has(i) && !(b.cls === 'cue' && hasCue)) this.tracks.push({ id: this.nid++, x: b.x, y: b.y, cls: b.cls, num: b.num, v: 0, t, seen: t, stillFrom: t, votes: { [b.cls + ':' + b.num]: 1 } }); });
       // forget tracks unseen for long (unless mid-shot, where "gone" means pocketed)
       this.tracks = this.tracks.filter(tr => t - tr.seen < (this.shot ? 20000 : 4000));
       const nearOcc = tr => occ.some(o => tr.x > o.x0 - R * 2 && tr.x < o.x1 + R * 2 && tr.y > o.y0 - R * 4 && tr.y < o.y1 + R * 4);
       const cue = this.tracks.find(tr => tr.cls === 'cue' && tr.seen === t);
+      // When each ball was last at rest, and since when. Kept while it moves, so a shot whose first moment is
+      // blocked (bridge hand right next to the cue ball) still starts a moment later instead of never.
+      const restBook = () => { for (const tr of this.tracks) { if (tr.seen !== t) continue;
+        if (tr.v < this.o.still) { if (!tr.restSince) tr.restSince = t; tr.lastRest = t; tr.restDur = t - tr.restSince; tr.restX = tr.x; tr.restY = tr.y; }
+        else if (tr.v > this.o.move) tr.restSince = 0; } };
+      // Ball count history, so a shot that starts late still knows how many balls were up before it.
+      const nNow = balls.filter(b => b.cls !== 'cluster').length + balls.filter(b => b.cls === 'cluster').reduce((a, b) => a + (b.n || 2), 0);
+      (this.cnt = this.cnt || []).push([t, nNow]); while (this.cnt.length && t - this.cnt[0][0] > 3000) this.cnt.shift();
+      const nBefore = () => Math.max(...this.cnt.filter(c => t - c[0] <= 2600).map(c => c[1]));
+      const wasResting = tr => tr.lastRest && t - tr.lastRest < 2500 && tr.restDur > 500;
+      const displaced = tr => tr.restX != null && Math.hypot(tr.x - tr.restX, (tr.y - tr.restY) * .5) > R * 3;
       // ---- shot state machine ----
       if (!this.shot) {
         // A hand (or glove) touching the cue ball while it moves = placing it (ball in hand), not a shot.
         const handOnCue = cue && this.handNear(cue, occ);
-        if (handOnCue) { this.handUntil = t + 900; if (this.onHand) this.onHand({ t, x: cue.x, y: cue.y }); }
-        if (cue && cue.v > this.o.move && cue.prevStill && t - cue.prevStill > 500 && !(this.handUntil > t)) {
-          this.shot = { t0: t, cueFrom: { x: cue.x, y: cue.y }, first: null, n0: (this.last && this.last.balls ? this.last.balls.length : 0), moved: new Set(), stillAtStart: new Set(this.tracks.filter(tr => tr !== cue && tr.v < this.o.move).map(tr => tr.id))   /* compressed video jitters: 'not moving' is enough */, cueId: cue.id };
+        // A hand next to the cue ball blocks a shot start briefly (it may be placing it). Only a hand that stays with the
+        // ball while it moves for several frames is carrying it (ball in hand): then its old rest spot is forgotten.
+        // A bridge hand at the strike is next to the ball for a frame or two only, so the shot still starts.
+        if (handOnCue) { this.handUntil = t + 900; if (cue.v > this.o.move) { cue.carry = (cue.carry || 0) + 1; if (cue.carry >= 3) { cue.restX = null; cue.lastRest = 0; } } if (this.onHand) this.onHand({ t, x: cue.x, y: cue.y }); }
+        else if (cue) cue.carry = 0;
+        if (cue && (cue.v > this.o.move || displaced(cue)) && wasResting(cue) && !(this.handUntil > t)) {
+          this.shot = { t0: t, cueFrom: { x: cue.x, y: cue.y }, first: null, n0: nBefore(), before: this.tracks.filter(tr => t - tr.seen < 1500 && tr.cls !== 'cluster' && tr.num).map(tr => tr.num), moved: new Set(), stillAtStart: new Set(this.tracks.filter(tr => tr !== cue && tr.v < this.o.move).map(tr => tr.id))   /* compressed video jitters: 'not moving' is enough */, cueId: cue.id };
           this.quietFrom = 0;
         }
         // Fallback when the cue ball isn't recognised as the cue ball (ivory under this light, a cap-up stripe…):
         // the first ball to move off a still table is the one that was struck, so treat it as the cue ball.
         if (!this.shot && !(this.handUntil > t)) {
-          const movers = this.tracks.filter(tr => tr.seen === t && tr.v > this.o.move && tr.prevStill && t - tr.prevStill > 500);
+          const movers = this.tracks.filter(tr => tr.seen === t && (tr.v > this.o.move || displaced(tr)) && wasResting(tr));
           if (movers.length === 1 && !this.handNear(movers[0], occ)) {
             const m = movers[0];
-            this.shot = { t0: t, cueFrom: { x: m.x, y: m.y }, first: null, n0: (this.last && this.last.balls ? this.last.balls.length : 0), moved: new Set(), stillAtStart: new Set(this.tracks.filter(tr => tr !== m && tr.v < this.o.move).map(tr => tr.id)), cueId: m.id, guessedCue: m.cls !== 'cue' };
+            this.shot = { t0: t, cueFrom: { x: m.x, y: m.y }, first: null, n0: nBefore(), before: this.tracks.filter(tr => t - tr.seen < 1500 && tr.cls !== 'cluster' && tr.num).map(tr => tr.num), moved: new Set(), stillAtStart: new Set(this.tracks.filter(tr => tr !== m && tr.v < this.o.move).map(tr => tr.id)), cueId: m.id, guessedCue: m.cls !== 'cue' };
             this.quietFrom = 0;
+          }
+        }
+        if (this.shot) { this.shot.rest0 = {}; for (const tr of this.tracks) { this.shot.rest0[tr.id] = tr.restX != null ? [tr.restX, tr.restY] : [tr.x, tr.y]; tr.restSince = 0; tr.lastRest = 0; tr.restDur = 0; tr.restX = null; } }
+        else {
+          restBook();
+          // Safety net: the cue ball settled in a new spot (1.2 s still) and no shot was called since it last settled.
+          if (cue && cue.restDur > 1200 && !(this.handUntil > t)) {
+            const nowN = nNow;
+            if (this.settled && Math.hypot(cue.x - this.settled.x, (cue.y - this.settled.y) * .5) > R * 3 && this.settled.t > (this.lastShotT || 0)) {
+              const ev = { type: 'shot', missed: true, first: null, pocketed: [], scratch: false, cuePocket: -1, rail: false, kick: false, noHit: false, before: this.settled.n, after: nowN, ms: 0, t };
+              this.lastShotT = t; this.settled = { x: cue.x, y: cue.y, t, n: nowN };
+              if (this.onShot) this.onShot(ev);
+            } else if (!this.settled || Math.hypot(cue.x - this.settled.x, (cue.y - this.settled.y) * .5) <= R * 3) this.settled = { x: cue.x, y: cue.y, t: this.settled && Math.hypot(cue.x - this.settled.x, (cue.y - this.settled.y) * .5) <= R * 3 ? this.settled.t : t, n: nowN };
           }
         }
         for (const tr of this.tracks) if (tr.seen === t) tr.prevStill = tr.stillFrom || (tr.v < this.o.still ? t : 0);
@@ -363,6 +402,8 @@
         return;
       }
       const s = this.shot;
+      s.seenMoving = s.seenMoving || new Set();
+      for (const tr of this.tracks) if (tr.seen === t && tr.v > this.o.move) s.seenMoving.add(tr.id);
       for (const tr of this.tracks) {
         if (tr.id === s.cueId || tr.cls === 'cue' || s.moved.has(tr.id) || !s.stillAtStart.has(tr.id)) continue;
         // A struck ball can jump further than the tracker matches in one frame, so "gone from its
@@ -406,20 +447,27 @@
         for (const tr of this.tracks) { if (tr.seen !== t || tr.v <= this.o.still || !edge(tr) || nearPk(tr)) continue;
           if (tr.id === s.cueId) { if (!s.first) s.kick = true; } else if (s.moved.has(tr.id)) s.cush.add(tr.id); } }
       if (!moving) { if (!this.quietFrom) this.quietFrom = t; } else this.quietFrom = 0;
-      if ((this.quietFrom && t - this.quietFrom > this.o.endQuiet) || t - s.t0 > this.o.maxShot) {
+      const blocked = occ.some(o => (o.x1 - o.x0) * (o.y1 - o.y0) > .01);   // a person/arm over the table hides balls
+      if ((this.quietFrom && t - this.quietFrom > this.o.endQuiet && (!blocked || t - this.quietFrom > this.o.endQuiet + 5000)) || t - s.t0 > this.o.maxShot) {
         // Balls that vanished during the shot next to a pocket were pocketed.
         const pocketed = [];
         let scratch = false, cuePocket = -1;
         // A fast ball is often last seen well before the pocket, so a ball that moved and then vanished (with no
         // hand or cue over it) counts too, in the nearest pocket, as long as the table really has that many fewer balls.
+        const byPocket = tr => { const r0 = (s.rest0 || {})[tr.id]; if (!r0) return false; return POCKETS.some(([px2, py]) => Math.hypot(r0[0] - px2, (r0[1] - py) * .5) < .09); };   // where it rested before the shot
+        const leftRest = tr => { const r0 = (s.rest0 || {})[tr.id]; return !!r0 && Math.hypot(tr.x - r0[0], (tr.y - r0[1]) * .5) > R * 3; };
+        const hitFirst = tr => !!(s.first && s.first.num && s.first.num === tr.num);   // the ball the cue ball struck did move
+        const reallyMoved = tr => tr.id === s.cueId || s.seenMoving.has(tr.id) || leftRest(tr) || hitFirst(tr) || (s.moved.has(tr.id) && !byPocket(tr));
         const cand = [];
         for (const tr of this.tracks) {
           if (t - tr.seen < this.o.gone || tr.seen < s.t0 || nearOcc(tr)) continue;
           let pk = -1, d = 9; POCKETS.forEach(([px2, py], k) => { const dd = Math.hypot(tr.x - px2, (tr.y - py) * .5); if (dd < d) { d = dd; pk = k; } });
-          const strict = d < this.o.pocketR, moved = tr.id === s.cueId || s.moved.has(tr.id);
+          // Only a ball seen moving in this shot can go down. A ball resting near a pocket flickers in and out of view
+          // (the pocket opening is masked), which made a still 8 ball read as pocketed.
+          const moved = reallyMoved(tr), strict = moved && d < this.o.pocketR;
           if (strict || (moved && d < .35)) cand.push({ tr, pk, d, strict });
         }
-        const fewer = Math.max(0, (s.n0 || 0) - ((this.last && this.last.balls) ? this.last.balls.length : 0));
+        const fewer = Math.max(0, (s.n0 || 0) - nNow);
         cand.sort((a, b) => (b.strict - a.strict) || (a.d - b.d));
         let loose = 0;
         for (const c of cand) {
@@ -428,9 +476,22 @@
           if (tr.id === s.cueId) { scratch = true; cuePocket = c.pk; } else pocketed.push({ cls: tr.cls, num: tr.num, pocket: c.pk, bank: !!(s.cush && s.cush.has(tr.id)), sure: c.strict });
           tr.pocketed = true;
         }
+        // Count before vs after: a numbered ball that was on the table at the start and isn't now, when the table
+        // really has fewer balls, went down even if it was never tracked moving (blue 10 on blue cloth, under an arm).
+        const nowNums = new Set(this.tracks.filter(tr => !tr.pocketed && t - tr.seen < 1200).map(tr => tr.num).concat(((this.last && this.last.balls) || []).map(b => b.num)));
+        const gone = [...new Set(s.before || [])].filter(n => n && !nowNums.has(n) && !pocketed.some(p => p.num === n));
+        let room = blocked ? 0 : Math.max(0, (s.n0 || 0) - nNow - pocketed.length - (scratch ? 1 : 0));
+        for (const n of gone) { if (room <= 0) break; room--;
+          const tr = this.tracks.find(x => x.num === n), pos = tr || { x: .5, y: .5 };
+          if (tr && !nearOcc(tr) && !reallyMoved(tr) && byPocket(tr)) { (s.maybe = s.maybe || []).push(n); room++; continue; }   // ask, don't guess
+          if (tr && (nearOcc(tr) || !reallyMoved(tr))) { room++; continue; }
+          let pk = 0, d = 9; POCKETS.forEach(([px2, py], k) => { const dd = Math.hypot(pos.x - px2, (pos.y - py) * .5); if (dd < d) { d = dd; pk = k; } });
+          pocketed.push({ cls: n === 8 ? 'eight' : n > 8 ? 'stripe' : 'solid', num: n, pocket: pk, counted: true });
+          if (tr) tr.pocketed = true; }
         this.tracks = this.tracks.filter(tr => !tr.pocketed);
         this.shot = null;
-        const ev = { type: 'shot', first: s.first, pocketed, scratch, cuePocket, rail: !!s.rail, kick: !!s.kick, noHit: !s.first && !pocketed.length, ms: t - s.t0, t };
+        const ev = { type: 'shot', first: s.first, pocketed, scratch, cuePocket, rail: !!s.rail, kick: !!s.kick, maybe: s.maybe || [], noHit: !s.first && !pocketed.length, ms: t - s.t0, t };
+        this.lastShotT = t; { const c2 = this.tracks.find(x => x.id === s.cueId); this.settled = c2 && !scratch ? { x: c2.x, y: c2.y, t, n: nNow } : null; }
         if (this.onShot) this.onShot(ev);
       }
     }
@@ -440,5 +501,6 @@
   // table, mv across it, in cloth widths). The tracker keeps using the exact cloth corners.
   const withRails = (q, mu = .05, mv = .1) => { if (!q) return q; const H = toCam(q);
     return { tl: apply(H, -mu, -mv), tr: apply(H, 1 + mu, -mv), br: apply(H, 1 + mu, 1 + mv), bl: apply(H, -mu, 1 + mv) }; };
+  Tracker.prototype.onTable = function(){ const t = this.last ? this.last.t : 0; return [...new Set(this.tracks.filter(tr => t - tr.seen < 2000 && tr.num && tr.cls !== 'cluster').map(tr => tr.num))].sort((a, b) => a - b); };
   G.TableCV = { findCorners, cornerDiff, Warper, Tracker, toCam, apply, withRails, POCKETS };
 })(window);

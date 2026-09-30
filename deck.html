@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930203700"><script src="stream.js?v=20260930203700"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930214137"><script src="stream.js?v=20260930214137"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -198,13 +198,29 @@
   .handle{position:absolute;z-index:6;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;border:3px solid var(--gold);background:rgba(242,193,78,.25);touch-action:none}
   .handle::after{content:"";position:absolute;left:50%;top:50%;width:4px;height:4px;margin:-2px;border-radius:50%;background:var(--gold)}
   .adjbar{position:absolute;top:8px;left:50%;transform:translateX(-50%);z-index:7;display:flex;gap:6px;align-items:center;background:rgba(10,16,14,.92);border-radius:12px;padding:6px 8px;font-size:13px;white-space:nowrap}
-  .reflog{position:absolute;left:0;top:0;bottom:0;z-index:5;width:22%;min-width:150px;max-width:300px;background:rgba(8,12,10,.82);border-right:1px solid #26372f;padding:8px;overflow:hidden;display:flex;flex-direction:column;gap:6px;font-size:13px}
+  .tv.withlog iframe,.tv.withlog video,.tv.withlog #viewCan{left:23%!important;width:77%!important}
+  .reflog{position:absolute;left:0;top:0;bottom:0;z-index:5;width:23%;background:rgba(8,12,10,.82);border-right:1px solid #26372f;padding:8px;overflow:hidden;display:flex;flex-direction:column;gap:6px;font-size:13px}
+  .syncsub{margin:0 0 10px;color:var(--muted);font-size:15px}
+  .syncgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:6px 0 10px}
+  .sb{position:relative;display:grid;place-items:center;padding:8px 0;border-radius:14px;border:2px solid var(--line);background:#0f1714;cursor:pointer}
+  .sb .ball{width:46px;pointer-events:none}
+  .sb.dn .ball{opacity:.28;filter:grayscale(.7)}
+  .sb.dn::after{content:'MADE';position:absolute;bottom:3px;font:800 10px Barlow,sans-serif;letter-spacing:.08em;color:#ff8a80}
+  .sb.chg{border-color:var(--gold);box-shadow:0 0 0 2px rgba(242,193,78,.35)}
+  .syncleg{display:flex;gap:10px;align-items:center;font-size:13px;color:var(--muted);flex-wrap:wrap}
+  .syncleg .k{display:inline-block;width:14px;height:14px;border-radius:4px;border:2px solid var(--line)} .syncleg .k.on{background:#1b2a1f} .syncleg .k.dn{background:#3a1d1d} .syncleg .k.chg{border-color:var(--gold)}
+  .reflog .syncb{width:100%;font:800 14px Barlow,system-ui,sans-serif;padding:10px 8px;border-radius:10px;border:1px solid #57d98a;background:#123a26;color:#d7ffe6;cursor:pointer}
   .reflog h4{margin:0;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#8ea69a}
   .reflog .it{border-radius:8px;padding:6px 8px;background:#15201b;border:1px solid #26372f;line-height:1.3}
   .reflog .it.new{border-color:var(--gold)} .reflog .it b{display:block;font-size:14px}
   .reflog .it small{color:#8ea69a;display:block} .reflog .it .a{font-weight:800;font-size:12px}
   .reflog .it .a.yes{color:#57d98a} .reflog .it .a.no{color:#ff6b5e} .reflog .it .a.wait{color:var(--gold)}
   .refpop{position:absolute;right:8px;bottom:60px;z-index:6;width:min(460px,calc(100% - 16px));font-size:16px;background:rgba(12,20,17,.96);border:2px solid var(--gold);border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:8px;box-shadow:0 8px 30px rgba(0,0,0,.5);overflow:hidden}
+  .rfix{display:flex;flex-direction:column;gap:6px;border-top:1px solid #26372f;padding-top:6px}
+  .rfix small{color:#8ea69a;font-size:13px}
+  .rfixb{display:flex;flex-wrap:wrap;gap:6px}
+  .rfixb button{font-size:14px!important;padding:8px 10px!important}
+  .rfixb .ball{width:34px}
   .refpop .rtop{display:flex;align-items:center;gap:8px;font-size:19px}
   .refpop button{font-size:16px!important;padding:11px 14px!important}
   .refpop #refS{font-size:15px;line-height:1.35}
@@ -417,7 +433,7 @@
 
   <div class="players">
     <div class="tv" id="tv">
-      <div class="reflog" id="refLog" hidden><h4>🤖 Ref calls</h4><div id="refLogL"></div></div>
+      <div class="reflog" id="refLog" hidden><button class="syncb" id="logSync">🔄 Sync balls with table</button><h4>🤖 Ref calls</h4><div id="refLogL"></div></div>
       <div class="tvadd" id="tvAdd"><button class="primary" id="tvWatchBtn">📺 Watch table camera</button><button id="tvAddBtn">+ Add camera</button><small>Top-down table view · replays · recording</small></div>
       <iframe id="feedFrame" title="Top-down table camera" allow="autoplay; fullscreen" hidden></iframe>
       <canvas id="viewCan" hidden></canvas>
@@ -435,6 +451,7 @@
         <div class="rtop"><b id="refT"></b><span class="rballs" id="refBalls"></span></div>
         <p id="refS"></p>
         <div class="rbtn"><button data-c="yes">Yes</button><button data-c="no">No</button><button data-c="other">Other</button></div>
+        <div class="rfix" id="refFix" hidden><small>Fix the game (applies now):</small><div class="rfixb" id="refFixB"></div></div>
         <textarea id="refC" rows="2" placeholder="Comment (optional) — tell it what really happened"></textarea>
         <div class="rfoot"><span id="refAuto"></span><button id="refStop">⏸ Stop timer</button><button class="primary" id="refSubmit">Submit</button></div>
         <i class="rbar" id="refBar"></i>
@@ -770,6 +787,17 @@
   </div>
 </div>
 
+<div class="sheet" id="syncSheet" hidden>
+  <div class="card">
+    <h2>Sync balls with the table</h2>
+    <p id="syncSub" class="syncsub"></p>
+    <div class="syncgrid" id="syncGrid"></div>
+    <textarea id="syncC" rows="2" placeholder="Comment (optional): tell the ref what's really on the table" style="width:100%;margin-bottom:8px"></textarea>
+    <p class="syncleg"><span class="k on"></span> on the table <span class="k dn"></span> made <span class="k chg"></span> will change</p>
+    <div class="two"><button id="syncCancel">Cancel</button><button class="primary" id="syncApply">Apply</button></div>
+  </div>
+</div>
+
 <div class="sheet" id="logSheet" hidden>
   <div class="card">
     <h2>Match stats</h2>
@@ -823,10 +851,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930203700"></script>
-<script src="halls.js?v=20260930203700"></script>
-<script src="qrcode.js?v=20260930203700"></script>
-<script src="tablecv.js?v=20260930203700"></script>
+<script src="hallday.js?v=20260930214137"></script>
+<script src="halls.js?v=20260930214137"></script>
+<script src="qrcode.js?v=20260930214137"></script>
+<script src="tablecv.js?v=20260930214137"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -1735,7 +1763,7 @@
   // No code: Pool Cam's shared channel is "1". An old ?cam=K7QX2P link still picks that camera.
   // Every table has its own camera channels (top-down, and behind the table), so opening a table
   // shows its camera by itself. The page listens quietly; the feed box appears once a camera is live.
-  const watchSrc = code => { const u = new URL('phonecam.html', location.href); u.search = ''; u.searchParams.set('watch', code); u.searchParams.set('embed', '1'); if (RELAY !== 'https://ntfy.sh') u.searchParams.set('relay', RELAY); return String(u); };
+  const watchSrc = code => { const u = new URL('phonecam.html', location.href); u.search = ''; u.searchParams.set('watch', code); u.searchParams.set('embed', '1'); u.searchParams.set('relay', RELAY !== 'https://ntfy.sh' ? RELAY : 'https://poolar-relay.poolar-relay.workers.dev'); return String(u); };   // video handshake on Terry's own relay: the free one blocks some networks (the laptop sat at 'Connecting…')
   let lastLive = 0, behindLive = false;
   function showFeed(code){
     code = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12) || camChan('top');
@@ -1755,6 +1783,38 @@
     try { localStorage.removeItem(FEEDKEY); } catch {}
     qs.delete('cam'); try { history.replaceState(null, '', '?' + qs); } catch {}
   }
+  // Sync balls: make the scoreboard's balls match what the camera sees on the table (asks first).
+  function syncBalls(){
+    if (!tracker || !feedLive) return flash('No camera picture to read the balls from');
+    const on = tracker.onTable(), all = st.gtype === 8 ? [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15] : Array.from({ length: st.gtype }, (_, k) => k + 1);
+    if (!on.length) return flash("The ref can't see the balls right now");
+    // Go by the COUNT first (ball numbers can be misread; the count is reliable): suggest only as many changes as
+    // the difference between balls the camera sees and balls up on the scoreboard.
+    const plan = {}; for (const n of all) plan[n] = st.down.includes(n);   // start from the scoreboard (true = made)
+    const up = all.filter(n => !st.down.includes(n)), seenCount = on.filter(n => all.includes(n)).length;
+    if (seenCount < up.length) { let k = up.length - seenCount; for (const n of up) if (k > 0 && !on.includes(n)) { plan[n] = true; k--; } }
+    else if (seenCount > up.length) { let k = seenCount - up.length; for (const n of st.down) if (k > 0 && on.includes(n)) { plan[n] = false; k--; } }
+    const paint = () => {
+      const changes = all.filter(n => plan[n] !== st.down.includes(n));
+      const cnt = `Camera sees ${seenCount} ball${seenCount === 1 ? '' : 's'} + the cue ball; scoreboard has ${up.length} up. `;
+      $('syncSub').textContent = cnt + (changes.length ? `The camera suggests ${changes.length} change${changes.length > 1 ? 's' : ''} (gold). Tap any ball to flip it, then Apply.` : 'Nothing to change. Tap a ball to change it yourself.');
+      $('syncGrid').innerHTML = all.map(n => `<button type="button" class="sb ${plan[n] ? 'dn' : ''} ${plan[n] !== st.down.includes(n) ? 'chg' : ''}" data-sb="${n}">${ballEl(n)}</button>`).join('');
+      $('syncApply').textContent = changes.length ? `Apply ${changes.length} change${changes.length > 1 ? 's' : ''}` : 'Done';
+    };
+    $('syncGrid').onclick = e => { const b = e.target.closest('[data-sb]'); if (!b) return; const n = +b.dataset.sb; plan[n] = !plan[n]; paint(); };
+    $('syncApply').onclick = () => {
+      const toDown = all.filter(n => plan[n] && !st.down.includes(n)), toUp = all.filter(n => !plan[n] && st.down.includes(n));
+      if (toDown.length || toUp.length) act(() => {
+        for (const n of toUp) { st.down = st.down.filter(x => x !== n); let j = -1; st.pots.forEach((e, k) => { if (+e.split('.')[0] === n) j = k; }); if (j >= 0) st.pots.splice(j, 1); }
+        const r = st.racks.length; for (const n of toDown) { st.down = [...st.down, n]; st.pots.push(`${n}.${st.shooter}.${r}.${st.turns}`); } });
+      const c = $('syncC').value.trim();
+      if (c || toDown.length || toUp.length) try { fetch('https://poolar-relay.poolar-relay.workers.dev/poolar-ref-fb', { method: 'POST', body: JSON.stringify({ type: 'sync', title: 'Sync balls', choice: 'sync', comment: c, seen: on, madeNow: toDown, backUp: toUp, table: TNUM, game }) }); } catch {}
+      $('syncC').value = ''; $('syncSheet').hidden = true; if (toDown.length || toUp.length) flash('Balls synced with the table');
+    };
+    $('syncCancel').onclick = () => $('syncSheet').hidden = true;
+    paint(); $('syncSheet').hidden = false;
+  }
+  $('logSync').onclick = syncBalls;
   $('tvWatchBtn').onclick = () => showFeed(tableMode ? camChan('top') : (qs.get('cam') || camChan('top')));
   function watchLive(){
     const v = feedVideo(), bv = behindVideo(), now = Date.now();
@@ -1941,7 +2001,9 @@
     fetch(`https://poolar-relay.poolar-relay.workers.dev/poolar-refdiag-${HALL}-t${TNUM}`, { method: 'POST', body: JSON.stringify({
       build: (document.querySelector('meta[name="build"]') || {}).content, refOn, feedLive: !!feedLive, corners: corners ? [corners.tl, corners.br].map(p => [+p.x.toFixed(3), +p.y.toFixed(3)]) : null,
       raw: rawView, video: v ? `${v.videoWidth}x${v.videoHeight}` : null, balls: L ? L.balls.length : null, cue: !!(L && L.balls.some(b => b.cls === 'cue')),
-      shots: shotsSeen, lastShot: lastShotAt ? Math.round((Date.now() - lastShotAt) / 1000) : null, stat: ($('refStat') || {}).textContent || '', ua: navigator.userAgent.slice(0, 60) }) }).catch(() => {});
+      shots: shotsSeen, lastShot: lastShotAt ? Math.round((Date.now() - lastShotAt) / 1000) : null,
+      screen: typeof SCREEN !== 'undefined' ? SCREEN : null, frame: ($('feedFrame').getAttribute('src') || '').slice(0, 90), tvAdd: !$('tvAdd').hidden,
+      wstate: (() => { try { const d = $('feedFrame').contentDocument; return d && d.getElementById('wStateT') ? d.getElementById('wStateT').textContent : null; } catch (e) { return 'x-origin'; } })(), vw: innerWidth + 'x' + innerHeight, stat: ($('refStat') || {}).textContent || '', ua: navigator.userAgent.slice(0, 60) }) }).catch(() => {});
   } catch {} }, 15000);
   function refUI(){ $('tvRef').textContent = refOn ? '🤖 Ref on' : '🤖 Ref off'; $('tvRef').classList.toggle('refon', refOn); }
   $('tvRef').onclick = () => { refOn = !refOn; saveRefP(); refUI(); if (!refOn) closePop(); };
@@ -1959,9 +2021,10 @@
     if (!corners && !viewTick.fb) t = '🤖 Ref: finding the table…';
     else if (!L) t = '🤖 Ref: starting…';
     else if (!n) { t = "🤖 Ref: can't see any balls: point the camera straight down at the lit table"; warn = true; }
-    else { t = `🤖 Ref: ${corners ? 'sees the table' : 'whole picture (⊞ Table → Adjust corners)'} · ${n} ball${n === 1 ? '' : 's'}${cue ? ' · cue ✓' : ' · no cue ball'}`; warn = !corners || !cue; }
+    else { const ob = cue ? n - 1 : n; t = `🤖 Ref: ${corners ? 'sees the table' : 'whole picture (⊞ Table → Adjust corners)'} · ${ob} ball${ob === 1 ? '' : 's'}${cue ? ' + cue ball' : ' · no cue ball'}`; warn = !corners || !cue; }
     if (L && !st.groups[0] && n) t += ' · tap who has solids for foul calls';
     if (tracker && tracker.shot) t = '🤖 Ref: watching the shot…';
+    else if (st.turns === 0 && !st.down.length) { t = `🎱 ${side(breaker())} to break · rack the balls · waiting for the break`; warn = false; }
     el.textContent = t; el.classList.toggle('warn', warn); el.hidden = false;
   }
   const GROUP = { solids: [1, 2, 3, 4, 5, 6, 7], stripes: [9, 10, 11, 12, 13, 14, 15] };
@@ -1977,6 +2040,19 @@
   //  own ball down (or any ball on an open table) -> keep shooting; else -> turn over
   function judge(ev){
     if (!refOn || winner(scores()) >= 0) return;
+    // Waiting for the break: racking and placing the cue ball move balls by hand. Only a real break counts
+    // (the cue ball hit something, a ball dropped, or a scratch).
+    if (st.turns === 0 && !st.down.length && !ev.first && !ev.scratch && !ev.pocketed.some(b => b.cls !== 'cue') && !(ev.maybe && ev.maybe.length)) return;
+    if (ev.maybe && ev.maybe.length && !ev.scratch && !ev.pocketed.some(b => b.cls !== 'cue')) {   // a ball by a pocket is gone from view: ask
+      const n = ev.maybe[0];
+      return showPop({ type: 'made', conf: .5, balls: [n], title: `Did the ${n} go in?`, text: `The ${n} was by a pocket and is gone from view, but I didn't see it move. Yes = it went in.`,
+        apply: () => judge({ ...ev, maybe: [], pocketed: [{ num: n, cls: n === 8 ? 'eight' : n > 8 ? 'stripe' : 'solid', pocket: 0 }] }), auto: '', noAuto: true, key: stateKey(), shooter: st.shooter, group: null, ev });
+    }
+    if (ev.missed) {   // the safety net: the cue ball moved but the ref didn't catch the shot
+      const d = (ev.before || 0) - (ev.after || 0);
+      return showPop({ type: 'turn', conf: .3, balls: [], title: "I didn't catch that shot", text: `The cue ball moved but I missed the shot. Balls on the table: ${ev.before} → ${ev.after}${d > 0 ? ` (${d} went down?)` : ''}. Tap No and tell me what happened, or mark the balls.`,
+        apply: () => {}, auto: '', noAuto: true, key: stateKey(), shooter: st.shooter, group: null, ev });
+    }
     if (st.gtype === 9 || st.gtype === 10) return judgeRot(ev);   // rotation games: lowest ball first, the 9/10 wins the rack
     const i = st.shooter, opp = 1 - i, g = st.groups[i], me = whoShoots(i), them = st.dbl ? side(opp) : st.names[opp];
     const made = ev.pocketed.filter(b => !(b.num && st.down.includes(b.num)));
@@ -2074,7 +2150,7 @@
     closePop(); pop = sug; sug.choice = null;
     $('refT').textContent = sug.title; $('refS').textContent = sug.text;
     $('refBalls').innerHTML = sug.balls.map(ballEl).join('');
-    $('refC').value = st.lastTag || ''; if (st.lastTag) { st.lastTag = ''; save(); } document.querySelectorAll('#refPop .rbtn button').forEach(b => b.classList.remove('sel'));
+    $('refFix').hidden = true; $('refC').value = st.lastTag || ''; if (st.lastTag) { st.lastTag = ''; save(); } document.querySelectorAll('#refPop .rbtn button').forEach(b => b.classList.remove('sel'));
     // What the camera understood, so a wrong call is easy to spot.
     if (sug.ev) { const e = sug.ev, bits = [];
       if (e.kick) bits.push('kick (cue ball hit a cushion first)');
@@ -2108,25 +2184,45 @@
   { const x = document.createElement('button'); x.type = 'button'; x.className = 'xclose'; x.setAttribute('aria-label', 'Close'); x.textContent = '×'; x.onclick = () => closePop(); $('refPop').prepend(x); }
   function closePop(){ clearTimeout(popT); pop = null; $('refPop').hidden = true; }
   const touch2 = () => { if (pop) pop.touched = true; };
-  document.querySelectorAll('#refPop .rbtn button').forEach(b => b.onclick = () => { if (!pop) return; touch2(); pop.choice = b.dataset.c; document.querySelectorAll('#refPop .rbtn button').forEach(x => x.classList.toggle('sel', x === b)); if (b.dataset.c === 'other') $('refC').focus(); });
+  // No / Other: show one-tap fixes that change the game right away (and are logged with the answer).
+  function showFix(){
+    const up = (st.gtype === 8 ? [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15] : Array.from({ length: st.gtype }, (_, k) => k + 1)).filter(n => !st.down.includes(n));
+    $('refFixB').innerHTML = `<button type="button" data-fx="turn">Turn over</button><button type="button" data-fx="foul">Foul</button><button type="button" data-fx="w0">${esc(short(side(0)))} won rack</button><button type="button" data-fx="w1">${esc(short(side(1)))} won rack</button>`
+      + up.map(n => `<button type="button" data-fx="b${n}" title="The ${n} went in">${ballEl(n)}</button>`).join('');
+    $('refFix').hidden = false;
+  }
+  $('refFixB').onclick = e => { const b = e.target.closest('[data-fx]'); if (!b || !pop) return; touch2(); const f = b.dataset.fx; let what = '';
+    if (f === 'turn') { passTable(false); what = 'turn over'; }
+    else if (f === 'foul') { passTable(true); what = 'foul'; }
+    else if (f === 'w0' || f === 'w1') { $(f === 'w0' ? 'w0' : 'w1').click(); what = `${side(f === 'w0' ? 0 : 1)} won the rack`; }
+    else if (f[0] === 'b') { const n = +f.slice(1); markMade([n]); what = `the ${n} went in`; b.remove(); }
+    pop.key = stateKey(); pop.fixed = true; $('refC').value = ($('refC').value + (($('refC').value ? '; ' : '') + 'fixed: ' + what)).trim(); flash('✓ ' + what); };
+  document.querySelectorAll('#refPop .rbtn button').forEach(b => b.onclick = () => { if (!pop) return; touch2(); pop.choice = b.dataset.c; document.querySelectorAll('#refPop .rbtn button').forEach(x => x.classList.toggle('sel', x === b));
+    if (b.dataset.c === 'no' || b.dataset.c === 'other') showFix(); else $('refFix').hidden = true; if (b.dataset.c === 'other') $('refC').focus(); });
   $('refStop').onclick = () => { touch2(); $('refStop').hidden = true; $('refAuto').textContent = 'Timer stopped. Pick an answer, comment, Submit.'; $('refBar').style.width = '0'; };
   $('refC').addEventListener('focus', touch2); $('refC').addEventListener('input', touch2);
   $('refSubmit').onclick = () => { if (!pop) return; if (!pop.choice && !$('refC').value.trim()) { $('refAuto').textContent = 'Pick Yes, No or Other first'; return; } finish(pop.choice || 'other'); };
   $('refPop').addEventListener('pointerdown', e => e.stopPropagation());
   // Running list of the ref's calls down the left of the video (newest on top), updated as they're answered.
-  const refLog = [];
+  const LOGKEY = () => 'poolar-reflog-' + (game || 'x');
+  let refLog = []; try { refLog = JSON.parse(localStorage.getItem(LOGKEY()) || '[]'); } catch {}
+  const saveLog = () => { try { localStorage.setItem(LOGKEY(), JSON.stringify(refLog.slice(0, 40))); } catch {} };
   function paintRefLog(){
-    const el = $('refLog'); if (!el) return; el.hidden = false;
-    $('refLogL').innerHTML = (refLog.length ? '' : '<div class="it"><b>Waiting for the first shot…</b><small>Every call the ref makes stays listed here.</small></div>') + refLog.slice(0, 8).map((e, k) => `<div class="it ${k === 0 ? 'new' : ''}"><small>${e.at}</small><b>${esc(e.title)}</b>${e.saw ? `<small>${esc(e.saw)}</small>` : ''}<span class="a ${e.ans === 'Yes' || e.ans === 'Applied' ? 'yes' : e.ans === 'No' ? 'no' : 'wait'}">${e.ans}</span></div>`).join('');
+    const el = $('refLog'); if (!el) return; el.hidden = false; $('tv').classList.add('withlog');
+    $('refLogL').innerHTML = (refLog.length ? '' : '<div class="it"><b>No calls yet in this game</b><small>Every call the ref makes stays listed here.</small></div>') + refLog.slice(0, 8).map((e, k) => `<div class="it ${k === 0 ? 'new' : ''}"><small>${e.at}</small><b>${esc(e.title)}</b>${e.saw ? `<small>${esc(e.saw)}</small>` : ''}<span class="a ${e.ans === 'Yes' || e.ans === 'Applied' ? 'yes' : e.ans === 'No' ? 'no' : 'wait'}">${e.ans}</span>${e.c ? `<small>💬 ${esc(e.c)}</small>` : ''}</div>`).join('');
   }
   setTimeout(paintRefLog, 500);
   function logCall(sug){ const saw = (($('refS').textContent || '').split('\nSaw: ')[1] || '').slice(0, 140);
-    sug.log = { at: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' }), title: sug.title, saw, ans: 'Waiting…' }; refLog.unshift(sug.log); paintRefLog(); }
+    sug.log = { at: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' }), title: sug.title, saw, ans: 'Waiting…' }; refLog.unshift(sug.log); saveLog(); paintRefLog(); }
   function finish(choice){
     const sug = pop; if (!sug) return; closePop();
-    if (sug.log) { sug.log.ans = choice === 'yes' ? 'Yes' : choice === 'no' ? 'No' : choice === 'other' ? 'Other' : sug.noAuto ? 'Skipped' : 'Applied'; paintRefLog(); }
+    if (sug.log) { sug.log.ans = choice === 'yes' ? 'Yes' : choice === 'no' ? 'No' : choice === 'other' ? 'Other' : sug.noAuto ? 'Skipped' : 'Applied'; sug.log.c = $('refC').value.trim(); saveLog(); paintRefLog(); }
     const comment = $('refC').value.trim();
     if ((choice === 'yes' || (choice === 'auto' && !sug.noAuto)) && stateKey() === sug.key) sug.apply();
+    // "No" to a made-ball call means nothing of the shooter's went in: the turn is over.
+    const denies = choice === 'no' || (choice === 'other' && /\b(no|not|didn'?t|didnt|missed|still on|wrong|never)\b/i.test(comment));
+    if (denies && !sug.fixed && (sug.type === 'made' || sug.type === 'eight') && !sug.remote && stateKey() === sug.key && winner(scores()) < 0) {
+      passTable(false); setTimeout(() => flash(`Turn over → ${side(st.shooter)} · tap Undo if that's wrong`), 60); }
     // Learn: a "No" makes the ref more cautious about that kind of call, a "Yes" slightly bolder.
     const g = refP.gates;
     if (choice === 'no') g[sug.type] = Math.min(.95, (g[sug.type] || .5) + .1);
@@ -2664,7 +2760,12 @@
     $('lgPickH').textContent = cam ? 'Confirm who won the lag' : 'Who won the lag?';
     if (cam) { lagLive = true; $('lagCan').hidden = false; document.body.classList.add('lagging'); closePop(); lagReset(); } else lagStop();
   }
-  function lagStop(){ lagLive = false; $('lagCan').hidden = true; document.body.classList.remove('lagging'); }
+  function lagStop(){
+    // The lag moved balls while the ref wasn't watching: start its tracker fresh, or its safety net would
+    // see the cue ball somewhere new and pop up "I didn't catch that shot".
+    if (lagLive && tracker) { tracker.tracks = []; tracker.shot = null; tracker.settled = null; tracker.quietFrom = 0; }
+    lagLive = false; $('lagCan').hidden = true; document.body.classList.remove('lagging');
+  }
   function lagClose(){ lagStop(); $('lagSheet').hidden = true; $('lagSheet').classList.remove('see'); }
   function lagReset(){ lag = { phase: 'wait', tr: [null, null], readyT: 0, rollT: 0, res: null, B: [] }; lagUI(); lagDraw(); }
   const hxOf = x => lagCfg.headLeft ? x : 1 - x;                                    // 0 at the head end, 1 at the foot end
@@ -2900,6 +3001,7 @@
       else if (c === 'other') { if (!refBtn('other')) return; if (!$('refStop').hidden) $('refStop').click(); $('refC').focus(); }
       else if (c === 'stop') { if ($('refPop').hidden || $('refStop').hidden) return flash('🎛️ No timer running'); $('refStop').click(); }
       else if (c === 'undo') $('undo').click();
+      else if (c === 'sync') { syncBalls(); return; }
       else if (c === 'call' && m.title) { showPop({ type: m.type || 'turn', conf: .5, balls: Array.isArray(m.balls) ? m.balls : [], title: String(m.title).slice(0, 60), text: String(m.text || '').slice(0, 300),
           apply: () => {}, auto: '', noAuto: true, key: stateKey(), shooter: st.shooter, group: null, remote: true }); return; }
       else if (c === 'win0' || c === 'win1') $(c === 'win0' ? 'w0' : 'w1').click();
@@ -2935,5 +3037,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930203700"></script>
+<script src="build.js?v=20260930214137"></script>
 </body></html>
