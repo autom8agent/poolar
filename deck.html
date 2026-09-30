@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930222302"><script src="stream.js?v=20260930222302"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930222547"><script src="stream.js?v=20260930222547"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -803,10 +803,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930222302"></script>
-<script src="halls.js?v=20260930222302"></script>
-<script src="qrcode.js?v=20260930222302"></script>
-<script src="tablecv.js?v=20260930222302"></script>
+<script src="hallday.js?v=20260930222547"></script>
+<script src="halls.js?v=20260930222547"></script>
+<script src="qrcode.js?v=20260930222547"></script>
+<script src="tablecv.js?v=20260930222547"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -1951,6 +1951,27 @@
   const saveRefP = () => { try { localStorage.setItem(REFKEY, JSON.stringify({ ...refP, off: !refOn })); } catch {} };
   const tracker = window.TableCV ? new TableCV.Tracker(HIFI ? { w: 720, h: 360, still: .9, move: 2.4 } : {}) : null;
   let shotsSeen = 0, lastShotAt = 0;
+  // ---- Scan: keep the scoreboard's balls matching the table, carefully ----
+  // Every second while the table is still and clear (no shot, no arm or cue over it): a ball up on the scoreboard that
+  // hasn't been seen for 10 s straight is marked made, and a ball marked made that's been seen for 10 s is put back,
+  // but only when the camera's ball count agrees. Shown with Undo.
+  const scanSeen = {}, scanMiss = {};
+  setInterval(() => { try {
+    if (!refOn || !feedLive || !tracker || !tracker.last || tracker.shot || (pop && !$('refPop').hidden)) return;
+    if (st.turns === 0 && !st.down.length) return;                      // racked: can't read a packed rack
+    if (tracker.last.occ && tracker.last.occ.some(o => (o.x1 - o.x0) * (o.y1 - o.y0) > .01)) { for (const k in scanMiss) scanMiss[k] = 0; for (const k in scanSeen) scanSeen[k] = 0; return; }
+    const balls = tracker.last.balls, nums = new Set(balls.filter(b => b.num && b.cls !== 'cluster').map(b => b.num));
+    const clustered = balls.filter(b => b.cls === 'cluster').reduce((a, b) => a + (b.n || 2), 0);
+    const objCount = balls.filter(b => b.cls !== 'cue' && b.cls !== 'cluster').length + clustered;
+    const all = st.gtype === 8 ? [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15] : Array.from({ length: st.gtype }, (_, k) => k + 1);
+    const up = all.filter(n => !st.down.includes(n));
+    for (const n of all) { if (nums.has(n)) { scanSeen[n] = (scanSeen[n] || 0) + 1; scanMiss[n] = 0; } else { scanMiss[n] = (scanMiss[n] || 0) + 1; scanSeen[n] = 0; } }
+    if (clustered) return;                                                // touching balls hide numbers: don't guess
+    const gone = up.filter(n => scanMiss[n] >= 10), back = st.down.filter(n => scanSeen[n] >= 10);
+    if (gone.length && objCount <= up.length - gone.length) { markMade(gone); gone.forEach(n => scanMiss[n] = 0); flash(`Scan: ${gone.join(', ')} not on the table → marked made · Undo if wrong`); }
+    else if (back.length && objCount >= up.length + back.length) { act(() => { for (const n of back) { st.down = st.down.filter(x => x !== n); let j = -1; st.pots.forEach((e, k) => { if (+e.split('.')[0] === n) j = k; }); if (j >= 0) st.pots.splice(j, 1); } });
+      back.forEach(n => scanSeen[n] = 0); flash(`Scan: ${back.join(', ')} is on the table → put back · Undo if wrong`); }
+  } catch {} }, 1000);
   if (tracker) tracker.onShot = ev => { shotsSeen++; lastShotAt = Date.now(); try { judge(ev); } catch (e) { console.warn(e); } };
   // Ref health for Claude: what this scoreboard's ref is doing, every 15 s, on a private relay topic (own relay).
   if (tableMode) setInterval(() => { try {
@@ -1979,7 +2000,8 @@
     if (!corners && !viewTick.fb) t = '🤖 Ref: finding the table…';
     else if (!L) t = '🤖 Ref: starting…';
     else if (!n) { t = "🤖 Ref: can't see any balls: point the camera straight down at the lit table"; warn = true; }
-    else { const ob = cue ? n - 1 : n; t = `🤖 Ref: ${corners ? 'sees the table' : 'whole picture (⊞ Table → Adjust corners)'} · ${ob} ball${ob === 1 ? '' : 's'}${cue ? ' + cue ball' : ' · no cue ball'}`; warn = !corners || !cue; }
+    else { const all = st.gtype === 8 ? 15 : st.gtype, ob = all - st.down.length;   // the scoreboard's count (the camera's is a rough estimate)
+      t = `🤖 Ref: ${corners ? 'watching the table' : 'whole picture (⊞ Table → Adjust corners)'} · ${ob} ball${ob === 1 ? '' : 's'}${cue ? ' + cue ball ✓' : ' · no cue ball seen'}`; warn = !corners || !cue; }
     if (L && !st.groups[0] && n) t += ' · tap who has solids for foul calls';
     if (tracker && tracker.shot) t = '🤖 Ref: watching the shot…';
     else if (st.turns === 0 && !st.down.length) { t = `🎱 Rack on the table${cue ? ' · cue ball ✓' : ''} · ${side(breaker())} to break · waiting for the break (balls are counted once the break spreads them)`; warn = false; }
@@ -2822,11 +2844,11 @@
     const take = (id, time, raw) => { if (seen.has(id) || time * 1000 < t0 - 2000) return; seen.add(id); let m; try { m = JSON.parse(raw); } catch { return; } try { run(m); } catch (e) { console.warn(e); } };
     const chip = document.createElement('div'); chip.id = 'deckChip';
     chip.style.cssText = 'position:fixed;left:10px;bottom:10px;z-index:30;background:rgba(10,16,14,.9);border:1px solid #3a4a42;color:#8ea69a;font:700 12px Barlow,system-ui,sans-serif;padding:5px 10px;border-radius:999px;pointer-events:none';
-    chip.textContent = `🎛️ Stream Deck${tableMode ? ' · table ' + TNUM : ''} · connecting…`; document.body.appendChild(chip);
+    chip.hidden = true; document.body.appendChild(chip); let lastPress = 0;
+    setInterval(() => { if (!lastPress) return; const s = Math.round((Date.now() - lastPress) / 1000); chip.hidden = s > 1800;
+      chip.textContent = `🎛️ Stream Deck · last press ${s < 60 ? s + 's' : Math.round(s / 60) + ' min'} ago`; }, 5000);
     for (const tp of topics) try { const es = new PoolarStream(`${OWN}/${tp}/sse`);
-      es.onopen = () => { chip.textContent = `🎛️ Stream Deck${tableMode ? ' · table ' + TNUM : ''} · ready`; chip.style.color = '#57d98a'; chip.style.borderColor = '#57d98a'; };
-      es.onmessage = e => { try { const d = JSON.parse(e.data); if (d.event === 'message') { take(d.id, d.time, d.message); chip.textContent = `🎛️ Stream Deck${tableMode ? ' · table ' + TNUM : ''} · ready`; chip.style.color = '#57d98a'; } } catch {} }; } catch {}
-    setTimeout(() => flash('🎛️ Stream Deck ready'), 1500);
+      es.onmessage = e => { try { const d = JSON.parse(e.data); if (d.event === 'message') { take(d.id, d.time, d.message); if (d.time * 1000 > Date.now() - 60000) { lastPress = Date.now(); chip.hidden = false; chip.textContent = '🎛️ Stream Deck · last press 0s ago'; chip.style.color = '#57d98a'; chip.style.borderColor = '#57d98a'; } } } catch {} }; } catch {}
   })();
   pollElsewhere(); setInterval(() => { if (document.visibilityState === 'visible') pollElsewhere(); }, 60000);
   // New game: the invite QR comes first (so friends can join the line), then names and game settings.
@@ -2843,5 +2865,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930222302"></script>
+<script src="build.js?v=20260930222547"></script>
 </body></html>
