@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930223717"><script src="stream.js?v=20260930223717"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930224245"><script src="stream.js?v=20260930224245"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -430,6 +430,7 @@
       </div>
       <div class="refpop" id="refPop" hidden>
         <div class="rtop"><b id="refT"></b><span class="rballs" id="refBalls"></span></div>
+        <img id="refSnap" alt="Contact frame" hidden style="width:100%;border-radius:8px;border:1px solid #26372f">
         <button type="button" class="replayb" id="refReplay">▶ Watch the shot again</button>
         <p id="refS"></p>
         <div class="rbtn"><button data-c="yes">Yes</button><button data-c="no">No</button><button data-c="other">Other</button></div>
@@ -805,10 +806,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930223717"></script>
-<script src="halls.js?v=20260930223717"></script>
-<script src="qrcode.js?v=20260930223717"></script>
-<script src="tablecv.js?v=20260930223717"></script>
+<script src="hallday.js?v=20260930224245"></script>
+<script src="halls.js?v=20260930224245"></script>
+<script src="qrcode.js?v=20260930224245"></script>
+<script src="tablecv.js?v=20260930224245"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -1952,7 +1953,14 @@
   if (VIEW) refOn = false;
   const saveRefP = () => { try { localStorage.setItem(REFKEY, JSON.stringify({ ...refP, off: !refOn })); } catch {} };
   const tracker = window.TableCV ? new TableCV.Tracker(HIFI ? { w: 720, h: 360, still: .9, move: 2.4 } : {}) : null;
-  let shotsSeen = 0, lastShotAt = 0;
+  let shotsSeen = 0, lastShotAt = 0, shotSnaps = {};
+  const snapTable = (mark, label) => { try { const c = document.createElement('canvas'); c.width = smallC.width; c.height = smallC.height; const x = c.getContext('2d'); x.drawImage(smallC, 0, 0);
+      const L = tracker.last; if (L) { x.lineWidth = 2; x.font = '700 13px system-ui'; L.balls.forEach(b => { x.strokeStyle = b.cls === 'cue' ? '#fff' : '#9fe'; x.beginPath(); x.arc(b.x * c.width, b.y * c.height, c.width * .018, 0, 7); x.stroke(); x.fillStyle = x.strokeStyle; x.fillText(b.cls === 'cue' ? 'CUE' : String(b.num || '?'), b.x * c.width + 12, b.y * c.height - 10); }); }
+      if (mark) { x.lineWidth = 4; x.strokeStyle = '#ffd23f'; x.beginPath(); x.arc(mark.x * c.width, mark.y * c.height, c.width * .03, 0, 7); x.stroke(); }
+      if (label) { x.fillStyle = 'rgba(0,0,0,.7)'; x.fillRect(0, 0, c.width, 26); x.fillStyle = '#ffd23f'; x.font = '800 16px system-ui'; x.fillText(label, 8, 19); }
+      return c.toDataURL('image/jpeg', .75); } catch { return null; } };
+  if (tracker) { tracker.onStart = () => { shotSnaps = { start: snapTable(null, 'Before the shot') }; };
+    tracker.onContact = (f, cue) => { shotSnaps.contact = snapTable(f, `Contact: ${f.num ? 'the ' + f.num : f.cls} (sure ${Math.round((f.conf || 0) * 100)}%)`); shotSnaps.first = f; }; }
   // ---- Scan: keep the scoreboard's balls matching the table, carefully ----
   // Every second while the table is still and clear (no shot, no arm or cue over it): a ball up on the scoreboard that
   // hasn't been seen for 10 s straight is marked made, and a ball marked made that's been seen for 10 s is put back,
@@ -1974,7 +1982,8 @@
     else if (back.length && objCount >= up.length + back.length) { act(() => { for (const n of back) { st.down = st.down.filter(x => x !== n); let j = -1; st.pots.forEach((e, k) => { if (+e.split('.')[0] === n) j = k; }); if (j >= 0) st.pots.splice(j, 1); } });
       back.forEach(n => scanSeen[n] = 0); flash(`Scan: ${back.join(', ')} is on the table → put back · Undo if wrong`); }
   } catch {} }, 1000);
-  if (tracker) tracker.onShot = ev => { shotsSeen++; lastShotAt = Date.now(); try { judge(ev); } catch (e) { console.warn(e); } };
+  if (tracker) tracker.onShot = ev => { shotsSeen++; lastShotAt = Date.now(); shotSnaps.end = snapTable(null, 'After the shot'); ev.snaps = shotSnaps; shotSnaps = {};
+    try { judge(ev); } catch (e) { console.warn(e); } };
   // Ref health for Claude: what this scoreboard's ref is doing, every 15 s, on a private relay topic (own relay).
   if (tableMode) setInterval(() => { try {
     const L = tracker && tracker.last, v = feedVideo();
@@ -2138,11 +2147,15 @@
     closePop(); pop = sug; sug.choice = null;
     $('refT').textContent = sug.title; $('refS').textContent = sug.text;
     $('refBalls').innerHTML = sug.balls.map(ballEl).join('');
-    $('refFix').hidden = true; $('refC').value = st.lastTag || ''; if (st.lastTag) { st.lastTag = ''; save(); } document.querySelectorAll('#refPop .rbtn button').forEach(b => b.classList.remove('sel'));
+    $('refFix').hidden = true; $('refC').value = st.lastTag || '';
+    { const sn = sug.ev && sug.ev.snaps, im = $('refSnap'); if (im) { im.hidden = !(sn && (sn.contact || sn.end)); if (sn) im.src = sn.contact || sn.end; } }
+    // grab this shot's video now, before the rolling recording moves past it
+    if (sug.ev && typeof rotate === 'function' && typeof bufRec !== 'undefined' && bufRec) { const ev = sug.ev, nowP = performance.now(), nowW = Date.now(), w = p => nowW - (nowP - p);
+      const a = ev.t && ev.ms != null ? w(ev.t - ev.ms) : nowW - 8000, e = ev.t ? w(ev.t) : nowW; rotate(() => { sug.segs = buf.filter(g => g.t1 >= a - 1500 && g.t0 <= e + 2500).slice(-6); }); } if (st.lastTag) { st.lastTag = ''; save(); } document.querySelectorAll('#refPop .rbtn button').forEach(b => b.classList.remove('sel'));
     // What the camera understood, so a wrong call is easy to spot.
     if (sug.ev) { const e = sug.ev, bits = [];
       if (e.kick) bits.push('kick (cue ball hit a cushion first)');
-      bits.push(e.first ? `first hit: ${clsName(e.first)}` : 'first hit: not seen');
+      bits.push(e.first ? `FIRST HIT: ${clsName(e.first)}` : 'FIRST HIT: not seen');
       const pm = e.pocketed.filter(b => b.cls !== 'cue');
       bits.push(pm.length ? pm.map(b => `${clsName(b)} → ${PNAME[b.pocket] || 'pocket'}${b.bank ? ' (bank)' : ''}`).join(', ') : 'nothing dropped');
       if (e.scratch) bits.push(`cue ball in the ${PNAME[e.cuePocket] || 'pocket'}`);
@@ -2274,8 +2287,11 @@
       build: (document.querySelector('meta[name="build"]') || {}).content, ua: navigator.userAgent.slice(0, 80) };
     const up = segs => { segs.forEach((g, i) => fetch(`${R}/${i}`, { method: 'PUT', headers: { 'content-type': g.blob.type || 'video/webm' }, body: g.blob }).catch(() => {}));
       meta.clips = segs.map(g => ({ t0: g.t0, t1: g.t1 })); fetch(`${R}/meta`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(meta) }).catch(() => {}); };
+    const sn = ev.snaps || {}; meta.snaps = Object.keys(sn).filter(k => typeof sn[k] === 'string');
+    meta.snaps.forEach(k => fetch(sn[k]).then(r => r.blob()).then(b => fetch(`${R}/${{ start: 90, contact: 91, end: 92 }[k]}`, { method: 'PUT', headers: { 'content-type': 'image/jpeg' }, body: b })).catch(() => {}));
     const pick = () => (typeof buf !== 'undefined' ? buf : []).filter(g => g.t1 >= startW - 1500 && g.t0 <= endW + 2500).slice(-6);
-    if (typeof rotate === 'function' && typeof bufRec !== 'undefined' && bufRec) rotate(() => up(pick())); else up(pick());
+    if (sug.segs && sug.segs.length) up(sug.segs);
+    else if (typeof rotate === 'function' && typeof bufRec !== 'undefined' && bufRec) rotate(() => up(pick())); else up(pick());
   } catch (e) { console.warn(e); } }
   function finish(choice){
     const sug = pop; if (!sug) return; closePop();
@@ -2889,5 +2905,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930223717"></script>
+<script src="build.js?v=20260930224245"></script>
 </body></html>
