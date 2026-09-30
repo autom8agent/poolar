@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930202716"><script src="stream.js?v=20260930202716"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930203700"><script src="stream.js?v=20260930203700"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -198,7 +198,8 @@
   .handle{position:absolute;z-index:6;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;border:3px solid var(--gold);background:rgba(242,193,78,.25);touch-action:none}
   .handle::after{content:"";position:absolute;left:50%;top:50%;width:4px;height:4px;margin:-2px;border-radius:50%;background:var(--gold)}
   .adjbar{position:absolute;top:8px;left:50%;transform:translateX(-50%);z-index:7;display:flex;gap:6px;align-items:center;background:rgba(10,16,14,.92);border-radius:12px;padding:6px 8px;font-size:13px;white-space:nowrap}
-  .reflog{position:absolute;left:0;top:0;bottom:0;z-index:5;width:22%;min-width:150px;max-width:300px;background:rgba(8,12,10,.82);border-right:1px solid #26372f;padding:8px;overflow:hidden;display:flex;flex-direction:column;gap:6px;font-size:13px}
+  .tv.withlog iframe,.tv.withlog video,.tv.withlog #viewCan{left:23%!important;width:77%!important}
+  .reflog{position:absolute;left:0;top:0;bottom:0;z-index:5;width:23%;background:rgba(8,12,10,.82);border-right:1px solid #26372f;padding:8px;overflow:hidden;display:flex;flex-direction:column;gap:6px;font-size:13px}
   .reflog h4{margin:0;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#8ea69a}
   .reflog .it{border-radius:8px;padding:6px 8px;background:#15201b;border:1px solid #26372f;line-height:1.3}
   .reflog .it.new{border-color:var(--gold)} .reflog .it b{display:block;font-size:14px}
@@ -443,6 +444,7 @@
       <canvas id="clipCan" hidden></canvas><canvas id="progCan" width="1280" height="720" hidden></canvas>
       <div class="tvbar" id="tvBar" hidden>
         <button class="hostonly" id="tvRecBtn">● Record</button>
+        <button class="hostonly" id="tvSync">🔄 Sync balls</button>
         <button id="rp30">⟲ 30s</button><button id="rp60">⟲ 1 min</button>
         <button id="tvLiveBtn" hidden>● Back to live</button>
         <button class="hostonly refon" id="tvRef">🤖 Ref on</button>
@@ -775,10 +777,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930202716"></script>
-<script src="halls.js?v=20260930202716"></script>
-<script src="qrcode.js?v=20260930202716"></script>
-<script src="tablecv.js?v=20260930202716"></script>
+<script src="hallday.js?v=20260930203700"></script>
+<script src="halls.js?v=20260930203700"></script>
+<script src="qrcode.js?v=20260930203700"></script>
+<script src="tablecv.js?v=20260930203700"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -1709,6 +1711,19 @@
     try { localStorage.removeItem(FEEDKEY); } catch {}
     qs.delete('cam'); try { history.replaceState(null, '', '?' + qs); } catch {}
   }
+  // Sync balls: make the scoreboard's balls match what the camera sees on the table (asks first).
+  function syncBalls(){
+    if (!tracker || !feedLive) return flash('No camera picture to read the balls from');
+    const on = tracker.onTable(), all = st.gtype === 8 ? [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15] : Array.from({ length: st.gtype }, (_, k) => k + 1);
+    if (on.length < 1) return flash("The ref can't see the balls right now");
+    const toDown = all.filter(n => !on.includes(n) && !st.down.includes(n)), toUp = st.down.filter(n => on.includes(n));
+    if (!toDown.length && !toUp.length) return flash('Balls already match the table ✓');
+    if (!confirm(`Camera sees on the table: ${on.join(', ')}\n\n${toDown.length ? 'Mark as made: ' + toDown.join(', ') + '\n' : ''}${toUp.length ? 'Put back on the table: ' + toUp.join(', ') : ''}\n\nApply?`)) return;
+    act(() => { for (const n of toUp) { st.down = st.down.filter(x => x !== n); let j = -1; st.pots.forEach((e, k) => { if (+e.split('.')[0] === n) j = k; }); if (j >= 0) st.pots.splice(j, 1); }
+      const r = st.racks.length; for (const n of toDown) { st.down = [...st.down, n]; st.pots.push(`${n}.${st.shooter}.${r}.${st.turns}`); } });
+    flash('Balls synced with the table');
+  }
+  $('tvSync').onclick = syncBalls;
   $('tvWatchBtn').onclick = () => showFeed(tableMode ? camChan('top') : (qs.get('cam') || camChan('top')));
   function watchLive(){
     const v = feedVideo(), bv = behindVideo(), now = Date.now();
@@ -2069,7 +2084,7 @@
   // Running list of the ref's calls down the left of the video (newest on top), updated as they're answered.
   const refLog = [];
   function paintRefLog(){
-    const el = $('refLog'); if (!el) return; el.hidden = false;
+    const el = $('refLog'); if (!el) return; el.hidden = false; $('tv').classList.add('withlog');
     $('refLogL').innerHTML = (refLog.length ? '' : '<div class="it"><b>Waiting for the first shot…</b><small>Every call the ref makes stays listed here.</small></div>') + refLog.slice(0, 8).map((e, k) => `<div class="it ${k === 0 ? 'new' : ''}"><small>${e.at}</small><b>${esc(e.title)}</b>${e.saw ? `<small>${esc(e.saw)}</small>` : ''}<span class="a ${e.ans === 'Yes' || e.ans === 'Applied' ? 'yes' : e.ans === 'No' ? 'no' : 'wait'}">${e.ans}</span></div>`).join('');
   }
   setTimeout(paintRefLog, 500);
@@ -2680,5 +2695,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930202716"></script>
+<script src="build.js?v=20260930203700"></script>
 </body></html>
