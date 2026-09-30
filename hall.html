@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="build" content="20260930075919"><script src="stream.js?v=20260930075919"></script>
+<meta charset="utf-8"><meta name="build" content="20260930153225"><script src="stream.js?v=20260930153225"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0a0f14">
 <title>Surge Billiards Tables</title>
@@ -57,6 +57,14 @@
   .event{background:linear-gradient(90deg,#3a2a08,#2a1d06);border:1px solid var(--gold);border-radius:12px;padding:10px 12px;color:var(--gold);font-weight:700}
   .event small{display:block;color:var(--text);font-weight:500;margin-top:2px}
   .legend .q{margin-right:2px}
+  .key{display:flex;flex-direction:column;gap:7px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+  .key .legend{gap:12px}
+  .key .sw{width:22px;height:14px;border-radius:3px;border:2px solid var(--rail)}
+  .key .sw.busy{background:var(--felt-busy);border-color:#57d98a}
+  .key .sw.shut{background:var(--felt-busy);border-color:#ff5a4e}
+  .bchip{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:#dfe7ee;box-shadow:inset 0 0 0 1px #9fb0bf}
+  .sc{position:relative;display:inline-flex;align-items:center;justify-content:center;line-height:1}
+  .sc b{position:absolute;left:50%;top:48%;transform:translate(-50%,-50%);color:#ffd23f;font-weight:900;font-size:12px;line-height:1;text-shadow:0 0 2px #000,0 0 2px #000,0 0 3px #000}
   a.evlink{display:block;text-decoration:none}
   a.evlink b{display:inline-block;margin-left:6px;padding:2px 10px;border-radius:999px;background:var(--gold);color:#1d1606;font-size:13px}
   a.evlink.night{background:linear-gradient(90deg,#0f3a52,#0b2433);border-color:var(--felt);color:#bfe8ff}
@@ -121,13 +129,7 @@
   <a class="event evlink" id="tsum" hidden></a>
   <a class="event evlink night" id="night" hidden></a>
   <p class="prompt">Tap the table you're playing on to start scoring.</p>
-  <div class="legend">
-    <span><i class="sw" style="background:var(--felt)"></i>Open</span>
-    <span><i class="sw" style="background:var(--felt-busy)"></i>In use</span>
-    <span id="ftLegend">9-ft front · 7-ft back room</span>
-    <span>Line: <i class="q" style="background:#57d98a">0</i><i class="q" style="background:#c8e04a">1–2</i><i class="q" style="background:#f59a3a">3–4</i><i class="q" style="background:#e4574a">5+</i></span>
-  </div>
-  <div class="legend" id="modeLegend"></div>
+  <div class="key" id="modeLegend"></div>
   <div class="demo" id="demoBar" hidden>DEMO · made-up tables to show every option. <a id="demoOff" href="#">Show the real tables</a></div>
   <div class="map"><svg id="plan" role="group" aria-label="Floor plan"></svg></div>
   <h2>Tables</h2>
@@ -136,8 +138,8 @@
   <p class="note">A table locks to the first group that opens it. Friends join through the Share button inside the game. When you finish, tap <b>Free table</b> in the game so the next group can use it. A table that sits idle for 30 minutes frees up by itself.</p>
 </div>
 
-<script src="hallday.js?v=20260930075919"></script>
-<script src="halls.js?v=20260930075919"></script>
+<script src="hallday.js?v=20260930153225"></script>
+<script src="halls.js?v=20260930153225"></script>
 <script>
 (() => {
   const qs = new URLSearchParams(location.search);
@@ -250,10 +252,10 @@
       const shut = b && (s.open === false || s.line === false);   // locked, or the waitlist is closed
       $('tb' + t.n).classList.toggle('busy', b); $('tb' + t.n).classList.toggle('shut', shut); $('tb' + t.n).classList.toggle('mine', false);
       const score = b && s.score ? `${s.score[0]}–${s.score[1]}` : '';
-      const who = b ? (s.dbl ? (s.scotch ? '👥S' : '👥') : '👤') : '';
+      const who = b ? (s.dbl ? '👥' : '👤') : '';
       const FM = FMT[b && s.fmt || 'race'] || FMT.race;
       const raceTxt = s && s.race ? (s.race[0] === s.race[1] ? `RACE ${s.race[0]}` : `RACE ${s.race[0]}/${s.race[1]}`) : 'RACE';
-      $('tt' + t.n).textContent = b ? `${shut ? '🔒' : ''}${who} ${FM[0]}` : '';
+      $('tt' + t.n).innerHTML = b ? `${shut ? '🔒' : ''}${who}${s.scotch && s.dbl ? '<tspan dx="-2.35" dy="-.35" font-size="2.3" font-weight="900" fill="#ffd23f" stroke="#000" stroke-width=".35" paint-order="stroke">S</tspan><tspan dx=".9" dy=".35"> </tspan>' : ' '}${FM[0]}` : '';
       const tm = $('tm' + t.n); tm.removeAttribute('textLength'); tm.removeAttribute('lengthAdjust');
       tm.textContent = b ? (s.open === false ? 'PRIVATE' : (s.fmt || 'race') === 'race' ? (s.race && s.race[0] === 1 && s.race[1] === 1 ? 'SINGLE GAME' : raceTxt) : FM[1].toUpperCase()) : '';
       try { const room = +$('ti' + t.n).dataset.w - 2; if (tm.textContent && tm.getComputedTextLength() > room) { tm.setAttribute('textLength', room); tm.setAttribute('lengthAdjust', 'spacingAndGlyphs'); } } catch {}
@@ -264,8 +266,15 @@
   }
   // ---- Key and table list ----
   const FMT = { race: ['🏁', 'Race'], single: ['1️⃣', 'Single game'], wso: ['👑', 'Winner stays on'], rot: ['🔄', 'Rotate'], pick: ['🏆', 'Winner picks'], rand: ['🎲', 'Random game'] };
-  $('modeLegend').innerHTML = [8, 9, 10].map(n => `<span>${P.ballSvg(n, 14)} ${n}-ball</span>`).join('') +
-    ['👤 Singles', '👥 Doubles', '👥S Scotch doubles', '🏁 Race', '👑 Winner stays on', '🔄 Rotate', '🏆 Winner picks', '🎲 Random game', '🔒 Private', '📹 Camera live'].map(x => `<span>${x}</span>`).join('');
+  const SCOTCH = '<span class="sc">👥<b>S</b></span>';
+  const row = items => `<div class="legend">${items.map(x => `<span>${x}</span>`).join('')}</div>`;
+  $('modeLegend').innerHTML =
+    row(['<i class="sw" style="background:var(--felt)"></i>Open', '<i class="sw busy"></i>In use', '<i class="sw shut"></i>Private / line closed',
+      'Line: <i class="q" style="background:#57d98a">0</i><i class="q" style="background:#c8e04a">1–2</i><i class="q" style="background:#f59a3a">3–4</i><i class="q" style="background:#e4574a">5+</i>']) +
+    row([8, 9, 10].map(n => `<span class="bchip">${P.ballSvg(n, 18)}</span>${n}-ball`)) +
+    row(['👤 Singles', '👥 Doubles', `${SCOTCH} Scotch doubles`]) +
+    row(['🏁 Race', '1️⃣ Single game', '👑 Winner stays on', '🔄 Rotate', '🏆 Winner picks', '🎲 Random game']) +
+    row(['🔒 Private', '📹 Camera live']);
   const FILTERS = [
     ['Status', [['open', 'Open'], ['busy', 'In use']]],
     ['Game', [['8', '8-ball'], ['9', '9-ball'], ['10', '10-ball']]],
@@ -294,7 +303,7 @@
     if (!f.b) return `<div class="tc open">${num}<div class="ti"><span class="l1">${c.closed ? '🔒 ' + esc(c.note || 'Reserved') : 'Open'}${cam}</span>${c.note && !c.closed ? `<span class="l3">${esc(c.note)}</span>` : ''}</div>${c.closed ? '<span class="act off">Reserved</span>' : `<a class="act start" href="${esc(tableUrl(t.n))}">+ Start</a>`}</div>`;
     const priv = s.open === false, closedLine = s.line === false, fm = FMT[f.Format] || FMT.race;
     const race = s.race && f.Format === 'race' ? ` ${s.race[0] === s.race[1] ? s.race[0] : s.race[0] + '/' + s.race[1]}` : '';
-    const who = f.Players === 'singles' ? '👤 Singles' : f.Players === 'scotch' ? '👥S Scotch doubles' : '👥 Doubles';
+    const who = f.Players === 'singles' ? '👤 Singles' : f.Players === 'scotch' ? '<span class="sc">👥<b>S</b></span> Scotch doubles' : '👥 Doubles';
     const next = s.qn && s.qn.length ? `Up next: <b>${s.qn.map(esc).join(', ')}</b>${s.q > s.qn.length ? ` +${s.q - s.qn.length}` : ''}` : 'Nobody waiting';
     const act = priv ? '<span class="act off">🔒 Private</span>' : closedLine ? '<span class="act off">Line closed</span>' : `<a class="act" href="${esc(waitUrl(t.n))}">+ Join</a>`;
     return `<div class="tc busy ${priv || closedLine ? 'shut' : ''}">${num}<div class="ti"><span class="l1">${s.names ? esc(s.names[0]) + ' v ' + esc(s.names[1]) : 'In use'}${cam}</span>
@@ -393,6 +402,6 @@
   document.addEventListener('visibilitychange', () => { if (!DEMO && document.visibilityState === 'visible') load(); });
 })();
 </script>
-<script src="build.js?v=20260930075919"></script>
+<script src="build.js?v=20260930153225"></script>
 </body>
 </html>
