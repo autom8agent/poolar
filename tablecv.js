@@ -445,7 +445,8 @@
         for (const tr of this.tracks) { if (tr.seen !== t || tr.v <= this.o.still || !edge(tr) || nearPk(tr)) continue;
           if (tr.id === s.cueId) { if (!s.first) s.kick = true; } else if (s.moved.has(tr.id)) s.cush.add(tr.id); } }
       if (!moving) { if (!this.quietFrom) this.quietFrom = t; } else this.quietFrom = 0;
-      if ((this.quietFrom && t - this.quietFrom > this.o.endQuiet) || t - s.t0 > this.o.maxShot) {
+      const blocked = occ.some(o => (o.x1 - o.x0) * (o.y1 - o.y0) > .01);   // a person/arm over the table hides balls
+      if ((this.quietFrom && t - this.quietFrom > this.o.endQuiet && (!blocked || t - this.quietFrom > this.o.endQuiet + 5000)) || t - s.t0 > this.o.maxShot) {
         // Balls that vanished during the shot next to a pocket were pocketed.
         const pocketed = [];
         let scratch = false, cuePocket = -1;
@@ -471,9 +472,10 @@
         // really has fewer balls, went down even if it was never tracked moving (blue 10 on blue cloth, under an arm).
         const nowNums = new Set(this.tracks.filter(tr => !tr.pocketed && t - tr.seen < 1200).map(tr => tr.num).concat(((this.last && this.last.balls) || []).map(b => b.num)));
         const gone = [...new Set(s.before || [])].filter(n => n && !nowNums.has(n) && !pocketed.some(p => p.num === n));
-        let room = Math.max(0, (s.n0 || 0) - nNow - pocketed.length - (scratch ? 1 : 0));
+        let room = blocked ? 0 : Math.max(0, (s.n0 || 0) - nNow - pocketed.length - (scratch ? 1 : 0));
         for (const n of gone) { if (room <= 0) break; room--;
           const tr = this.tracks.find(x => x.num === n), pos = tr || { x: .5, y: .5 };
+          if (tr && nearOcc(tr)) { room++; continue; }
           let pk = 0, d = 9; POCKETS.forEach(([px2, py], k) => { const dd = Math.hypot(pos.x - px2, (pos.y - py) * .5); if (dd < d) { d = dd; pk = k; } });
           pocketed.push({ cls: n === 8 ? 'eight' : n > 8 ? 'stripe' : 'solid', num: n, pocket: pk, counted: true });
           if (tr) tr.pocketed = true; }
