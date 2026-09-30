@@ -294,7 +294,8 @@
             }
             continue;
           }
-          occ.push({ x0: b.x0 / w, x1: b.x1 / w, y0: b.y0 / h, y1: b.y1 / h, dark: b.dk / b.n > .45 && b.n > A * 6, thick, id: blobs.indexOf(b) + 1 });
+          // area = real pixel share of the table (a thin rail ring round the cloth has a huge box but tiny area)
+          occ.push({ x0: b.x0 / w, x1: b.x1 / w, y0: b.y0 / h, y1: b.y1 / h, area: b.n / (w * h), dark: b.dk / b.n > .45 && b.n > A * 6, thick, id: blobs.indexOf(b) + 1 });
         }
       }
       // Lighting varies table to table, so fixed colour cut-offs can miss the two balls that matter most.
@@ -302,7 +303,7 @@
       // as the cue ball, and the darkest ball as the 8.
       const real = balls.filter(b => b.cls !== 'cluster');
       if (real.length >= 3 && !real.some(b => b.cls === 'cue')) {
-        const c = real.filter(b => b.wf > .25 && b.cfBall < .2).sort((a, b) => (b.wf - b.cfBall) - (a.wf - a.cfBall))[0];
+        const c = real.filter(b => b.wf > .4 && b.cfBall < .08).sort((a, b) => (b.wf - b.cfBall) - (a.wf - a.cfBall))[0];   // a cap-up stripe shows a colour ring: not the cue
         if (c) { c.cls = 'cue'; c.num = 0; }
       }
       if (real.length >= 3 && !real.some(b => b.cls === 'eight')) {
@@ -466,7 +467,7 @@
         for (const tr of this.tracks) { if (tr.seen !== t || tr.v <= this.o.still || !edge(tr) || nearPk(tr)) continue;
           if (tr.id === s.cueId) { if (!s.first) s.kick = true; } else if (s.moved.has(tr.id)) s.cush.add(tr.id); } }
       if (!moving) { if (!this.quietFrom) this.quietFrom = t; } else this.quietFrom = 0;
-      const blocked = occ.some(o => (o.x1 - o.x0) * (o.y1 - o.y0) > .01);   // a person/arm over the table hides balls
+      const blocked = occ.some(o => o.area > .012);   // a person/arm over the table hides balls (by real area, not the box)
       if ((this.quietFrom && t - this.quietFrom > this.o.endQuiet && (!blocked || t - this.quietFrom > this.o.endQuiet + 5000)) || t - s.t0 > this.o.maxShot) {
         // Balls that vanished during the shot next to a pocket were pocketed.
         const pocketed = [];
