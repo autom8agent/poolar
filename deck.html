@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930211855"><script src="stream.js?v=20260930211855"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930212219"><script src="stream.js?v=20260930212219"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -797,10 +797,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930211855"></script>
-<script src="halls.js?v=20260930211855"></script>
-<script src="qrcode.js?v=20260930211855"></script>
-<script src="tablecv.js?v=20260930211855"></script>
+<script src="hallday.js?v=20260930212219"></script>
+<script src="halls.js?v=20260930212219"></script>
+<script src="qrcode.js?v=20260930212219"></script>
+<script src="tablecv.js?v=20260930212219"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -1966,7 +1966,7 @@
     if (!corners && !viewTick.fb) t = '🤖 Ref: finding the table…';
     else if (!L) t = '🤖 Ref: starting…';
     else if (!n) { t = "🤖 Ref: can't see any balls: point the camera straight down at the lit table"; warn = true; }
-    else { t = `🤖 Ref: ${corners ? 'sees the table' : 'whole picture (⊞ Table → Adjust corners)'} · ${n} ball${n === 1 ? '' : 's'}${cue ? ' · cue ✓' : ' · no cue ball'}`; warn = !corners || !cue; }
+    else { const ob = cue ? n - 1 : n; t = `🤖 Ref: ${corners ? 'sees the table' : 'whole picture (⊞ Table → Adjust corners)'} · ${ob} ball${ob === 1 ? '' : 's'}${cue ? ' + cue ball' : ' · no cue ball'}`; warn = !corners || !cue; }
     if (L && !st.groups[0] && n) t += ' · tap who has solids for foul calls';
     if (tracker && tracker.shot) t = '🤖 Ref: watching the shot…';
     el.textContent = t; el.classList.toggle('warn', warn); el.hidden = false;
@@ -2746,5 +2746,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930211855"></script>
+<script src="build.js?v=20260930212219"></script>
 </body></html>
