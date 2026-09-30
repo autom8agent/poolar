@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930200551"><script src="stream.js?v=20260930200551"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930201442"><script src="stream.js?v=20260930201442"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -198,8 +198,10 @@
   .handle{position:absolute;z-index:6;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;border:3px solid var(--gold);background:rgba(242,193,78,.25);touch-action:none}
   .handle::after{content:"";position:absolute;left:50%;top:50%;width:4px;height:4px;margin:-2px;border-radius:50%;background:var(--gold)}
   .adjbar{position:absolute;top:8px;left:50%;transform:translateX(-50%);z-index:7;display:flex;gap:6px;align-items:center;background:rgba(10,16,14,.92);border-radius:12px;padding:6px 8px;font-size:13px;white-space:nowrap}
-  .refpop{position:absolute;right:8px;bottom:60px;z-index:6;width:min(340px,calc(100% - 16px));background:rgba(12,20,17,.96);border:2px solid var(--gold);border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:8px;box-shadow:0 8px 30px rgba(0,0,0,.5);overflow:hidden}
-  .refpop .rtop{display:flex;align-items:center;gap:8px}
+  .refpop{position:absolute;right:8px;bottom:60px;z-index:6;width:min(460px,calc(100% - 16px));font-size:16px;background:rgba(12,20,17,.96);border:2px solid var(--gold);border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:8px;box-shadow:0 8px 30px rgba(0,0,0,.5);overflow:hidden}
+  .refpop .rtop{display:flex;align-items:center;gap:8px;font-size:19px}
+  .refpop button{font-size:16px!important;padding:11px 14px!important}
+  .refpop #refS{font-size:15px;line-height:1.35}
   .refpop .rtop b{font-size:17px;flex:1}
   .refpop .rballs{display:flex;gap:4px}
   .refpop .rballs .ball{width:30px;cursor:default}
@@ -237,7 +239,7 @@
     body.hastv .players{grid-template-rows:minmax(160px,34vh) 1fr 1fr}
   }
   @media (min-width:800px) and (orientation:landscape){
-    .tv{position:absolute;z-index:3;top:52px;bottom:0;left:21%;right:16%}
+    .tv{position:absolute;z-index:3;top:52px;bottom:0;left:15%;right:11%}   /* wider box = taller 16:9 picture */
   }
   .tvnote{position:absolute;top:8px;left:50%;transform:translateX(-50%);z-index:5;display:flex;align-items:center;gap:6px;background:rgba(10,16,14,.92);border:1px solid var(--gold);border-radius:12px;padding:6px 6px 6px 12px;white-space:nowrap;max-width:calc(100% - 16px)}
   .tvnote span{font-size:13px;font-weight:700;color:var(--gold);overflow:hidden;text-overflow:ellipsis}
@@ -766,10 +768,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930200551"></script>
-<script src="halls.js?v=20260930200551"></script>
-<script src="qrcode.js?v=20260930200551"></script>
-<script src="tablecv.js?v=20260930200551"></script>
+<script src="hallday.js?v=20260930201442"></script>
+<script src="halls.js?v=20260930201442"></script>
+<script src="qrcode.js?v=20260930201442"></script>
+<script src="tablecv.js?v=20260930201442"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -2644,5 +2646,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930200551"></script>
+<script src="build.js?v=20260930201442"></script>
 </body></html>
