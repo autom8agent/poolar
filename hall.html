@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="build" content="20260930063940"><script src="stream.js"></script>
+<meta charset="utf-8"><meta name="build" content="20260930065751"><script src="stream.js"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0a0f14">
 <title>Surge Billiards Tables</title>
@@ -35,7 +35,8 @@
   .tbl:focus-visible .rail,.tbl:hover .rail{stroke:var(--gold);stroke-width:.8}
   .tbl .felt{fill:var(--felt)}
   .tbl.busy .felt{fill:var(--felt-busy)}
-  .tbl.mine .rail{stroke:var(--gold);stroke-width:.8}
+  .tbl.busy .rail{stroke:#57d98a;stroke-width:1}
+  .tbl.shut .rail{stroke:#ff5a4e;stroke-width:1}
   .tnum{font-family:var(--num);font-weight:900;fill:#fff;paint-order:stroke;stroke:rgba(0,0,0,.35);stroke-width:.5}
   .tag{font-family:var(--ui);font-weight:700;fill:#fff}
   .list{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -45,7 +46,8 @@
   .list .ic{display:flex;align-items:center;gap:6px;color:var(--muted);min-width:0}
   .list .st{font-size:12px;font-weight:700;letter-spacing:.04em;color:var(--free);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .list a.busy .st{color:var(--text)}
-  .list a.mine{border-color:var(--gold)} .list a.mine .st{color:var(--gold)}
+  .list a.busy{border-color:#57d98a}
+  .list a.shut{border-color:#ff5a4e}
   .list a.closed{opacity:.55}
   .q{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:20px;padding:0 6px;border-radius:10px;font-size:12px;font-weight:800;color:#10161c}
   .nav{display:flex;gap:8px;flex-wrap:wrap}
@@ -197,13 +199,14 @@
     }
     for (const t of H.tables) {
       const b = busy(t.n), s = status[t.n], isMine = !!mine[`${HALL}-${t.n}`] && b;
-      $('tb' + t.n).classList.toggle('busy', b); $('tb' + t.n).classList.toggle('mine', isMine);
+      const shut = b && (s.open === false || s.line === false);   // locked, or the waitlist is closed
+      $('tb' + t.n).classList.toggle('busy', b); $('tb' + t.n).classList.toggle('shut', shut); $('tb' + t.n).classList.toggle('mine', false);
       const score = b && s.score ? `${s.score[0]}–${s.score[1]}` : '';
-      $('tt' + t.n).textContent = isMine ? 'YOURS' : b ? (s.open ? 'JOIN' : score || 'IN USE') : '';
+      $('tt' + t.n).textContent = b ? (shut ? '🔒 ' + (score || 'IN USE') : score || 'IN USE') : '';
       $('tb' + t.n).setAttribute('aria-label', `Table ${t.n}, ${t.ft}-foot, ${b ? `in use${s.names ? `: ${s.names[0]} vs ${s.names[1]} ${score}` : ''}` : 'open'}`);
-      $('gl' + t.n).classList.toggle('busy', b); $('gl' + t.n).classList.toggle('mine', isMine);
+      $('gl' + t.n).classList.toggle('busy', b); $('gl' + t.n).classList.toggle('shut', shut); $('gl' + t.n).classList.toggle('mine', false);
       const c = config[t.n] || {};
-      $('gs' + t.n).textContent = isMine ? 'Yours' : b ? (s.names ? `${s.names[0]} v ${s.names[1]}${score ? ' · ' + score : ''}` : 'In use') : c.closed ? (c.note || 'Reserved') : c.note ? `Open · ${c.note}` : 'Open';
+      $('gs' + t.n).textContent = b ? (shut ? '🔒 ' : '') + (s.names ? `${s.names[0]} v ${s.names[1]}${score ? ' · ' + score : ''}` : 'In use') : c.closed ? (c.note || 'Reserved') : c.note ? `Open · ${c.note}` : 'Open';
     }
   }
   function take(raw){
