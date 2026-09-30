@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="build" content="20260930090006"><script src="stream.js?v=20260930090006"></script>
+<meta charset="utf-8"><meta name="build" content="20260930162207"><script src="stream.js?v=20260930162207"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0a0f14">
 <title>Surge Billiards Tables</title>
@@ -29,7 +29,8 @@
   .legend span{display:inline-flex;align-items:center;gap:6px}
   .sw{width:14px;height:10px;border-radius:2px;border:2px solid var(--rail)}
   .map{background:var(--floor);border:1px solid var(--line);border-radius:14px;padding:6px;overflow:hidden}
-  svg{display:block;width:100%;height:auto}
+  .map svg{display:block;width:100%;height:auto}
+  .legend svg,.tc svg,.grp svg{display:inline-block;vertical-align:middle;flex:none}
   .tbl{cursor:pointer}
   .tbl:focus{outline:none}
   .tbl:focus-visible .rail,.tbl:hover .rail{stroke:var(--gold);stroke-width:.8}
@@ -56,6 +57,14 @@
   .event{background:linear-gradient(90deg,#3a2a08,#2a1d06);border:1px solid var(--gold);border-radius:12px;padding:10px 12px;color:var(--gold);font-weight:700}
   .event small{display:block;color:var(--text);font-weight:500;margin-top:2px}
   .legend .q{margin-right:2px}
+  .key{display:flex;flex-direction:column;gap:7px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+  .key .legend{gap:12px}
+  .key .sw{width:22px;height:14px;border-radius:3px;border:2px solid var(--rail)}
+  .key .sw.busy{background:var(--felt-busy);border-color:#57d98a}
+  .key .sw.shut{background:var(--felt-busy);border-color:#ff5a4e}
+  .bchip{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:#dfe7ee;box-shadow:inset 0 0 0 1px #9fb0bf}
+  .sc{position:relative;display:inline-flex;align-items:center;justify-content:center;line-height:1}
+  .sc b{position:absolute;left:50%;top:48%;transform:translate(-50%,-50%);color:#ffd23f;font-weight:900;font-size:12px;line-height:1;text-shadow:0 0 2px #000,0 0 2px #000,0 0 3px #000}
   a.evlink{display:block;text-decoration:none}
   a.evlink b{display:inline-block;margin-left:6px;padding:2px 10px;border-radius:999px;background:var(--gold);color:#1d1606;font-size:13px}
   a.evlink.night{background:linear-gradient(90deg,#0f3a52,#0b2433);border-color:var(--felt);color:#bfe8ff}
@@ -65,6 +74,30 @@
   .demo a{color:#fff}
   .tag2{font-family:var(--ui);font-weight:800;fill:#dfe9f1;letter-spacing:.15px}
   .list .md{font-size:12px;color:var(--muted);grid-column:2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .filters{display:flex;flex-direction:column;gap:6px}
+  .frow{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .frow>b{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);min-width:58px}
+  .chip{display:inline-flex;align-items:center;gap:5px;padding:6px 10px;border-radius:999px;background:var(--panel);border:1px solid var(--line);font-size:13px;font-weight:700;color:var(--text);cursor:pointer;user-select:none}
+  .chip input{display:none}
+  .chip.on{background:var(--gold);border-color:var(--gold);color:#1d1606}
+  .chip small{opacity:.7;font-weight:600}
+  .grp{margin-top:10px}
+  .grp h3{margin:0 0 6px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:8px}
+  .tcs{display:grid;grid-template-columns:1fr;gap:8px}
+  @media (min-width:520px){.tcs.open{grid-template-columns:1fr 1fr}}
+  .tc{display:grid;grid-template-columns:48px 1fr auto;gap:10px;align-items:center;padding:10px;border-radius:12px;background:var(--panel);border:1px solid var(--line)}
+  .tc.busy{border-color:#57d98a}.tc.shut{border-color:#ff5a4e}
+  .tc .tn{font-family:var(--num);font-weight:900;font-size:32px;line-height:1;text-align:center;color:var(--text);text-decoration:none}
+  .tc .tn small{display:block;font-family:var(--ui);font-size:10px;font-weight:700;color:var(--muted)}
+  .tc .ti{min-width:0;display:flex;flex-direction:column;gap:3px}
+  .tc .l1{font-weight:700;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tc .l2{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);flex-wrap:wrap}
+  .tc .l3{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tc .l3 b{color:#57d98a}
+  .tc .act{display:inline-flex;align-items:center;justify-content:center;min-width:74px;padding:10px 12px;border-radius:10px;background:var(--gold);color:#1d1606;font-weight:800;text-decoration:none;font-size:14px;white-space:nowrap}
+  .tc .act.start{background:var(--felt);color:#04162b}
+  .tc .act.off{background:transparent;border:1px solid #ff5a4e;color:#ff8a80}
+  .empty{color:var(--muted);font-size:14px;margin:6px 0}
   h2{margin:4px 0 0;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
   .day{display:flex;align-items:center;gap:8px;margin:0}
   .day b{font-size:15px;font-weight:700}
@@ -96,22 +129,17 @@
   <a class="event evlink" id="tsum" hidden></a>
   <a class="event evlink night" id="night" hidden></a>
   <p class="prompt">Tap the table you're playing on to start scoring.</p>
-  <div class="legend">
-    <span><i class="sw" style="background:var(--felt)"></i>Open</span>
-    <span><i class="sw" style="background:var(--felt-busy)"></i>In use</span>
-    <span id="ftLegend">9-ft front · 7-ft back room</span>
-    <span>Line: <i class="q" style="background:#57d98a">0</i><i class="q" style="background:#c8e04a">1–2</i><i class="q" style="background:#f59a3a">3–4</i><i class="q" style="background:#e4574a">5+</i></span>
-  </div>
-  <div class="legend" id="modeLegend"><span>👤 Singles</span><span>👥 Doubles</span><span>👥S Scotch doubles</span><span>🏁 Race</span><span>👑 Winner stays</span><span>🎲 Rotate</span><span>🏆 Winner picks</span><span>🎲+ball Random game</span><span>🔒 Locked / no waitlist</span></div>
+  <div class="key" id="modeLegend"></div>
   <div class="demo" id="demoBar" hidden>DEMO · made-up tables to show every option. <a id="demoOff" href="#">Show the real tables</a></div>
   <div class="map"><svg id="plan" role="group" aria-label="Floor plan"></svg></div>
-  <h2>All tables</h2>
-  <div class="list" id="grid"></div>
+  <h2>Tables</h2>
+  <div class="filters" id="filters"></div>
+  <div id="tlist"></div>
   <p class="note">A table locks to the first group that opens it. Friends join through the Share button inside the game. When you finish, tap <b>Free table</b> in the game so the next group can use it. A table that sits idle for 30 minutes frees up by itself.</p>
 </div>
 
-<script src="hallday.js?v=20260930090006"></script>
-<script src="halls.js?v=20260930090006"></script>
+<script src="hallday.js?v=20260930162207"></script>
+<script src="halls.js?v=20260930162207"></script>
 <script>
 (() => {
   const qs = new URLSearchParams(location.search);
@@ -183,8 +211,7 @@
       g.addEventListener('click', go);
       g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
     }
-    $('grid').innerHTML = [...H.tables].sort((a, b) => a.n - b.n)
-      .map(t => `<a id="gl${t.n}" href="${esc(tableUrl(t.n))}"><span class="n">${t.n}</span><span class="ic" id="gi${t.n}"></span><span class="st" id="gs${t.n}">Open</span><span class="md" id="gm${t.n}"></span></a>`).join('');
+
   }
 
   function paint(){
@@ -219,27 +246,82 @@
         + (b0 || c.gtype ? `<g transform="translate(${rnd ? 4.6 : 0} 0)"><circle cx="${x+1.2}" cy="${y+1.2}" r="2.3" fill="${P.BALL[(gt-1)%8]}" stroke="#000" stroke-width=".3"/><circle cx="${x+1.2}" cy="${y+1.2}" r="1.2" fill="#f4efe2"/><text x="${x+1.2}" y="${y+1.75}" text-anchor="middle" font-size="1.5" font-weight="700" fill="#111">${gt}</text></g>` : '')
         + (b0 ? `<circle cx="${x+w-1.2}" cy="${y+1.2}" r="2.3" fill="${P.lineColor(q)}" stroke="#000" stroke-width=".3"/><text x="${x+w-1.2}" y="${y+2}" text-anchor="middle" font-size="2.3" font-weight="800" fill="#10161c">${q}</text>` : '')
         + (camLive(t.n) ? `<g aria-label="Camera live" transform="translate(${x + w/2 - 4.2} ${y - 1.6})"><rect x="0" y="0" width="6.4" height="3.8" rx=".8" fill="#e5484d" stroke="#000" stroke-width=".25"/><path d="M6.4 .6l2 -1v3.4l-2 -1z" fill="#e5484d" stroke="#000" stroke-width=".2"/><circle cx="1.4" cy="1.9" r=".6" fill="#fff"/></g>` : '');
-      $('gi' + t.n).innerHTML = `${rnd ? '🎲' : ''}${P.ballSvg(gt, 18)}${P.peopleSvg(dbl, 16)}${b0 && s0.scotch ? '<b style="font-size:11px">S</b>' : ''}<span class="q" style="background:${P.lineColor(q)}">${q}</span>${camLive(t.n) ? '<span class="cam" title="Camera live">📹</span>' : ''}`;
-      $('gl' + t.n).classList.toggle('closed', !!closed);
-      $('gl' + t.n).title = c.note || '';
     }
     for (const t of H.tables) {
       const b = busy(t.n), s = status[t.n], isMine = !!mine[`${HALL}-${t.n}`] && b;
       const shut = b && (s.open === false || s.line === false);   // locked, or the waitlist is closed
       $('tb' + t.n).classList.toggle('busy', b); $('tb' + t.n).classList.toggle('shut', shut); $('tb' + t.n).classList.toggle('mine', false);
       const score = b && s.score ? `${s.score[0]}–${s.score[1]}` : '';
-      const who = b ? (s.dbl ? (s.scotch ? '👥S' : '👥') : '👤') : '';
-      const FM = { race: ['🏁', 'RACE'], wso: ['👑', 'WINNER STAYS'], rot: ['🎲', 'ROTATE'], pick: ['🏆', 'WINNER PICKS'], rand: ['🎲', 'RANDOM GAME'] }[b && s.fmt || 'race'];
+      const who = b ? (s.dbl ? '👥' : '👤') : '';
+      const FM = FMT[b && s.fmt || 'race'] || FMT.race;
       const raceTxt = s && s.race ? (s.race[0] === s.race[1] ? `RACE ${s.race[0]}` : `RACE ${s.race[0]}/${s.race[1]}`) : 'RACE';
-      $('tt' + t.n).textContent = b ? `${shut ? '🔒' : ''}${who} ${FM[0]}` : '';
-      $('tm' + t.n).textContent = b ? ((s.fmt || 'race') === 'race' ? raceTxt : ({ wso: 'WINNER STAYS', rot: 'ROTATE', pick: 'WINNER PICKS', rand: 'RANDOM GAME' }[s.fmt])) : '';
-      $('gm' + t.n).textContent = b ? `${FM[0]} ${(s.fmt || 'race') === 'race' ? raceTxt.toLowerCase().replace('race', 'Race') + (s.rules === 'apa' && s.sl ? ` (SL ${s.sl[0]} v ${s.sl[1]})` : '') : FM[1][0] + FM[1].slice(1).toLowerCase()}${s.dbl ? (s.scotch ? ' · Scotch doubles' : ' · Doubles') : ''}${s.qn && s.qn.length ? ` · Next: ${s.qn.join(', ')}` : ''}${s.line === false && !(s.open === false) ? ' · Waitlist closed' : ''}` : '';
+      $('tt' + t.n).innerHTML = b ? `${shut ? '🔒' : ''}${who}${s.scotch && s.dbl ? '<tspan dx="-2.35" dy="-.35" font-size="2.3" font-weight="900" fill="#ffd23f" stroke="#000" stroke-width=".35" paint-order="stroke">S</tspan><tspan dx=".9" dy=".35"> </tspan>' : ' '}${FM[0]}` : '';
+      const tm = $('tm' + t.n); tm.removeAttribute('textLength'); tm.removeAttribute('lengthAdjust');
+      tm.textContent = b ? (s.open === false ? 'PRIVATE' : (s.fmt || 'race') === 'race' ? (s.race && s.race[0] === 1 && s.race[1] === 1 ? 'SINGLE GAME' : raceTxt) : FM[1].toUpperCase()) : '';
+      try { const room = +$('ti' + t.n).dataset.w - 2; if (tm.textContent && tm.getComputedTextLength() > room) { tm.setAttribute('textLength', room); tm.setAttribute('lengthAdjust', 'spacingAndGlyphs'); } } catch {}
       $('tb' + t.n).setAttribute('aria-label', `Table ${t.n}, ${t.ft}-foot, ${b ? `in use${s.names ? `: ${s.names[0]} vs ${s.names[1]} ${score}` : ''}` : 'open'}`);
-      $('gl' + t.n).classList.toggle('busy', b); $('gl' + t.n).classList.toggle('shut', shut); $('gl' + t.n).classList.toggle('mine', false);
-      const c = config[t.n] || {};
-      $('gs' + t.n).textContent = b ? (shut ? '🔒 ' : '') + (s.names ? `${s.names[0]} v ${s.names[1]}` : 'In use') : c.closed ? (c.note || 'Reserved') : c.note ? `Open · ${c.note}` : 'Open';
     }
+    paintList();
     paintDay();
+  }
+  // ---- Key and table list ----
+  const FMT = { race: ['🏁', 'Race'], single: ['1️⃣', 'Single game'], wso: ['👑', 'Winner stays on'], rot: ['🔄', 'Rotate'], pick: ['🏆', 'Winner picks'], rand: ['🎲', 'Random game'] };
+  const SCOTCH = '<span class="sc">👥<b>S</b></span>';
+  const row = items => `<div class="legend">${items.map(x => `<span>${x}</span>`).join('')}</div>`;
+  $('modeLegend').innerHTML =
+    row(['<i class="sw" style="background:var(--felt)"></i>Open', '<i class="sw busy"></i>In use', '<i class="sw shut"></i>Private / line closed',
+      'Line: <i class="q" style="background:#57d98a">0</i><i class="q" style="background:#c8e04a">1–2</i><i class="q" style="background:#f59a3a">3–4</i><i class="q" style="background:#e4574a">5+</i>']) +
+    row([8, 9, 10].map(n => `<span class="bchip">${P.ballSvg(n, 18)}</span>${n}-ball`)) +
+    row(['👤 Singles', '👥 Doubles', `${SCOTCH} Scotch doubles`]) +
+    row(['🏁 Race', '1️⃣ Single game', '👑 Winner stays on', '🔄 Rotate', '🏆 Winner picks', '🎲 Random game']) +
+    row(['🔒 Private', '📹 Camera live']);
+  const FILTERS = [
+    ['Status', [['open', 'Open'], ['busy', 'In use']]],
+    ['Game', [['8', '8-ball'], ['9', '9-ball'], ['10', '10-ball']]],
+    ['Players', [['singles', 'Singles'], ['doubles', 'Doubles'], ['scotch', 'Scotch doubles']]],
+    ['Format', [['race', 'Race'], ['single', 'Single game'], ['wso', 'Winner stays on'], ['rot', 'Rotate'], ['pick', 'Winner picks'], ['rand', 'Random game']]],
+  ];
+  let fsel = {}; try { fsel = JSON.parse(localStorage.getItem('poolar-hall-filters') || '{}'); } catch {}
+  const facts = t => { const b = busy(t.n), s = status[t.n] || {};
+    if (!b) return { b, Status: 'open' };
+    const fmt = (s.fmt || 'race') === 'race' && s.race && s.race[0] === 1 && s.race[1] === 1 ? 'single' : (s.fmt || 'race');
+    return { b, s, Status: 'busy', Game: String(s.gtype || 8), Players: s.dbl ? (s.scotch ? 'scotch' : 'doubles') : 'singles', Format: fmt }; };
+  const passes = f => FILTERS.every(([g]) => { const on = Object.keys(fsel[g] || {}).filter(k => fsel[g][k]); if (!on.length) return true;
+    if (!f.b && g !== 'Status') return !!(fsel.Status && fsel.Status.open);   // open tables have no game yet
+    return on.includes(f[g]); });
+  function paintFilters(){
+    const all = H.tables.map(facts);
+    $('filters').innerHTML = FILTERS.map(([g, opts]) => `<div class="frow"><b>${g}</b>${opts.map(([k, l]) => { const n = all.filter(f => f[g] === k).length, on = !!(fsel[g] && fsel[g][k]);
+      return `<label class="chip ${on ? 'on' : ''}"><input type="checkbox" data-g="${g}" data-k="${k}" ${on ? 'checked' : ''}>${esc(l)} <small>${n}</small></label>`; }).join('')}</div>`).join('');
+  }
+  $('filters').addEventListener('change', e => { const x = e.target; if (!x.dataset.g) return; (fsel[x.dataset.g] = fsel[x.dataset.g] || {})[x.dataset.k] = x.checked;
+    try { localStorage.setItem('poolar-hall-filters', JSON.stringify(fsel)); } catch {} paintList(); });
+  const waitUrl = n => keep('wait.html') + `&t=${n}`;
+  function card(t){
+    const f = facts(t), s = f.s || {}, c = config[t.n] || {}, cam = camLive(t.n) ? ' 📹' : '';
+    const num = `<a class="tn" href="${esc(tableUrl(t.n))}">${t.n}<small>${t.ft}-ft</small></a>`;
+    if (!f.b) return `<div class="tc open">${num}<div class="ti"><span class="l1">${c.closed ? '🔒 ' + esc(c.note || 'Reserved') : 'Open'}${cam}</span>${c.note && !c.closed ? `<span class="l3">${esc(c.note)}</span>` : ''}</div>${c.closed ? '<span class="act off">Reserved</span>' : `<a class="act start" href="${esc(tableUrl(t.n))}">+ Start</a>`}</div>`;
+    const priv = s.open === false, closedLine = s.line === false, fm = FMT[f.Format] || FMT.race;
+    const race = s.race && f.Format === 'race' ? ` ${s.race[0] === s.race[1] ? s.race[0] : s.race[0] + '/' + s.race[1]}` : '';
+    const who = f.Players === 'singles' ? '👤 Singles' : f.Players === 'scotch' ? '<span class="sc">👥<b>S</b></span> Scotch doubles' : '👥 Doubles';
+    const next = s.qn && s.qn.length ? `Up next: <b>${s.qn.map(esc).join(', ')}</b>${s.q > s.qn.length ? ` +${s.q - s.qn.length}` : ''}` : 'Nobody waiting';
+    const act = priv ? '<span class="act off">🔒 Private</span>' : closedLine ? '<span class="act off">Line closed</span>' : `<a class="act" href="${esc(waitUrl(t.n))}">+ Join</a>`;
+    return `<div class="tc busy ${priv || closedLine ? 'shut' : ''}">${num}<div class="ti"><span class="l1">${s.names ? esc(s.names[0]) + ' v ' + esc(s.names[1]) : 'In use'}${cam}</span>
+      <span class="l2">${P.ballSvg(+f.Game, 16)} ${fm[0]} ${fm[1]}${race} · ${who}${s.rules === 'apa' ? ' · APA' : ''}</span><span class="l3">${next}</span></div>${act}</div>`;
+  }
+  function paintList(){
+    paintFilters();
+    const shown = H.tables.filter(t => passes(facts(t))).sort((a, b) => a.n - b.n);
+    const open = shown.filter(t => !busy(t.n)), used = shown.filter(t => busy(t.n));
+    let html = '';
+    if (!used.length && open.length === H.tables.length) html += `<p class="empty">All ${H.tables.length} tables are open. Tap one to start a game.</p>`;
+    for (const g of [8, 9, 10]) { const list = used.filter(t => String((status[t.n] || {}).gtype || 8) === String(g)); if (!list.length) continue;
+      html += `<div class="grp"><h3>${P.ballSvg(g, 16)} ${g}-ball · ${list.length} table${list.length > 1 ? 's' : ''}</h3><div class="tcs">${list.map(card).join('')}</div></div>`; }
+    if (open.length) {
+      for (const ft of [9, 7]) { const list = open.filter(t => t.ft === ft); if (!list.length) continue;
+        html += `<div class="grp"><h3>Open · ${ft}-ft tables · ${list.length}</h3><div class="tcs open">${list.map(card).join('')}</div></div>`; } }
+    if (!shown.length) html = '<p class="empty">No tables match those filters.</p>';
+    $('tlist').innerHTML = html;
   }
   // Today's date (Chicago) and what's planned: a strip of the next nights and tournaments, and a month calendar.
   // Tapping a date opens the night planner on that date.
@@ -307,7 +389,8 @@
     config[11] = { closed: true, note: 'Reserved 9 PM · league' };
     cams[1] = { top: now }; cams[14] = { top: now };
     for (const t of H.tables) { const go = e => { e.preventDefault(); e.stopPropagation(); alert(`Demo table ${t.n}. Nothing here is real.`); };
-      $('tb' + t.n).addEventListener('click', go, true); $('gl' + t.n).addEventListener('click', go); }
+      $('tb' + t.n).addEventListener('click', go, true); }
+    $('tlist').addEventListener('click', e => { const a = e.target.closest('a'); if (a) { e.preventDefault(); alert('Demo table. Nothing here is real.'); } }, true);
     paint();
   } else { paint(); load(); }
   if (!DEMO) try {
@@ -319,6 +402,6 @@
   document.addEventListener('visibilitychange', () => { if (!DEMO && document.visibilityState === 'visible') load(); });
 })();
 </script>
-<script src="build.js?v=20260930090006"></script>
+<script src="build.js?v=20260930162207"></script>
 </body>
 </html>
