@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930232022"><script src="stream.js?v=20260930232022"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930232239"><script src="stream.js?v=20260930232239"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -808,10 +808,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930232022"></script>
-<script src="halls.js?v=20260930232022"></script>
-<script src="qrcode.js?v=20260930232022"></script>
-<script src="tablecv.js?v=20260930232022"></script>
+<script src="hallday.js?v=20260930232239"></script>
+<script src="halls.js?v=20260930232239"></script>
+<script src="qrcode.js?v=20260930232239"></script>
+<script src="tablecv.js?v=20260930232239"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -1971,7 +1971,7 @@
   setInterval(() => { try {
     if (!refOn || !feedLive || !tracker || !tracker.last || tracker.shot || (pop && !$('refPop').hidden)) return;
     if (st.turns === 0 && !st.down.length) return;                      // racked: can't read a packed rack
-    if (tracker.last.occ && tracker.last.occ.some(o => (o.area != null ? o.area : (o.x1 - o.x0) * (o.y1 - o.y0)) > .012)) { for (const k in scanMiss) scanMiss[k] = 0; for (const k in scanSeen) scanSeen[k] = 0; return; }
+    if (tracker.last.occ && tracker.last.occ.some(o => o.ring ? o.area > .11 : (o.area != null ? o.area : (o.x1 - o.x0) * (o.y1 - o.y0)) > .012)) { for (const k in scanMiss) scanMiss[k] = 0; for (const k in scanSeen) scanSeen[k] = 0; return; }
     const balls = tracker.last.balls, nums = new Set(balls.filter(b => b.num && b.cls !== 'cluster').map(b => b.num));
     const clustered = balls.filter(b => b.cls === 'cluster').reduce((a, b) => a + (b.n || 2), 0);
     const objCount = balls.filter(b => b.cls !== 'cue' && b.cls !== 'cluster').length + clustered;
@@ -1985,7 +1985,7 @@
       back.forEach(n => scanSeen[n] = 0); flash(`Scan: ${back.join(', ')} is on the table → put back · Undo if wrong`); }
   } catch {} }, 1000);
   // ---- Before / after: the table when it was last clear before the shot vs when it's clear again after ----
-  const tableClear = () => { const L = tracker && tracker.last; return !!L && !(L.occ || []).some(o => (o.area != null ? o.area : (o.x1 - o.x0) * (o.y1 - o.y0)) > .006); };
+  const tableClear = () => { const L = tracker && tracker.last; return !!L && !(L.occ || []).some(o => o.ring ? o.area > .11 : (o.area != null ? o.area : (o.x1 - o.x0) * (o.y1 - o.y0)) > .006); };
   const tableRead = label => { const L = tracker.last, balls = L.balls;
     const nums = balls.filter(b => b.num && b.cls !== 'cluster').map(b => b.num), clumps = balls.filter(b => b.cls === 'cluster').reduce((a, b) => a + (b.n || 2), 0);
     return { t: performance.now(), img: snapTable(null, label), nums: [...new Set(nums)], cue: balls.some(b => b.cls === 'cue'), count: balls.filter(b => b.cls !== 'cue' && b.cls !== 'cluster').length + clumps, clumps }; };
@@ -2989,5 +2989,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930232022"></script>
+<script src="build.js?v=20260930232239"></script>
 </body></html>
