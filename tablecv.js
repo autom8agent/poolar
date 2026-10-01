@@ -409,7 +409,8 @@
       const nNow = balls.filter(b => b.cls !== 'cluster').length + balls.filter(b => b.cls === 'cluster').reduce((a, b) => a + (b.n || 2), 0);
       (this.cnt = this.cnt || []).push([t, nNow]); while (this.cnt.length && t - this.cnt[0][0] > 3000) this.cnt.shift();
       const nBefore = () => Math.max(...this.cnt.filter(c => t - c[0] <= 2600).map(c => c[1]));
-      const wasResting = tr => tr.lastRest && t - tr.lastRest < 2500 && tr.restDur > 500;
+      // The cue ball must have sat still for over a second (longer after being placed by hand) before a shot can start.
+      const wasResting = tr => tr.lastRest && t - tr.lastRest < 2500 && tr.restDur > (tr.cls === 'cue' ? 1100 : 500);
       const displaced = tr => tr.restX != null && Math.hypot(tr.x - tr.restX, (tr.y - tr.restY) * .5) > R * 3;
       // ---- shot state machine ----
       if (!this.shot) {
@@ -426,7 +427,10 @@
         }
         // Fallback when the cue ball isn't recognised as the cue ball (ivory under this light, a cap-up stripe…):
         // the first ball to move off a still table is the one that was struck, so treat it as the cue ball.
-        if (!this.shot && !(this.handUntil > t)) {
+        // Only when no cue ball is being tracked at all (never while the cue ball is known and sitting still:
+        // a shot starts when the CUE BALL moves, not when something else on the table does).
+        const cueKnown = this.tracks.some(tr => tr.cls === 'cue' && t - tr.seen < 2000);
+        if (!this.shot && !cueKnown && !(this.handUntil > t)) {
           const movers = this.tracks.filter(tr => tr.seen === t && (tr.v > this.o.move || displaced(tr)) && wasResting(tr));
           if (movers.length === 1 && !this.handNear(movers[0], occ)) {
             const m = movers[0];
