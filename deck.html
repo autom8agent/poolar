@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20261001003439"><script src="stream.js?v=20261001003439"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20261001222354"><script src="stream.js?v=20261001222354"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -818,10 +818,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20261001003439"></script>
-<script src="halls.js?v=20261001003439"></script>
-<script src="qrcode.js?v=20261001003439"></script>
-<script src="tablecv.js?v=20261001003439"></script>
+<script src="hallday.js?v=20261001222354"></script>
+<script src="halls.js?v=20261001222354"></script>
+<script src="qrcode.js?v=20261001222354"></script>
+<script src="tablecv.js?v=20261001222354"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -2406,8 +2406,14 @@
     const meta = { id, at: startW, table: TNUM, hall: HALL, game, names: [side(0), side(1)], shooter: side(sug.shooter ?? st.shooter), call: { type: sug.type, title: sug.title, text: sug.text, conf: sug.conf },
       answer: choice, comment, fixed: !!sug.fixed, down: st.down.slice(), groups: st.groups, ev: { first: ev.first, pocketed: ev.pocketed, scratch: ev.scratch, rail: ev.rail, kick: ev.kick, noHit: ev.noHit, n0: ev.n0, n1: ev.n1, blocked: ev.blocked, maybe: ev.maybe, missed: ev.missed, ms: ev.ms },
       build: (document.querySelector('meta[name="build"]') || {}).content, ua: navigator.userAgent.slice(0, 80) };
-    const up = segs => { segs.forEach((g, i) => fetch(`${R}/${i}`, { method: 'PUT', headers: { 'content-type': g.blob.type || 'video/webm' }, body: g.blob }).catch(() => {}));
-      meta.clips = segs.map(g => ({ t0: g.t0, t1: g.t1 })); fetch(`${R}/meta`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(meta) }).catch(() => {}); };
+    // Segments go up one at a time with retries: a dozen parallel 5 MB PUTs only landed 2–3 of them (the 8:13–8:30 PM
+    // recording came back as 38 s out of every 150 s), and a save that overlaps the next one must not be dropped.
+    const up = segs => { meta.clips = segs.map(g => ({ t0: g.t0, t1: g.t1 })); fetch(`${R}/meta`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(meta) }).catch(() => {});
+      saveShot.q = (saveShot.q || Promise.resolve()).then(async () => { let okN = 0;
+        for (let i = 0; i < segs.length; i++) { const g = segs[i]; for (let tries = 0; tries < 3; tries++) {
+          try { const r = await fetch(`${R}/${i}`, { method: 'PUT', headers: { 'content-type': g.blob.type || 'video/webm' }, body: g.blob }); if (r.ok) { okN++; break; } } catch {}
+          await new Promise(r => setTimeout(r, 1500 * (tries + 1))); } }
+        meta.uploaded = okN; fetch(`${R}/meta`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(meta) }).catch(() => {}); }); };
     const sn = { ...(ev.snaps || {}) }; if (ev.pre && ev.pre.img) sn.pre = ev.pre.img; if (ev.post && ev.post.img) sn.post = ev.post.img;
     if (ev.pre && ev.pre.raw) sn.preRaw = ev.pre.raw; if (ev.post && ev.post.raw) sn.postRaw = ev.post.raw;   // clean frames, no drawings: training data
     meta.snaps = Object.keys(sn).filter(k => typeof sn[k] === 'string');
@@ -3038,5 +3044,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20261001003439"></script>
+<script src="build.js?v=20261001222354"></script>
 </body></html>
