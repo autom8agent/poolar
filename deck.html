@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20261001001258"><script src="stream.js?v=20261001001258"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20261001001558"><script src="stream.js?v=20261001001558"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -818,10 +818,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20261001001258"></script>
-<script src="halls.js?v=20261001001258"></script>
-<script src="qrcode.js?v=20261001001258"></script>
-<script src="tablecv.js?v=20261001001258"></script>
+<script src="hallday.js?v=20261001001558"></script>
+<script src="halls.js?v=20261001001558"></script>
+<script src="qrcode.js?v=20261001001558"></script>
+<script src="tablecv.js?v=20261001001558"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -1897,6 +1897,9 @@
   function setCorners(q, save){
     corners = q; const use = rawView ? null : (q && TableCV.withRails ? TableCV.withRails(q) : q);   // show rails + pockets, not just the cloth
     if (warper && warper.ok) warper.setQuad(use); if (smallW && smallW.ok) smallW.setQuad(q);
+    // The ref's picture just changed shape: every ball "moves". Start fresh and stay quiet for a moment, so a view
+    // change is never read as a shot.
+    try { if (typeof tracker !== 'undefined' && tracker) { tracker.tracks = []; tracker.shot = null; tracker.settled = null; tracker.handUntil = performance.now() + 3000; } if (typeof closePop === 'function') closePop(); if (typeof clearHist !== 'undefined') clearHist = []; } catch {}
     if (save) try { localStorage.setItem(CKEY(), JSON.stringify(q)); } catch {}
   }
   function loadCorners(){ try { const q = JSON.parse(localStorage.getItem(CKEY())); if (q && q.tl) { setCorners(q); return true; } } catch {} setCorners(null); return false; }
@@ -1940,7 +1943,7 @@
   // Table menu
   $('tvTableBtn').onclick = () => { $('tvTableS').textContent = corners ? (rawView ? 'Showing the camera as-is.' : 'Straightened to the table corners.') : 'Looking for the table edges…'; $('tvTable').hidden = false; };
   $('tClose').onclick = () => $('tvTable').hidden = true;
-  $('tAuto').onclick = () => { rawView = false; cornerTry = []; cornerT = 0; setCorners(null); try { localStorage.removeItem(CKEY()); } catch {} $('tvTable').hidden = true; note('Looking for the table edges…'); };
+  $('tAuto').onclick = () => { rawView = false; try { localStorage.setItem('poolar-rawview', '0'); } catch {} cornerTry = []; cornerT = 0; setCorners(null); try { localStorage.removeItem(CKEY()); } catch {} $('tvTable').hidden = true; note('Looking for the table edges…'); };
   const rawLbl = () => { $('tRaw').textContent = rawView ? 'Straighten to the table' : 'Show camera as-is'; };
   $('tRaw').onclick = () => { rawView = !rawView; try { localStorage.setItem('poolar-rawview', rawView ? '1' : '0'); } catch {} setCorners(corners); rawLbl(); $('tvTable').hidden = true; };
   rawLbl();
@@ -1962,7 +1965,7 @@
     const up = () => { el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); };
     el.addEventListener('pointermove', move); el.addEventListener('pointerup', up);
   }));
-  $('adjDone').onclick = () => { rawView = false; setCorners(adj, true); $('handles').hidden = true; adj = null; };
+  $('adjDone').onclick = () => { rawView = false; try { localStorage.setItem('poolar-rawview', '0'); } catch {} setCorners(adj, true); $('handles').hidden = true; adj = null; };
   $('adjCancel').onclick = () => { setCorners(corners); $('handles').hidden = true; adj = null; };
 
   // ---------- Ref: suggestions with Yes / No / Other + comment ----------
@@ -2010,7 +2013,8 @@
   const tableClear = () => { const L = tracker && tracker.last; return !!L && !(L.occ || []).some(o => o.ring ? o.area > .11 : (o.area != null ? o.area : (o.x1 - o.x0) * (o.y1 - o.y0)) > .006); };
   const tableRead = label => { const L = tracker.last, balls = L.balls;
     const nums = balls.filter(b => b.num && b.cls !== 'cluster').map(b => b.num), clumps = balls.filter(b => b.cls === 'cluster').reduce((a, b) => a + (b.n || 2), 0);
-    return { t: performance.now(), img: snapTable(null, label), nums: [...new Set(nums)], cue: balls.some(b => b.cls === 'cue'), count: balls.filter(b => b.cls !== 'cue' && b.cls !== 'cluster').length + clumps, clumps }; };
+    let raw = null; try { raw = smallC.toDataURL('image/jpeg', .85); } catch {}
+    return { t: performance.now(), img: snapTable(null, label), raw, nums: [...new Set(nums)], cue: balls.some(b => b.cls === 'cue'), count: balls.filter(b => b.cls !== 'cue' && b.cls !== 'cluster').length + clumps, clumps }; };
   let clearHist = [];
   setInterval(() => { try { if (!tracker || !tracker.last || tracker.shot || !feedLive || !tableClear()) return;
     clearHist.push(tableRead('BEFORE the shot')); if (clearHist.length > 4) clearHist.shift(); } catch {} }, 700);
@@ -2395,13 +2399,14 @@
     const up = segs => { segs.forEach((g, i) => fetch(`${R}/${i}`, { method: 'PUT', headers: { 'content-type': g.blob.type || 'video/webm' }, body: g.blob }).catch(() => {}));
       meta.clips = segs.map(g => ({ t0: g.t0, t1: g.t1 })); fetch(`${R}/meta`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(meta) }).catch(() => {}); };
     const sn = { ...(ev.snaps || {}) }; if (ev.pre && ev.pre.img) sn.pre = ev.pre.img; if (ev.post && ev.post.img) sn.post = ev.post.img;
+    if (ev.pre && ev.pre.raw) sn.preRaw = ev.pre.raw; if (ev.post && ev.post.raw) sn.postRaw = ev.post.raw;   // clean frames, no drawings: training data
     meta.snaps = Object.keys(sn).filter(k => typeof sn[k] === 'string');
     meta.diff = ev.diff || null; meta.pre = ev.pre ? { count: ev.pre.count, nums: ev.pre.nums, cue: ev.pre.cue, clumps: ev.pre.clumps } : null; meta.post = ev.post ? { count: ev.post.count, nums: ev.post.nums, cue: ev.post.cue, clumps: ev.post.clumps } : null;
     meta.unsure = (tracker && tracker.last ? tracker.last.balls.filter(b => b.cls === 'cluster').map(b => `clump of ~${b.n || 2} balls`) : []);
     meta.reason = sug.reason || []; meta.path = ev.path || []; meta.firstPath = ev.firstPath || [];
     if (ev.pathImg) sn.paths = ev.pathImg; (ev.pockets || []).forEach((d, k) => { if (d) sn['pocket' + k] = d; });
     meta.pocketsSeen = (ev.pockets || []).map((d, k) => d ? PNAME6[k] : null).filter(Boolean);
-    const SLOT = { start: 90, contact: 91, end: 92, pre: 93, post: 94, paths: 95, pocket0: 96, pocket1: 97, pocket2: 98, pocket3: 99, pocket4: 60, pocket5: 61 };
+    const SLOT = { start: 90, contact: 91, end: 92, pre: 93, post: 94, paths: 95, pocket0: 96, pocket1: 97, pocket2: 98, pocket3: 99, pocket4: 60, pocket5: 61, preRaw: 89, postRaw: 88 };
     meta.snaps = Object.keys(sn).filter(k => typeof sn[k] === 'string' && SLOT[k] != null);
     meta.snaps.forEach(k => fetch(sn[k]).then(r => r.blob()).then(b => fetch(`${R}/${SLOT[k]}`, { method: 'PUT', headers: { 'content-type': 'image/jpeg' }, body: b })).catch(() => {}));
     const pick = () => (typeof buf !== 'undefined' ? buf : []).filter(g => g.t1 >= startW - 1500 && g.t0 <= endW + 2500).slice(-6);
@@ -3021,5 +3026,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20261001001258"></script>
+<script src="build.js?v=20261001001558"></script>
 </body></html>
