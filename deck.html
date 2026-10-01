@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20260930234559"><script src="stream.js?v=20260930234559"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20261001000025"><script src="stream.js?v=20261001000025"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -808,10 +808,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20260930234559"></script>
-<script src="halls.js?v=20260930234559"></script>
-<script src="qrcode.js?v=20260930234559"></script>
-<script src="tablecv.js?v=20260930234559"></script>
+<script src="hallday.js?v=20261001000025"></script>
+<script src="halls.js?v=20261001000025"></script>
+<script src="qrcode.js?v=20261001000025"></script>
+<script src="tablecv.js?v=20261001000025"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -2035,7 +2035,9 @@
     if (ev.first && ev.first.x != null) { x.strokeStyle = '#ffd23f'; x.lineWidth = 4; x.beginPath(); x.arc(ev.first.x * c.width, ev.first.y * c.height, c.width * .03, 0, 7); x.stroke(); }
     x.fillStyle = 'rgba(0,0,0,.7)'; x.fillRect(0, 0, c.width, 24); x.fillStyle = '#fff'; x.font = '800 15px system-ui'; x.fillText('Ball paths: white = cue ball · gold = first ball hit', 8, 17);
     return c.toDataURL('image/jpeg', .8); } catch { return null; } }
-  function refTick(v){ if (!smallW || !smallW.ok || !smallW.draw(v, feedFlipped())) return; const a = performance.now(); try { tracker.feed(smallW.read(), a); cropPockets(a); } catch {}
+  function refTick(v){ if (!smallW || !smallW.ok || !smallW.draw(v, feedFlipped())) return; const a = performance.now();
+    try { tracker.allowed = new Set((st.gtype === 8 ? [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15] : Array.from({ length: st.gtype }, (_, k) => k + 1)).filter(n => !st.down.includes(n))); } catch {}
+    try { tracker.feed(smallW.read(), a); cropPockets(a); } catch {}
     refCost = refCost * .9 + (performance.now() - a) * .1; if (HIFI) REFMS = Math.max(40, Math.min(110, refCost * 1.4)); paintRefStat(); }
   // What the ref sees right now, on the video, so it's obvious when it can't work.
   let refStatT = 0;
@@ -2989,5 +2991,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20260930234559"></script>
+<script src="build.js?v=20261001000025"></script>
 </body></html>

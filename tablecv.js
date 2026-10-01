@@ -331,6 +331,20 @@
         const byV = real.filter(b => b.cls !== 'cue').sort((a, b) => a.vmean - b.vmean), d = byV[0], next = byV[1];
         if (d && next && d.vmean < .5 && d.vmean < next.vmean * .9) { d.cls = 'eight'; d.num = 8; }
       }
+      // The scoreboard knows which balls are still up (this.allowed). Numbers are assigned so that each still-up ball is
+      // used once: reads that are allowed and unique keep their number; a read naming a ball that's already off the
+      // table, or a duplicate, goes to the best remaining still-up ball by colour (its solid/stripe twin first: glare
+      // on a solid reads as a stripe, which is how the 6 became a "14").
+      if (this.allowed) {
+        const HUE = { 1: 36, 2: 216, 3: 350, 4: 248, 5: 18, 6: 168, 7: 346 }, taken = new Set(), fix = [];
+        const numbered = balls.filter(b => b.num && b.cls !== 'eight' && b.cls !== 'cue' && b.cls !== 'cluster' && !(b.df > .3 && b.wf < .2));   // dark = the 8, never renumbered
+        for (const b of numbered) { if (this.allowed.has(b.num) && !taken.has(b.num)) taken.add(b.num); else fix.push(b); }
+        for (const b of fix) { let best = null, bd = 1e9;
+          for (const n of this.allowed) { if (n === 8 || taken.has(n)) continue;
+            const dd = (b.hue < 0 ? 0 : hueDist(b.hue, HUE[((n - 1) % 8) + 1])) + ((n > 8) === (b.cls === 'stripe') ? 0 : 30) + (n === (b.num > 8 ? b.num - 8 : b.num + 8) ? -15 : 0);
+            if (dd < bd) { bd = dd; best = n; } }
+          if (best) { b.num = best; b.cls = best > 8 ? 'stripe' : 'solid'; b.reassigned = true; taken.add(best); } }
+      }
       // The rental ball tray (or a dark glove holding the cue ball): a big dark shape. Balls inside it
       // aren't in play.
       const trays = occ.filter(o => o.dark);
