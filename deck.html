@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20261001000431"><script src="stream.js?v=20261001000431"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20261001000702"><script src="stream.js?v=20261001000702"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -416,7 +416,7 @@
 
   <div class="players">
     <div class="tv" id="tv">
-      <div class="reflog" id="refLog" hidden><button class="syncb" id="logSync">🔄 Sync balls with table</button><h4>🤖 Ref calls</h4><div id="refLogL"></div></div>
+      <div class="reflog" id="refLog" hidden><button class="syncb" id="logCheck" style="border-color:var(--gold);background:#2a2208;color:#ffe9a8">📋 Ball check</button><button class="syncb" id="logSync">🔄 Sync balls with table</button><h4>🤖 Ref calls</h4><div id="refLogL"></div></div>
       <div class="tvadd" id="tvAdd"><button class="primary" id="tvWatchBtn">📺 Watch table camera</button><button id="tvAddBtn">+ Add camera</button><small>Top-down table view · replays · recording</small></div>
       <iframe id="feedFrame" title="Top-down table camera" allow="autoplay; fullscreen" hidden></iframe>
       <canvas id="viewCan" hidden></canvas>
@@ -744,6 +744,16 @@
   </div>
 </div>
 
+<div class="sheet" id="checkSheet" hidden>
+  <div class="card" style="max-width:720px">
+    <h2>Ball check: what the ref sees now</h2>
+    <p class="syncsub" id="checkSub"></p>
+    <img id="checkImg" alt="Ref view" style="width:100%;border-radius:10px;border:1px solid var(--line)">
+    <textarea id="checkC" rows="2" placeholder="Wrong? e.g. 'the ball marked 14 is the 6', 'missing the 15 by the top-left pocket'" style="width:100%;margin:8px 0"></textarea>
+    <div class="two"><button id="checkOk">✓ Looks right</button><button class="primary" id="checkSend">Send correction</button></div>
+  </div>
+</div>
+
 <div class="sheet" id="syncSheet" hidden>
   <div class="card">
     <h2>Sync balls with the table</h2>
@@ -808,10 +818,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20261001000431"></script>
-<script src="halls.js?v=20261001000431"></script>
-<script src="qrcode.js?v=20261001000431"></script>
-<script src="tablecv.js?v=20261001000431"></script>
+<script src="hallday.js?v=20261001000702"></script>
+<script src="halls.js?v=20261001000702"></script>
+<script src="qrcode.js?v=20261001000702"></script>
+<script src="tablecv.js?v=20261001000702"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -1774,6 +1784,18 @@
     paint(); $('syncSheet').hidden = false;
   }
   $('logSync').onclick = syncBalls;
+  // Ball check: a fresh read of the table with every number drawn on, for Terry to confirm before a shot.
+  function ballCheck(){
+    if (!tracker || !tracker.last || !feedLive) return flash('No camera picture yet');
+    const L = tracker.last, nums = L.balls.filter(b => b.num && b.cls !== 'cluster').map(b => b.num).sort((a, b) => a - b), cue = L.balls.some(b => b.cls === 'cue'), clumps = L.balls.filter(b => b.cls === 'cluster');
+    $('checkImg').src = snapTable(null, 'Ball check · ' + new Date().toLocaleTimeString()) || '';
+    $('checkSub').textContent = `Reads: ${nums.join(', ') || 'no numbered balls'}${cue ? ' + cue ball' : ' · NO cue ball seen'}${clumps.length ? ` · ${clumps.length} group${clumps.length > 1 ? 's' : ''} of touching balls (numbers unsure)` : ''}.`;
+    $('checkC').value = ''; $('checkSheet').hidden = false;
+    const post = (ok, c) => fetch(`https://poolar-relay.poolar-relay.workers.dev/poolar-ref-fb`, { method: 'POST', body: JSON.stringify({ type: 'ballcheck', title: 'Ball check', choice: ok ? 'yes' : 'no', comment: c, read: nums, cue, clumps: clumps.length, up: st.down ? (st.gtype === 8 ? [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15] : []).filter(n => !st.down.includes(n)) : null, table: TNUM, game }) }).catch(() => {});
+    $('checkOk').onclick = () => { post(true, ''); $('checkSheet').hidden = true; flash('Ball check confirmed'); };
+    $('checkSend').onclick = () => { const c = $('checkC').value.trim(); post(false, c); $('checkSheet').hidden = true; flash(c ? 'Correction sent to Claude' : 'Sent'); };
+  }
+  $('logCheck').onclick = ballCheck;
   $('tvWatchBtn').onclick = () => showFeed(tableMode ? camChan('top') : (qs.get('cam') || camChan('top')));
   function watchLive(){
     const v = feedVideo(), bv = behindVideo(), now = Date.now();
@@ -2957,6 +2979,7 @@
       else if (c === 'stop') { if ($('refPop').hidden || $('refStop').hidden) return flash('🎛️ No timer running'); $('refStop').click(); }
       else if (c === 'undo') $('undo').click();
       else if (c === 'sync') { syncBalls(); return; }
+      else if (c === 'check') { ballCheck(); return; }
       else if (c === 'call' && m.title) { showPop({ type: m.type || 'turn', conf: .5, balls: Array.isArray(m.balls) ? m.balls : [], title: String(m.title).slice(0, 60), text: String(m.text || '').slice(0, 300),
           apply: () => {}, auto: '', noAuto: true, key: stateKey(), shooter: st.shooter, group: null, remote: true }); return; }
       else if (c === 'win0' || c === 'win1') $(c === 'win0' ? 'w0' : 'w1').click();
@@ -2992,5 +3015,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20261001000431"></script>
+<script src="build.js?v=20261001000702"></script>
 </body></html>
