@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20261001002456"><script src="stream.js?v=20261001002456"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20261001003439"><script src="stream.js?v=20261001003439"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -818,10 +818,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20261001002456"></script>
-<script src="halls.js?v=20261001002456"></script>
-<script src="qrcode.js?v=20261001002456"></script>
-<script src="tablecv.js?v=20261001002456"></script>
+<script src="hallday.js?v=20261001003439"></script>
+<script src="halls.js?v=20261001003439"></script>
+<script src="qrcode.js?v=20261001003439"></script>
+<script src="tablecv.js?v=20261001003439"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -2018,7 +2018,7 @@
   let clearHist = [];
   setInterval(() => { try { if (!tracker || !tracker.last || tracker.shot || !feedLive || !tableClear()) return;
     clearHist.push(tableRead('BEFORE the shot')); if (clearHist.length > 4) clearHist.shift(); } catch {} }, 700);
-  if (tracker) tracker.onShot = ev => { shotsSeen++; lastShotAt = Date.now(); shotSnaps.end = snapTable(null, 'After the shot'); ev.snaps = shotSnaps; shotSnaps = {};
+  if (tracker) tracker.onShot = ev => { shotsSeen++; lastShotAt = Date.now(); window.poolarLastShot = lastShotAt; shotSnaps.end = snapTable(null, 'After the shot'); ev.snaps = shotSnaps; shotSnaps = {};
     const startP = ev.t && ev.ms != null ? ev.t - ev.ms : performance.now() - 5000;
     ev.pre = [...clearHist].reverse().find(r => r.t < startP - 150) || null;
     ev.pockets = pocketStrips(); pocketCrops = [[], [], [], [], [], []]; ev.pathImg = pathImage(ev);
@@ -2122,6 +2122,13 @@
           return showPop({ type: 'made', conf: .5, balls: d.missing, title: d.drop > 1 ? `${d.drop} balls went down?` : 'Which ball went in?',
             text: `Before: ${ev.pre.count} balls${ev.pre.cue ? ' + cue' : ''} · After: ${ev.post.count}${ev.post.cue ? ' + cue' : ' · NO cue ball'}.${d.missing.length ? ` Missing: ${d.missing.join(', ')}.` : ''} First hit: ${ev.first ? clsName(ev.first) : 'not seen'}. Tap the ball(s) that went in.`,
             apply: () => {}, auto: '', noAuto: true, key: stateKey(), shooter: st.shooter, group: null, ev, askBalls: true });
+        }
+        else if (d.missing.length && !seen.length && !ev.scratch) {                       // same count, but a numbered ball is gone: ask, never 'nothing dropped'
+          // (7:30 PM: the cue ball hit the 8 first, the 8 wasn't in the after-read, and the ref still said 'turn over'.)
+          const n = ev.first && ev.first.num && d.missing.includes(ev.first.num) ? ev.first.num : d.missing[0];
+          return showPop({ type: 'made', conf: .5, balls: [n], title: `Did the ${n} go in?`,
+            text: `${ev.first && ev.first.num === n ? `The cue ball hit the ${n} first and` : `The ${n} was on the table before the shot and`} I can't find it afterwards (before: ${ev.pre.nums.join(', ')} · after: ${ev.post.nums.join(', ') || 'none read'}). Yes = it went in. No = it's still there.`,
+            apply: () => judge({ ...ev, maybe: [], pocketed: [{ num: n, cls: n === 8 ? 'eight' : n > 8 ? 'stripe' : 'solid', pocket: 0 }] }), auto: '', noAuto: true, key: stateKey(), shooter: st.shooter, group: null, ev });
         }
       }
     }
@@ -2261,7 +2268,9 @@
     if (sug.askBalls) setTimeout(() => { if (pop === sug) { showFix(); } }, 30);
     // grab this shot's video now, before the rolling recording moves past it
     if (sug.ev && typeof rotate === 'function' && typeof bufRec !== 'undefined' && bufRec) { const ev = sug.ev, nowP = performance.now(), nowW = Date.now(), w = p => nowW - (nowP - p);
-      const a = ev.t && ev.ms != null ? w(ev.t - ev.ms) : nowW - 8000, e = ev.t ? w(ev.t) : nowW; rotate(() => { sug.segs = buf.filter(g => g.t1 >= a - 1500 && g.t0 <= e + 2500).slice(-6); }); } if (st.lastTag) { st.lastTag = ''; save(); } document.querySelectorAll('#refPop .rbtn button').forEach(b => b.classList.remove('sel'));
+      // keep everything since the previous shot ended (racking, ball in hand, the walk-up) so the whole gap can be rewatched, up to 3 minutes
+      const a0 = ev.t && ev.ms != null ? w(ev.t - ev.ms) : nowW - 8000, a = Math.min(a0, (window.poolarPrevShotEnd || a0) + 1), e = ev.t ? w(ev.t) : nowW;
+      rotate(() => { sug.segs = buf.filter(g => g.t1 >= a - 1500 && g.t0 <= e + 2500).slice(-12); }); window.poolarPrevShotEnd = e; } if (st.lastTag) { st.lastTag = ''; save(); } document.querySelectorAll('#refPop .rbtn button').forEach(b => b.classList.remove('sel'));
     // What the camera understood, so a wrong call is easy to spot.
     if (sug.ev) { const e = sug.ev, bits = [];
       if (e.kick) bits.push('kick (cue ball hit a cushion first)');
@@ -3029,5 +3038,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20261001002456"></script>
+<script src="build.js?v=20261001003439"></script>
 </body></html>
