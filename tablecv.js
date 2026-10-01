@@ -395,7 +395,7 @@
       }
       const hasCue = this.tracks.some(tr => tr.cls === 'cue' && t - tr.seen < 1500);
       balls.forEach((b, i) => { if (!used.has(i) && !(b.cls === 'cue' && hasCue) && this.shot) this.shot.spawned = (this.shot.spawned || 0) + 1; });
-      balls.forEach((b, i) => { if (!used.has(i) && !(b.cls === 'cue' && hasCue)) this.tracks.push({ id: this.nid++, x: b.x, y: b.y, cls: b.cls, num: b.num, v: 0, t, seen: t, stillFrom: t, votes: { [b.cls + ':' + b.num]: 1 } }); });
+      balls.forEach((b, i) => { if (!used.has(i) && !(b.cls === 'cue' && hasCue)) this.tracks.push({ id: this.nid++, x: b.x, y: b.y, cls: b.cls, num: b.num, v: 0, t, seen: t, born: t, stillFrom: t, votes: { [b.cls + ':' + b.num]: 1 } }); });
       // forget tracks unseen for long (unless mid-shot, where "gone" means pocketed)
       this.tracks = this.tracks.filter(tr => t - tr.seen < (this.shot ? 20000 : 4000));
       const nearOcc = tr => occ.some(o => tr.x > o.x0 - R * 2 && tr.x < o.x1 + R * 2 && tr.y > o.y0 - R * 4 && tr.y < o.y1 + R * 4);
@@ -421,7 +421,10 @@
         // A bridge hand at the strike is next to the ball for a frame or two only, so the shot still starts.
         if (handOnCue) { this.handUntil = t + 900; if (cue.v > this.o.move) { cue.carry = (cue.carry || 0) + 1; if (cue.carry >= 3) { cue.restX = null; cue.lastRest = 0; } } if (this.onHand) this.onHand({ t, x: cue.x, y: cue.y }); }
         else if (cue) cue.carry = 0;
-        if (cue && (cue.v > this.o.move || displaced(cue)) && wasResting(cue) && !(this.handUntil > t)) {
+        // A cue ball frozen on a rail is often invisible at rest (it merges with the rail), then appears already moving
+        // once struck: a brand-new cue track that is moving, with no other cue ball known, starts the shot too.
+        const freshCue = cue && t - (cue.born || 0) < 900 && !this.tracks.some(o => o !== cue && o.cls === 'cue' && t - o.seen < 2500);
+        if (cue && (cue.v > this.o.move || displaced(cue)) && (wasResting(cue) || freshCue) && !(this.handUntil > t)) {
           this.shot = { t0: t, cueFrom: { x: cue.x, y: cue.y }, first: null, n0: nBefore(), before: this.tracks.filter(tr => t - tr.seen < 1500 && tr.cls !== 'cluster' && tr.num).map(tr => tr.num), moved: new Set(), stillAtStart: new Set(this.tracks.filter(tr => tr !== cue && tr.v < this.o.move).map(tr => tr.id))   /* compressed video jitters: 'not moving' is enough */, cueId: cue.id };
           this.quietFrom = 0;
         }
