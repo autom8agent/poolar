@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20261001000025"><script src="stream.js?v=20261001000025"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20261001000431"><script src="stream.js?v=20261001000431"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -808,10 +808,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20261001000025"></script>
-<script src="halls.js?v=20261001000025"></script>
-<script src="qrcode.js?v=20261001000025"></script>
-<script src="tablecv.js?v=20261001000025"></script>
+<script src="hallday.js?v=20261001000431"></script>
+<script src="halls.js?v=20261001000431"></script>
+<script src="qrcode.js?v=20261001000431"></script>
+<script src="tablecv.js?v=20261001000431"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -2061,7 +2061,8 @@
   const GROUP = { solids: [1, 2, 3, 4, 5, 6, 7], stripes: [9, 10, 11, 12, 13, 14, 15] };
   const PNAME = ['top-left corner', 'top side', 'top-right corner', 'bottom-left corner', 'bottom side', 'bottom-right corner'];
   const ballEl = n => n ? `<span class="ball${n > 8 ? ' st' : ''}" style="--c:${BC[(n - 1) % 8]}"><span>${n}</span></span>` : '<span class="ball" style="--c:#777"><span>?</span></span>';
-  const clsName = b => b.cls === 'eight' ? 'the 8' : b.num ? `the ${b.num}` : `a ${b.cls}`;
+  // Never "a cluster": if the ref can't tell which ball was struck it says so (and the replay shows the contact).
+  const clsName = b => b.cls === 'eight' ? 'the 8' : b.cls === 'cue' ? 'the cue ball' : b.num ? `the ${b.num}` : b.cls === 'cluster' ? "can't tell which ball (balls touching)" : `a ${b.cls === 'stripe' ? 'stripe' : 'solid'}, number unclear`;
   // APA 8-ball shot outcome (official APA 8-Ball Game Rules; flow in Pool AI PAL/data/rules):
   //  8-ball down?  -> won if the shooter was on the 8, no scratch and it was the marked pocket; else lost
   //  cue ball down? -> foul, ball in hand (behind the head string after a break)
@@ -2206,7 +2207,7 @@
   function reasonFor(sug){ const e = sug.ev; if (!e) return []; const r = [];
     if (e.missed) r.push('The cue ball ended up somewhere new but no shot was detected (safety net).');
     else { r.push(`Shot started when the cue ball left its resting spot; it lasted ${((e.ms || 0) / 1000).toFixed(1)} s until the balls stopped.`);
-      r.push(e.first ? `First contact: ${e.first.num ? 'the ' + e.first.num : e.first.cls} moved first, ${((e.first.at || 0) / 1000).toFixed(1)} s in (sure ${Math.round((e.first.conf || 0) * 100)}%).` : 'First contact: no ball was seen starting to move, so the hit ball is unknown.');
+      r.push(e.first && e.first.cls !== 'cluster' && (e.first.num || e.first.cls === 'eight') ? `First contact: ${e.first.num ? 'the ' + e.first.num : 'the 8'} moved first, ${((e.first.at || 0) / 1000).toFixed(1)} s in (sure ${Math.round((e.first.conf || 0) * 100)}%).` : e.first ? `First contact: a ball moved first ${((e.first.at || 0) / 1000).toFixed(1)} s in but I can't tell which one (balls touching or number unclear). Check the slow-motion replay.` : "First contact: I didn't see a ball start to move, so I can't tell what was hit.");
       if (e.blocked) r.push('A person or cue was over the table when the balls stopped: the ball count was not trusted.');
       const seen = (e.pocketed || []).filter(b => b.cls !== 'cue'); if (seen.length) r.push(`Balls that vanished near a pocket during the shot: ${seen.map(b => (b.num || b.cls) + (b.pocket >= 0 ? ' (' + PNAME6[b.pocket] + ')' : '') + (b.fromDiff ? ' [from before/after]' : '') + (b.counted ? ' [from the count]' : '')).join(', ')}.`);
       if (e.pre && e.post) r.push(`Before/after: ${e.pre.count} balls${e.pre.cue ? ' + cue' : ''} → ${e.post.count} balls${e.post.cue ? ' + cue' : ' and NO cue ball'}${e.diff && e.diff.missing && e.diff.missing.length ? '; numbers missing after: ' + e.diff.missing.join(', ') : ''}${e.pre.clumps || e.post.clumps ? '; some balls were touching, so numbers there are unsure' : ''}.`);
@@ -2232,7 +2233,7 @@
     // What the camera understood, so a wrong call is easy to spot.
     if (sug.ev) { const e = sug.ev, bits = [];
       if (e.kick) bits.push('kick (cue ball hit a cushion first)');
-      bits.push(e.first ? `FIRST HIT: ${clsName(e.first)}` : 'FIRST HIT: not seen');
+      bits.push(e.first && e.first.cls !== 'cluster' && (e.first.num || e.first.cls === 'eight') ? `FIRST HIT: ${clsName(e.first)}` : "FIRST HIT: can't tell · watch the slow-motion replay");
       const pm = e.pocketed.filter(b => b.cls !== 'cue');
       bits.push(pm.length ? pm.map(b => `${clsName(b)} → ${PNAME[b.pocket] || 'pocket'}${b.bank ? ' (bank)' : ''}`).join(', ') : 'nothing dropped');
       if (e.scratch) bits.push(`cue ball in the ${PNAME[e.cuePocket] || 'pocket'}`);
@@ -2274,7 +2275,7 @@
   $('refReplay').onclick = () => { if (!pop) return; touch2(); if (!$('refStop').hidden) $('refStop').click();
     const ev = pop.ev || {}, startPerf = ev.t && ev.ms != null ? ev.t - ev.ms : performance.now() - 8000;
     const secBack = Math.max(4, Math.min(60, (performance.now() - startPerf) / 1000 + 1.5));   // tracker time is performance.now(); the buffer keeps the clock of the moment
-    if (typeof replay === 'function') replay(Math.round(secBack)); else flash('No replay recorded yet'); };
+    if (typeof replay === 'function') { replay(Math.round(secBack)); setTimeout(() => { try { const v = $('replayVid'); if (v) v.playbackRate = .5; } catch {} }, 400); } else flash('No replay recorded yet'); };
   $('refFixB').onclick = e => { const b = e.target.closest('[data-fx]'); if (!b || !pop) return; touch2(); const f = b.dataset.fx; let what = '';
     if (f === 'turn') { passTable(false); what = 'turn over'; }
     else if (f === 'foul') { passTable(true); what = 'foul'; }
@@ -2991,5 +2992,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20261001000025"></script>
+<script src="build.js?v=20261001000431"></script>
 </body></html>
