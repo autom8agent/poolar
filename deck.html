@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20261001002116"><script src="stream.js?v=20261001002116"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="build" content="20261001002456"><script src="stream.js?v=20261001002456"></script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c1411"></head><body>
 <title>Shag vs Terry</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
 <style>
@@ -818,10 +818,10 @@
   </div>
 </div>
 
-<script src="hallday.js?v=20261001002116"></script>
-<script src="halls.js?v=20261001002116"></script>
-<script src="qrcode.js?v=20261001002116"></script>
-<script src="tablecv.js?v=20261001002116"></script>
+<script src="hallday.js?v=20261001002456"></script>
+<script src="halls.js?v=20261001002456"></script>
+<script src="qrcode.js?v=20261001002456"></script>
+<script src="tablecv.js?v=20261001002456"></script>
 <script>
 (() => {
   const KEY = 'poolar-deck-v2';
@@ -2273,6 +2273,7 @@
       if (e.pre && e.post) bits.push(`balls before ${e.pre.count}${e.pre.cue ? '+cue' : ''} → after ${e.post.count}${e.post.cue ? '+cue' : ' (NO cue ball)'}`);
       $('refS').textContent = sug.text + '\nSaw: ' + bits.join(' · '); $('refS').style.whiteSpace = 'pre-line'; }
     $('refPop').hidden = false; wakeBar(); try { logCall(sug); } catch {}
+    setTimeout(() => { try { saveShot(sug, 'pending', ''); } catch {} }, 1200);   // record every detected shot, answered or not
     const t0 = Date.now(), T = Math.max(60, refP.autoSec) * 1000;   // 1 minute to answer while the ref is being trained
     const tick = () => {
       if (!pop || pop !== sug) return;
@@ -2391,7 +2392,7 @@
     if (!tableMode) return;
     const ev = sug.ev || {}, nowP = performance.now(), nowW = Date.now();
     const toWall = p => nowW - (nowP - p), endW = ev.t ? toWall(ev.t) : nowW, startW = ev.t && ev.ms != null ? toWall(ev.t - ev.ms) : endW - 8000;
-    const id = `${HALL}-t${TNUM}-${new Date(startW).toISOString().replace(/[:.]/g, '-').slice(0, 19)}-${Math.random().toString(36).slice(2, 6)}`;
+    const id = sug.shotId || (sug.shotId = `${HALL}-t${TNUM}-${new Date(startW).toISOString().replace(/[:.]/g, '-').slice(0, 19)}-${Math.random().toString(36).slice(2, 6)}`);
     const R = 'https://poolar-relay.poolar-relay.workers.dev/shots/' + id;
     const meta = { id, at: startW, table: TNUM, hall: HALL, game, names: [side(0), side(1)], shooter: side(sug.shooter ?? st.shooter), call: { type: sug.type, title: sug.title, text: sug.text, conf: sug.conf },
       answer: choice, comment, fixed: !!sug.fixed, down: st.down.slice(), groups: st.groups, ev: { first: ev.first, pocketed: ev.pocketed, scratch: ev.scratch, rail: ev.rail, kick: ev.kick, noHit: ev.noHit, n0: ev.n0, n1: ev.n1, blocked: ev.blocked, maybe: ev.maybe, missed: ev.missed, ms: ev.ms },
@@ -2460,7 +2461,7 @@
     tick();
   }
   function progOff(){ cancelAnimationFrame(progRaf); progRaf = 0; }
-  const SEG = 15000, KEEP = 5;
+  const SEG = 15000, KEEP = (typeof HIFI !== 'undefined' && HIFI) ? 20 : 5;   // laptops keep 5 minutes, tablets 75 s
   let buf = [], bufRec = null, bufStream = null, bufTimer = 0, replaying = false;
   function newSeg(){
     let r;
@@ -2991,6 +2992,8 @@
       else if (c === 'undo') $('undo').click();
       else if (c === 'sync') { syncBalls(); return; }
       else if (c === 'check') { ballCheck(); return; }
+      else if (c === 'clip') { const sec = Math.max(10, Math.min(300, +m.sec || 90)); const fake = { type: 'manual', title: 'Clip saved on request', text: `Last ${sec} s of the table`, conf: 0, ev: { t: performance.now(), ms: sec * 1000 }, shooter: st.shooter };
+        if (typeof rotate === 'function' && bufRec) rotate(() => { fake.segs = buf.filter(g => g.t1 >= Date.now() - sec * 1000 - 2000); saveShot(fake, 'manual', m.note || ''); flash(`Saved the last ${sec} s (${fake.segs.length} clips)`); }); return; }
       else if (c === 'call' && m.title) { showPop({ type: m.type || 'turn', conf: .5, balls: Array.isArray(m.balls) ? m.balls : [], title: String(m.title).slice(0, 60), text: String(m.text || '').slice(0, 300),
           apply: () => {}, auto: '', noAuto: true, key: stateKey(), shooter: st.shooter, group: null, remote: true }); return; }
       else if (c === 'win0' || c === 'win1') $(c === 'win0' ? 'w0' : 'w1').click();
@@ -3026,5 +3029,5 @@
   if (qs.get('new')) { qs.delete('new'); try { history.replaceState(null, '', '?' + qs); } catch {} if (tableMode) openInvite(); else openSetup(); }
 })();
 </script>
-<script src="build.js?v=20261001002116"></script>
+<script src="build.js?v=20261001002456"></script>
 </body></html>
