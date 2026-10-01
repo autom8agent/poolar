@@ -395,7 +395,7 @@
       }
       const hasCue = this.tracks.some(tr => tr.cls === 'cue' && t - tr.seen < 1500);
       balls.forEach((b, i) => { if (!used.has(i) && !(b.cls === 'cue' && hasCue) && this.shot) this.shot.spawned = (this.shot.spawned || 0) + 1; });
-      balls.forEach((b, i) => { if (!used.has(i) && !(b.cls === 'cue' && hasCue)) this.tracks.push({ id: this.nid++, x: b.x, y: b.y, cls: b.cls, num: b.num, v: 0, t, seen: t, stillFrom: t, votes: { [b.cls + ':' + b.num]: 1 } }); });
+      balls.forEach((b, i) => { if (!used.has(i) && !(b.cls === 'cue' && hasCue)) this.tracks.push({ id: this.nid++, x: b.x, y: b.y, cls: b.cls, num: b.num, v: 0, t, seen: t, born: t, stillFrom: t, votes: { [b.cls + ':' + b.num]: 1 } }); });
       // forget tracks unseen for long (unless mid-shot, where "gone" means pocketed)
       this.tracks = this.tracks.filter(tr => t - tr.seen < (this.shot ? 20000 : 4000));
       const nearOcc = tr => occ.some(o => tr.x > o.x0 - R * 2 && tr.x < o.x1 + R * 2 && tr.y > o.y0 - R * 4 && tr.y < o.y1 + R * 4);
@@ -409,7 +409,8 @@
       const nNow = balls.filter(b => b.cls !== 'cluster').length + balls.filter(b => b.cls === 'cluster').reduce((a, b) => a + (b.n || 2), 0);
       (this.cnt = this.cnt || []).push([t, nNow]); while (this.cnt.length && t - this.cnt[0][0] > 3000) this.cnt.shift();
       const nBefore = () => Math.max(...this.cnt.filter(c => t - c[0] <= 2600).map(c => c[1]));
-      const wasResting = tr => tr.lastRest && t - tr.lastRest < 2500 && tr.restDur > 500;
+      // The cue ball must have sat still for over a second (longer after being placed by hand) before a shot can start.
+      const wasResting = tr => tr.lastRest && t - tr.lastRest < 2500 && tr.restDur > (tr.cls === 'cue' ? 1100 : 500);
       const displaced = tr => tr.restX != null && Math.hypot(tr.x - tr.restX, (tr.y - tr.restY) * .5) > R * 3;
       // ---- shot state machine ----
       if (!this.shot) {
@@ -420,13 +421,19 @@
         // A bridge hand at the strike is next to the ball for a frame or two only, so the shot still starts.
         if (handOnCue) { this.handUntil = t + 900; if (cue.v > this.o.move) { cue.carry = (cue.carry || 0) + 1; if (cue.carry >= 3) { cue.restX = null; cue.lastRest = 0; } } if (this.onHand) this.onHand({ t, x: cue.x, y: cue.y }); }
         else if (cue) cue.carry = 0;
-        if (cue && (cue.v > this.o.move || displaced(cue)) && wasResting(cue) && !(this.handUntil > t)) {
+        // A cue ball frozen on a rail is often invisible at rest (it merges with the rail), then appears already moving
+        // once struck: a brand-new cue track that is moving, with no other cue ball known, starts the shot too.
+        const freshCue = cue && t - (cue.born || 0) < 900 && !this.tracks.some(o => o !== cue && o.cls === 'cue' && t - o.seen < 2500);
+        if (cue && (cue.v > this.o.move || displaced(cue)) && (wasResting(cue) || freshCue) && !(this.handUntil > t)) {
           this.shot = { t0: t, cueFrom: { x: cue.x, y: cue.y }, first: null, n0: nBefore(), before: this.tracks.filter(tr => t - tr.seen < 1500 && tr.cls !== 'cluster' && tr.num).map(tr => tr.num), moved: new Set(), stillAtStart: new Set(this.tracks.filter(tr => tr !== cue && tr.v < this.o.move).map(tr => tr.id))   /* compressed video jitters: 'not moving' is enough */, cueId: cue.id };
           this.quietFrom = 0;
         }
         // Fallback when the cue ball isn't recognised as the cue ball (ivory under this light, a cap-up stripe…):
         // the first ball to move off a still table is the one that was struck, so treat it as the cue ball.
-        if (!this.shot && !(this.handUntil > t)) {
+        // Only when no cue ball is being tracked at all (never while the cue ball is known and sitting still:
+        // a shot starts when the CUE BALL moves, not when something else on the table does).
+        const cueKnown = this.tracks.some(tr => tr.cls === 'cue' && t - tr.seen < 2000);
+        if (!this.shot && !cueKnown && !(this.handUntil > t)) {
           const movers = this.tracks.filter(tr => tr.seen === t && (tr.v > this.o.move || displaced(tr)) && wasResting(tr));
           if (movers.length === 1 && !this.handNear(movers[0], occ)) {
             const m = movers[0];

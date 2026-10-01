@@ -23,6 +23,8 @@
     var a = document.activeElement; if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return false;
     if (document.querySelector('.sheet:not([hidden])')) return false;
     var pop = document.getElementById('refPop'); if (pop && !pop.hidden) return false;
+    // a reload restarts the rolling recording, so never update within 5 minutes of a shot: the footage stays rewatchable
+    if (window.poolarLastShot && Date.now() - window.poolarLastShot < 300000) return false;
     return Date.now() - lastInput > 20000;
   }
   setInterval(function () { if (shown && safeToReload()) location.reload(); }, 3000);
