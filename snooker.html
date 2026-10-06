@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="build" content="20261006020000">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0c1411">
+<title>Snooker Scoreboard</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Barlow:wght@500;600;700&display=swap">
+<style>
+  /* Snooker: a private scoreboard. Saved on this device only; nothing is posted to the hall map or relay. */
+  :root{
+    color-scheme:dark;
+    --bg:#0c1411; --felt:#1f6b3a; --felt-hi:#2a8a4b; --panel:#15201b; --line:#26372f;
+    --text:#eef4ef; --muted:#8ea69a; --chalk:#5aa9ff; --gold:#f2c14e;
+    --num:"Big Shoulders Display",Impact,"Arial Narrow",sans-serif;
+    --ui:"Barlow",system-ui,-apple-system,Roboto,sans-serif;
+  }
+  [hidden]{display:none!important}
+  *,*::before,*::after{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{background:var(--bg);color:var(--text);font-family:var(--ui);overflow:hidden;
+    -webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+  .app{height:100%;display:flex;flex-direction:column;gap:6px;padding:6px 16px;
+    padding-top:calc(8px + env(safe-area-inset-top,0px));padding-bottom:calc(8px + env(safe-area-inset-bottom,0px))}
+  header{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  h1{margin:0;font-family:var(--num);font-weight:900;font-size:20px;letter-spacing:.06em;text-transform:uppercase}
+  .priv{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .tools{display:flex;gap:6px}
+  .tools button{white-space:nowrap}
+  button{font-family:var(--ui);font-weight:700;font-size:14px;color:var(--text);background:var(--panel);
+    border:1px solid var(--line);border-radius:10px;padding:8px 10px;cursor:pointer;touch-action:manipulation}
+  button:active{filter:brightness(1.3)}
+  button:disabled{opacity:.35}
+  .players{flex:1;display:grid;grid-template-rows:1fr 1fr;gap:8px;min-height:0}
+  .p{border:2px solid var(--line);border-radius:14px;background:var(--panel);display:flex;flex-direction:column;min-height:0;overflow:hidden;transition:background .15s,border-color .15s}
+  .p.striker{background:radial-gradient(120% 100% at 50% 30%,var(--felt-hi),var(--felt));border-color:var(--gold)}
+  .bar{display:flex;align-items:center;gap:8px;padding:8px 12px}
+  .name{font-size:clamp(18px,5vw,24px);font-weight:700;margin-right:auto;background:none;border:0;padding:0;text-align:left}
+  .frames{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .p.striker .frames{color:var(--text)}
+  .tag{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:999px;background:var(--gold);color:#1d1606;visibility:hidden}
+  .p.striker .tag{visibility:visible}
+  .mid{flex:1;display:flex;align-items:center;justify-content:center;gap:14px;min-height:0;cursor:pointer}
+  .score{font-family:var(--num);font-weight:900;font-size:clamp(64px,20vh,140px);line-height:.85;font-variant-numeric:tabular-nums}
+  .brk{font-size:13px;font-weight:700;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;min-width:56px}
+  .p.striker .brk{color:var(--text)}
+  .balls{display:flex;justify-content:space-between;gap:6px;padding:4px 10px 10px}
+  .ball{flex:1;max-width:58px;aspect-ratio:1;border-radius:50%;padding:0;border:0;font-family:var(--num);font-weight:900;
+    font-size:clamp(20px,6vw,28px);box-shadow:inset -4px -5px 8px rgba(0,0,0,.35),0 2px 4px rgba(0,0,0,.4)}
+  .b1{background:#d9261c;color:#fff}.b2{background:#f4d900;color:#1d1606}.b3{background:#138a2e;color:#fff}
+  .b4{background:#7a3b16;color:#fff}.b5{background:#1240d8;color:#fff}.b6{background:#ef7fb6;color:#2a0d18}.b7{background:#111;color:#fff;border:1px solid #444}
+  .foot{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+  .p.flash{animation:flash .35s ease-out}
+  @keyframes flash{from{box-shadow:inset 0 0 0 999px rgba(242,193,78,.5)}to{box-shadow:inset 0 0 0 999px transparent}}
+  .sheet{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;z-index:5}
+  .sheet .card{background:var(--panel);border:1px solid var(--line);border-radius:16px 16px 0 0;width:100%;max-width:520px;padding:16px;
+    padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px}
+  .sheet h2{margin:0;font-size:18px}
+  .sheet p{margin:0;color:var(--muted);font-size:14px}
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .sheet input{font:600 16px var(--ui);padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text)}
+  .primary{background:var(--chalk);border-color:var(--chalk);color:#04162b}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div><h1>Snooker</h1><div class="priv">🔒 Private · this device only</div></div>
+    <div class="tools"><button id="undo">↶ Undo</button><button id="endFrame">End frame</button></div>
+  </header>
+  <div class="players" id="players"></div>
+  <div class="foot"><button id="swap">⇅ Switch striker</button><button id="foul">Foul</button><button id="reset">New match</button></div>
+</div>
+
+<div class="sheet" id="sheet" hidden><div class="card" id="card"></div></div>
+
+<script>
+(() => {
+  const KEY = 'poolar-snooker';
+  const $ = id => document.getElementById(id);
+  const fresh = () => ({ names: ['Terry', 'Tony'], score: [7, 53], frames: [0, 0], striker: 1, brk: 0, hist: [] });
+  let st;
+  try { st = JSON.parse(localStorage.getItem(KEY)) || fresh(); } catch { st = fresh(); }
+  if (!Array.isArray(st.hist)) st.hist = [];
+
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch {} }
+  // every change keeps a copy of the state before it, so Undo walks back one tap at a time
+  function act(fn) {
+    const { hist, ...snap } = st;
+    st.hist = hist.concat([JSON.stringify(snap)]).slice(-200);
+    fn(); save(); render();
+  }
+  function undo() {
+    const last = st.hist.pop(); if (!last) return;
+    st = { ...JSON.parse(last), hist: st.hist }; save(); render();
+  }
+
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  function render() {
+    $('players').innerHTML = [0, 1].map(i => `
+      <section class="p${st.striker === i ? ' striker' : ''}" id="p${i}">
+        <div class="bar"><button class="name" data-name="${i}">${esc(st.names[i])}</button><span class="tag">Striker</span><span class="frames">Frames ${st.frames[i]}</span></div>
+        <div class="mid" data-strike="${i}"><span class="brk">${st.striker === i && st.brk ? 'Break ' + st.brk : ''}</span><span class="score">${st.score[i]}</span><span class="brk"></span></div>
+        <div class="balls">${[1, 2, 3, 4, 5, 6, 7].map(n => `<button class="ball b${n}" data-p="${i}" data-n="${n}" aria-label="Add ${n} to ${esc(st.names[i])}">${n}</button>`).join('')}</div>
+      </section>`).join('');
+    $('undo').disabled = !st.hist.length;
+    document.title = `${st.names[0]} ${st.score[0]}–${st.score[1]} ${st.names[1]} · Snooker`;
+  }
+
+  function add(i, n) {
+    act(() => {
+      if (st.striker !== i) { st.striker = i; st.brk = 0; }
+      st.score[i] += n; st.brk += n;
+    });
+    const el = $('p' + i); if (el) { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
+  }
+
+  $('players').addEventListener('click', e => {
+    const b = e.target.closest('[data-n]');
+    if (b) return add(+b.dataset.p, +b.dataset.n);
+    const nm = e.target.closest('[data-name]');
+    if (nm) return rename(+nm.dataset.name);
+    const m = e.target.closest('[data-strike]');
+    if (m && st.striker !== +m.dataset.strike) act(() => { st.striker = +m.dataset.strike; st.brk = 0; });
+  });
+
+  function sheet(html, wire) { $('card').innerHTML = html; $('sheet').hidden = false; wire && wire(); }
+  function close() { $('sheet').hidden = true; }
+  $('sheet').addEventListener('click', e => { if (e.target === $('sheet') || e.target.closest('[data-close]')) close(); });
+
+  function rename(i) {
+    sheet(`<h2>Player name</h2><input id="nm" value="${esc(st.names[i])}" autocomplete="off" enterkeyhint="done"><button class="primary" id="nmOk">Save</button>`, () => {
+      const inp = $('nm'); inp.focus(); inp.select();
+      const ok = () => { const v = inp.value.trim(); if (v) act(() => { st.names[i] = v.slice(0, 24); }); close(); };
+      $('nmOk').onclick = ok; inp.onkeydown = e => { if (e.key === 'Enter') ok(); };
+    });
+  }
+
+  // a foul by the striker: 4–7 points to the opponent, who comes to the table
+  $('foul').onclick = () => {
+    const f = st.striker, o = 1 - f;
+    sheet(`<h2>Foul by ${esc(st.names[f])}</h2><p>Points go to ${esc(st.names[o])}.</p><div class="grid4">${[4, 5, 6, 7].map(n => `<button class="ball b${n}" data-foul="${n}">${n}</button>`).join('')}</div><button data-close>Cancel</button>`, () => {
+      $('card').querySelectorAll('[data-foul]').forEach(b => b.onclick = () => { act(() => { st.score[o] += +b.dataset.foul; st.striker = o; st.brk = 0; }); close(); });
+    });
+  };
+
+  $('swap').onclick = () => act(() => { st.striker = 1 - st.striker; st.brk = 0; });
+
+  $('endFrame').onclick = () => {
+    sheet(`<h2>Who won the frame?</h2><p>${esc(st.names[0])} ${st.score[0]} – ${st.score[1]} ${esc(st.names[1])}. Scores go back to 0.</p>
+      <div class="foot" style="grid-template-columns:1fr 1fr"><button class="primary" data-win="0">${esc(st.names[0])}</button><button class="primary" data-win="1">${esc(st.names[1])}</button></div><button data-close>Cancel</button>`, () => {
+      $('card').querySelectorAll('[data-win]').forEach(b => b.onclick = () => { act(() => { st.frames[+b.dataset.win]++; st.score = [0, 0]; st.brk = 0; st.striker = 1 - st.striker; }); close(); });
+    });
+  };
+
+  $('reset').onclick = () => {
+    sheet(`<h2>New match?</h2><p>Scores and frames go back to 0. Names stay.</p><button class="primary" id="rsOk">Start new match</button><button data-close>Cancel</button>`, () => {
+      $('rsOk').onclick = () => { act(() => { st.score = [0, 0]; st.frames = [0, 0]; st.brk = 0; st.striker = 0; }); close(); };
+    });
+  };
+
+  $('undo').onclick = undo;
+  render();
+})();
+</script>
+<script src="build.js?v=20261006020000"></script>
+</body>
+</html>
